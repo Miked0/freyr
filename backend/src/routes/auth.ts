@@ -95,12 +95,8 @@ export function createAuth({ db, secureCookies = false, sessionSecret }: AuthOpt
       }
 
       const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-      const isFirstUser = (await db.countUsers()) === 0;
       const userId = await db.createUser(username, passwordHash);
-
       await db.seedDefaultCategoriesForUser(userId);
-      // Data from before multi-user support belongs to whoever registers first.
-      if (isFirstUser) await db.adoptLegacyData(userId);
 
       const expiresAt = Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000;
       const token = `${userId}.${expiresAt}.${sign(userId, expiresAt, signingKey)}`;

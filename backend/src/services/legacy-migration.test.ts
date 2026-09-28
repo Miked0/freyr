@@ -25,7 +25,7 @@ INSERT INTO category_corrections (id, description, original_category, corrected_
 const url = () => `file:${path.join(mkdtempSync(path.join(tmpdir(), 'freyr-')), 'legacy.db').split(path.sep).join('/')}`;
 
 describe('legacy database migration', () => {
-  it('opens a pre-multi-user database and hands its data to the first user who registers', async () => {
+  it('opens a pre-multi-user database and starts every new account empty, even the first one', async () => {
     const dbUrl = url();
     const raw = createClient({ url: dbUrl });
     await raw.executeMultiple(LEGACY_SCHEMA);
@@ -41,13 +41,9 @@ describe('legacy database migration', () => {
     const cookie = String(first.headers['set-cookie']);
 
     const expenses = await request(app).get('/api/expenses').set('Cookie', cookie);
-    expect(expenses.body.map((e: any) => e.description)).toEqual(['UBER TRIP']);
+    expect(expenses.body).toEqual([]);
 
     const categories = (await request(app).get('/api/expenses/categories/all').set('Cookie', cookie)).body.map((c: any) => c.name);
     expect(categories.filter((n: string) => n === 'Alimentação')).toHaveLength(1);
-
-    const second = await request(app).post('/api/auth/register').send({ username: 'outro', password: 'senha-do-outro-1' });
-    const others = await request(app).get('/api/expenses').set('Cookie', String(second.headers['set-cookie']));
-    expect(others.body).toEqual([]);
   });
 });

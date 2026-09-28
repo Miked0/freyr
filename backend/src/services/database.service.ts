@@ -62,23 +62,13 @@ export class DatabaseService {
   }
 
   // Databases created before multi-user support have no user_id. Their rows stay ownerless
-  // (NULL) until the first user registers and adopts them; see adoptLegacyData.
+  // (NULL), so no account sees them; they are kept rather than deleted.
   private static async addLegacyOwnerColumns(client: Client) {
     for (const table of ['expenses', 'categories', 'category_corrections']) {
       const columns = await client.execute(`PRAGMA table_info(${table})`);
       if (columns.rows.some(row => row.name === 'user_id')) continue;
       await client.execute(`ALTER TABLE ${table} ADD COLUMN user_id TEXT`);
     }
-  }
-
-  async adoptLegacyData(userId: string): Promise<void> {
-    await this.client.batch([
-      { sql: 'UPDATE expenses SET user_id = ? WHERE user_id IS NULL', args: [userId] },
-      { sql: 'UPDATE category_corrections SET user_id = ? WHERE user_id IS NULL', args: [userId] },
-      { sql: 'UPDATE categories SET user_id = ? WHERE user_id IS NULL AND is_custom = 1', args: [userId] },
-      // Built-in categories are re-seeded per user, so ownerless defaults would only duplicate them.
-      'DELETE FROM categories WHERE user_id IS NULL',
-    ], 'write');
   }
 
   private static async migrateLegacyCorrections(client: Client) {
@@ -108,11 +98,6 @@ export class DatabaseService {
       { id, username, password_hash: passwordHash }
     );
     return id;
-  }
-
-  async countUsers(): Promise<number> {
-    const rows = await this.all<{ total: number }>('SELECT COUNT(*) AS total FROM users');
-    return Number(rows[0].total);
   }
 
   async getUserByUsername(username: string): Promise<UserRow | undefined> {
