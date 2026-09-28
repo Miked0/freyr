@@ -36,9 +36,11 @@ const upload = multer({
 export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDeps) {
   const router = Router();
 
+  // All routes require authentication - user is attached by requireSession middleware
   router.get('/', async (req, res) => {
     try {
-      res.json(await db.getAllExpenses());
+      const userId = req.user!.id;
+      res.json(await db.getAllExpensesForUser(userId));
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch expenses' });
     }
@@ -46,7 +48,8 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
 
   router.get('/categories/all', async (req, res) => {
     try {
-      res.json(await db.getAllCategories());
+      const userId = req.user!.id;
+      res.json(await db.getAllCategoriesForUser(userId));
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch categories' });
     }
@@ -54,7 +57,8 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
 
   router.get('/:id', async (req, res) => {
     try {
-      const expense = await db.getExpenseById(req.params.id);
+      const userId = req.user!.id;
+      const expense = await db.getExpenseByIdForUser(userId, req.params.id);
       if (!expense) {
         return res.status(404).json({ error: 'Expense not found' });
       }
@@ -81,12 +85,13 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
     }
 
     try {
+      const userId = req.user!.id;
       const rawExpenses = await fileProcessor.processFile(file.buffer, file.originalname);
-      const categoryNames = (await db.getAllCategories()).map(cat => cat.name);
+      const categoryNames = (await db.getAllCategoriesForUser(userId)).map(cat => cat.name);
 
       const expenses = await mapWithConcurrency(rawExpenses, AI_CONCURRENCY, async rawExpense => {
         const category =
-          (await db.findCorrectedCategory(rawExpense.description)) ??
+          (await db.findCorrectedCategoryForUser(userId, rawExpense.description)) ??
           (await ai.categorizeExpense(rawExpense.description, categoryNames));
         return {
           id: randomUUID(),
@@ -100,7 +105,7 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
       });
 
       for (const expense of expenses) {
-        await db.createExpense(expense);
+        await db.createExpenseForUser(userId, expense);
       }
 
       res.json({
@@ -116,6 +121,7 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
 
   router.put('/:id', async (req, res) => {
     try {
+      const userId = req.user!.id;
       const { category, description, amount } = req.body ?? {};
       const updates: { category?: string; description?: string; amount?: number } = {};
 
@@ -141,18 +147,18 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
         return res.status(400).json({ error: 'Nothing to update' });
       }
 
-      const currentExpense = await db.getExpenseById(req.params.id);
+      const currentExpense = await db.getExpenseByIdForUser(userId, req.params.id);
       if (!currentExpense) {
         return res.status(404).json({ error: 'Expense not found' });
       }
 
-      const success = await db.updateExpense(req.params.id, updates);
+      const success = await db.updateExpenseForUser(userId, req.params.id, updates);
       if (!success) {
         return res.status(500).json({ error: 'Failed to update expense' });
       }
 
       if (category !== undefined && currentExpense.category !== category) {
-        await db.addCorrection({
+        await db.addCorrectionForUser(userId, {
           id: randomUUID(),
           description: currentExpense.description,
           original_category: currentExpense.category,
@@ -168,9 +174,14 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
 
   router.delete('/:id', async (req, res) => {
     try {
-      const success = await db.deleteExpense(req.params.id);
-      if (!success) {
+      const userId = req.user!.id;
+      const expense = await db.getExpenseByIdForUser(userId, req.params.id);
+      if (!expense) {
         return res.status(404).json({ error: 'Expense not found' });
+      }
+      const success = await db.deleteExpenseForUser(userId, req.params.id);
+      if (!success) {
+        return res.status(500).json({ error: 'Failed to delete expense' });
       }
       res.json({ message: 'Expense deleted successfully' });
     } catch (error) {

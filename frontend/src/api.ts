@@ -6,6 +6,13 @@ export const API_URL = import.meta.env.VITE_API_URL ?? '';
 export interface Category {
   id: string;
   name: string;
+  is_custom: number;
+  parent_id: string | null;
+}
+
+export interface User {
+  id: string;
+  username: string;
 }
 
 export interface UploadResponse {
@@ -19,8 +26,8 @@ export interface Health {
 }
 
 export interface Session {
-  required: boolean;
   authenticated: boolean;
+  user: User | null;
 }
 
 export type ExpensePatch = Partial<Pick<Expense, 'description' | 'amount' | 'category'>>;
@@ -59,7 +66,8 @@ const json = (method: string, data: unknown): RequestInit => ({
 
 export const api = {
   session: () => request<Session>('/api/auth/session'),
-  login: (password: string) => request<{ authenticated: boolean }>('/api/auth/login', json('POST', { password })),
+  login: (username: string, password: string) => request<{ authenticated: boolean; user: User }>('/api/auth/login', json('POST', { username, password })),
+  register: (username: string, password: string) => request<{ authenticated: boolean; user: User }>('/api/auth/register', json('POST', { username, password })),
   logout: () => request<{ authenticated: boolean }>('/api/auth/logout', { method: 'POST' }),
   listExpenses: () => request<Expense[]>('/api/expenses'),
   listCategories: () => request<Category[]>('/api/expenses/categories/all'),

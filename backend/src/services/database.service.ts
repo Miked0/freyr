@@ -1,13 +1,51 @@
 import { createClient, type Client, type InArgs, type ResultSet } from '@libsql/client';
-import { SCHEMA } from './schema';
+import { SCHEMA, INDEXES } from './schema';
+import { randomUUID } from 'crypto';
 
 export interface DatabaseConfig {
   url: string;
   authToken?: string;
 }
 
-function toObjects(rs: ResultSet): any[] {
-  return rs.rows.map(row => Object.fromEntries(rs.columns.map((column, i) => [column, row[i]])));
+interface UserRow {
+  id: string;
+  username: string;
+  password_hash: string;
+  created_at: string;
+}
+
+interface ExpenseRow {
+  id: string;
+  user_id: string;
+  date: string;
+  amount: number;
+  description: string;
+  category: string;
+  raw_description: string | null;
+  source_file: string | null;
+  created_at: string;
+}
+
+interface CategoryRow {
+  id: string;
+  user_id: string;
+  name: string;
+  is_custom: number;
+  parent_id: string | null;
+  created_at: string;
+}
+
+interface CorrectionRow {
+  id: string;
+  user_id: string;
+  description: string;
+  original_category: string;
+  corrected_category: string;
+  corrected_at: string;
+}
+
+function toObjects<T>(rs: ResultSet): T[] {
+  return rs.rows.map(row => Object.fromEntries(rs.columns.map((column, i) => [column, row[i]]))) as T[];
 }
 
 export class DatabaseService {
@@ -17,45 +55,131 @@ export class DatabaseService {
     const client = createClient({ url: config.url, authToken: config.authToken });
     await client.execute('PRAGMA foreign_keys = ON');
     await client.executeMultiple(SCHEMA);
+    await DatabaseService.addLegacyOwnerColumns(client);
+    await client.executeMultiple(INDEXES);
     await DatabaseService.migrateLegacyCorrections(client);
     return new DatabaseService(client);
   }
 
-  // Older databases stored corrections keyed by expense (with a foreign key), which broke
-  // deletes and lost the learning once the expense was gone.
+  // Databases created before multi-user support have no user_id. Their rows stay ownerless
+  // (NULL) until the first user registers and adopts them; see adoptLegacyData.
+  private static async addLegacyOwnerColumns(client: Client) {
+    for (const table of ['expenses', 'categories', 'category_corrections']) {
+      const columns = await client.execute(`PRAGMA table_info(${table})`);
+      if (columns.rows.some(row => row.name === 'user_id')) continue;
+      await client.execute(`ALTER TABLE ${table} ADD COLUMN user_id TEXT`);
+    }
+  }
+
+  async adoptLegacyData(userId: string): Promise<void> {
+    await this.client.batch([
+      { sql: 'UPDATE expenses SET user_id = ? WHERE user_id IS NULL', args: [userId] },
+      { sql: 'UPDATE category_corrections SET user_id = ? WHERE user_id IS NULL', args: [userId] },
+      { sql: 'UPDATE categories SET user_id = ? WHERE user_id IS NULL AND is_custom = 1', args: [userId] },
+      // Built-in categories are re-seeded per user, so ownerless defaults would only duplicate them.
+      'DELETE FROM categories WHERE user_id IS NULL',
+    ], 'write');
+  }
+
   private static async migrateLegacyCorrections(client: Client) {
     const legacy = await client.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'corrections'");
     if (legacy.rows.length === 0) return;
     await client.batch([
-      `INSERT OR IGNORE INTO category_corrections (id, description, original_category, corrected_category, corrected_at)
-       SELECT c.id, e.description, c.original_category, c.corrected_category, c.corrected_at
+      `INSERT OR IGNORE INTO category_corrections (id, user_id, description, original_category, corrected_category, corrected_at)
+       SELECT c.id, e.user_id, e.description, c.original_category, c.corrected_category, c.corrected_at
        FROM corrections c JOIN expenses e ON e.id = c.expense_id`,
       'DROP TABLE corrections',
     ], 'write');
   }
 
-  private async all(sql: string, args: InArgs = []): Promise<any[]> {
-    return toObjects(await this.client.execute({ sql, args }));
+  private async all<T>(sql: string, args: InArgs = []): Promise<T[]> {
+    return toObjects<T>(await this.client.execute({ sql, args }));
   }
 
   private async run(sql: string, args: InArgs = []): Promise<number> {
     return (await this.client.execute({ sql, args })).rowsAffected;
   }
 
-  async getAllExpenses(): Promise<any[]> {
-    return this.all('SELECT * FROM expenses ORDER BY date DESC');
-  }
-
-  async getExpenseById(id: string): Promise<any> {
-    return (await this.all('SELECT * FROM expenses WHERE id = ?', [id]))[0];
-  }
-
-  async createExpense(expense: any): Promise<string> {
+  // User methods
+  async createUser(username: string, passwordHash: string): Promise<string> {
+    const id = randomUUID();
     await this.run(
-      `INSERT INTO expenses (id, date, amount, description, category, raw_description, source_file)
-       VALUES (@id, @date, @amount, @description, @category, @raw_description, @source_file)`,
+      `INSERT INTO users (id, username, password_hash) VALUES (@id, @username, @password_hash)`,
+      { id, username, password_hash: passwordHash }
+    );
+    return id;
+  }
+
+  async countUsers(): Promise<number> {
+    const rows = await this.all<{ total: number }>('SELECT COUNT(*) AS total FROM users');
+    return Number(rows[0].total);
+  }
+
+  async getUserByUsername(username: string): Promise<UserRow | undefined> {
+    const rows = await this.all<UserRow>('SELECT * FROM users WHERE username = ?', [username]);
+    return rows[0];
+  }
+
+  async getUserById(id: string): Promise<UserRow | undefined> {
+    const rows = await this.all<UserRow>('SELECT * FROM users WHERE id = ?', [id]);
+    return rows[0];
+  }
+
+  // Category methods with user_id
+  async getAllCategoriesForUser(userId: string): Promise<CategoryRow[]> {
+    return this.all<CategoryRow>('SELECT * FROM categories WHERE user_id = ? ORDER BY name', [userId]);
+  }
+
+  async seedDefaultCategoriesForUser(userId: string): Promise<void> {
+    const defaultCategories = [
+      'Alimentação', 'Transporte', 'Moradia', 'Saúde', 'Lazer',
+      'Compras', 'Contas', 'Educação', 'Salário', 'Investimentos',
+      'Transferências', 'Outros'
+    ];
+
+    for (const name of defaultCategories) {
+      const id = randomUUID();
+      await this.run(
+        `INSERT INTO categories (id, user_id, name, is_custom) VALUES (@id, @user_id, @name, 0)`,
+        { id, user_id: userId, name }
+      );
+    }
+  }
+
+  async createCategory(userId: string, name: string, isCustom = true, parentId?: string): Promise<string> {
+    const id = randomUUID();
+    await this.run(
+      `INSERT INTO categories (id, user_id, name, is_custom, parent_id) VALUES (@id, @user_id, @name, @is_custom, @parent_id)`,
+      { id, user_id: userId, name, is_custom: isCustom ? 1 : 0, parent_id: parentId ?? null }
+    );
+    return id;
+  }
+
+  // Expense methods with user_id
+  async getAllExpensesForUser(userId: string): Promise<ExpenseRow[]> {
+    return this.all<ExpenseRow>('SELECT * FROM expenses WHERE user_id = ? ORDER BY date DESC', [userId]);
+  }
+
+  async getExpenseByIdForUser(userId: string, id: string): Promise<ExpenseRow | undefined> {
+    const rows = await this.all<ExpenseRow>('SELECT * FROM expenses WHERE user_id = ? AND id = ?', [userId, id]);
+    return rows[0];
+  }
+
+  async createExpenseForUser(userId: string, expense: {
+    id: string;
+    date: string;
+    amount: number;
+    description: string;
+    category: string;
+    rawDescription?: string;
+    sourceFile?: string;
+  }): Promise<string> {
+    await this.run(
+      `INSERT INTO expenses (id, user_id, date, amount, description, category, raw_description, source_file)
+       VALUES (@id, @user_id, @date, @amount, @description, @category, @raw_description, @source_file)`,
       {
         id: expense.id,
+        user_id: userId,
         date: expense.date,
         amount: expense.amount,
         description: expense.description,
@@ -67,36 +191,33 @@ export class DatabaseService {
     return expense.id;
   }
 
-  async updateExpense(id: string, updates: Record<string, string | number>): Promise<boolean> {
+  async updateExpenseForUser(userId: string, id: string, updates: Record<string, string | number>): Promise<boolean> {
     const keys = Object.keys(updates);
     if (keys.length === 0) return false;
     const setClause = keys.map(key => `${key} = @${key}`).join(', ');
-    return (await this.run(`UPDATE expenses SET ${setClause} WHERE id = @id`, { ...updates, id })) > 0;
+    return (await this.run(`UPDATE expenses SET ${setClause} WHERE user_id = @user_id AND id = @id`, { ...updates, user_id: userId, id })) > 0;
   }
 
-  async deleteExpense(id: string): Promise<boolean> {
-    return (await this.run('DELETE FROM expenses WHERE id = ?', [id])) > 0;
+  async deleteExpenseForUser(userId: string, id: string): Promise<boolean> {
+    return (await this.run('DELETE FROM expenses WHERE user_id = ? AND id = ?', [userId, id])) > 0;
   }
 
-  async getAllCategories(): Promise<any[]> {
-    return this.all('SELECT * FROM categories ORDER BY name');
-  }
-
-  async addCorrection(correction: { id: string; description: string; original_category: string; corrected_category: string }): Promise<void> {
+  // Correction methods with user_id
+  async addCorrectionForUser(userId: string, correction: { id: string; description: string; original_category: string; corrected_category: string }): Promise<void> {
     await this.run(
-      `INSERT INTO category_corrections (id, description, original_category, corrected_category)
-       VALUES (@id, @description, @original_category, @corrected_category)`,
-      correction
+      `INSERT INTO category_corrections (id, user_id, description, original_category, corrected_category)
+       VALUES (@id, @user_id, @description, @original_category, @corrected_category)`,
+      { ...correction, user_id: userId }
     );
   }
 
-  async findCorrectedCategory(description: string): Promise<string | undefined> {
-    const rows = await this.all(
+  async findCorrectedCategoryForUser(userId: string, description: string): Promise<string | undefined> {
+    const rows = await this.all<CorrectionRow>(
       `SELECT corrected_category FROM category_corrections
-       WHERE description = ?
+       WHERE user_id = ? AND description = ?
        ORDER BY corrected_at DESC, rowid DESC
        LIMIT 1`,
-      [description]
+      [userId, description]
     );
     return rows[0]?.corrected_category;
   }

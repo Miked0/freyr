@@ -12,7 +12,9 @@ const PORT = process.env.PORT || 5000;
   const app = createApp({
     db: await DatabaseService.connect(databaseConfigFromEnv()),
     ai: new AIService(),
-    password: process.env.APP_PASSWORD,
+    secureCookies: false,
+    sessionSecret: process.env.SESSION_SECRET,
+    logRequests: true,
   });
 
   app.listen(PORT, () => {

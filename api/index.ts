@@ -4,15 +4,15 @@ import { databaseConfigFromEnv } from '../backend/src/config';
 import { DatabaseService } from '../backend/src/services/database.service';
 import { AIService } from '../backend/src/services/ai.service';
 
-// Fail closed: a deployed instance without a password would expose financial data.
 const ready = (async () => {
-  if (!process.env.APP_PASSWORD) throw new Error('Defina a variável APP_PASSWORD na Vercel.');
+  // Fail closed: without a secret the session cookies would be signed with a publicly known key.
+  if (!process.env.SESSION_SECRET) throw new Error('Defina a variável SESSION_SECRET na Vercel.');
   if (!process.env.TURSO_DATABASE_URL) throw new Error('Defina a variável TURSO_DATABASE_URL na Vercel.');
   return createApp({
     db: await DatabaseService.connect(databaseConfigFromEnv()),
     ai: new AIService(),
-    password: process.env.APP_PASSWORD,
     secureCookies: true,
+    sessionSecret: process.env.SESSION_SECRET,
     logRequests: false,
   });
 })();
