@@ -83,28 +83,26 @@ export default function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
               </button>
             </div>
 
-            {isRegister && (
-              <div className="mb-4">
-                <label htmlFor="username" className="block text-sm text-on-ink-muted mb-2">
-                  Nome de usuário
-                </label>
-                <div className="relative">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-on-ink-muted pointer-events-none" />
-                  <input
-                    id="username"
-                    type="text"
-                    autoComplete="username"
-                    autoFocus
-                    value={username}
-                    onChange={e => setUsername(e.target.value)}
-                    className="w-full rounded-full bg-transparent border border-on-ink-hairline pl-11 pr-5 py-3.5 text-bg placeholder:text-on-ink-muted outline-none focus:border-accent-light"
-                    placeholder="Escolha um nome de usuário"
-                    required
-                    disabled={submitting}
-                  />
-                </div>
+            <div className="mb-4">
+              <label htmlFor="username" className="block text-sm text-on-ink-muted mb-2">
+                Nome de usuário
+              </label>
+              <div className="relative">
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-on-ink-muted pointer-events-none" />
+                <input
+                  id="username"
+                  type="text"
+                  autoComplete="username"
+                  autoFocus
+                  value={username}
+                  onChange={e => setUsername(e.target.value)}
+                  className="w-full rounded-full bg-transparent border border-on-ink-hairline pl-11 pr-5 py-3.5 text-bg placeholder:text-on-ink-muted outline-none focus:border-accent-light"
+                  placeholder={isRegister ? 'Escolha um nome de usuário' : 'Seu nome de usuário'}
+                  required
+                  disabled={submitting}
+                />
               </div>
-            )}
+            </div>
 
             <div className="mb-4">
               <label htmlFor="password" className="block text-sm text-on-ink-muted mb-2">
@@ -116,8 +114,7 @@ export default function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   autoComplete={isRegister ? 'new-password' : 'current-password'}
-                  autoFocus={!isRegister}
-                  value={password}
+                                    value={password}
                   onChange={e => setPassword(e.target.value)}
                   className="w-full rounded-full bg-transparent border border-on-ink-hairline pl-11 pr-14 py-3.5 text-bg placeholder:text-on-ink-muted outline-none focus:border-accent-light"
                   placeholder={isRegister ? 'Mínimo 8 caracteres' : 'Digite a senha'}
