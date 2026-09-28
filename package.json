@@ -1,0 +1,17 @@
+{
+  "name": "freyr",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev:backend": "npm run dev -w backend",
+    "dev:frontend": "npm run dev -w frontend",
+    "build": "npm run build -w frontend",
+    "test": "npm test -w backend && npm test -w frontend"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
