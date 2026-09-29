@@ -160,7 +160,7 @@ export default function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
               </p>
             )}
 
-            <PillButton type="submit" tone="light" className="w-full" disabled={!username || !password || (isRegister && !confirmPassword) || submitting} icon={submitting ? <Spinner size="sm" /> : undefined}>
+            <PillButton type="submit" tone="light" disabled={!username || !password || (isRegister && !confirmPassword) || submitting} icon={submitting ? <Spinner size="sm" /> : undefined}>
               {isRegister ? 'Criar conta' : 'Entrar'}
             </PillButton>
           </form>
