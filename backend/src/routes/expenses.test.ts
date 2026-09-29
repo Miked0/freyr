@@ -10,13 +10,28 @@ const csv = (rows: string[]) => Buffer.from(['date,amount,description', ...rows]
 
 describe('/api/expenses', () => {
   let app: ReturnType<typeof createApp>;
+  let cookie: string;
 
   beforeEach(async () => {
-    app = createApp({ db: await DatabaseService.connect({ url: ':memory:' }), ai: offlineAI(), logRequests: false });
+    app = createApp({ db: await DatabaseService.connect({ url: ':memory:' }), ai: offlineAI(), secureCookies: false, logRequests: false });
+
+    // Register and login a test user
+    await request(app)
+      .post('/api/auth/register')
+      .send({ username: 'testuser', password: 'testpass123' });
+
+    const loginRes = await request(app)
+      .post('/api/auth/login')
+      .send({ username: 'testuser', password: 'testpass123' });
+
+    cookie = loginRes.headers['set-cookie'] as string;
   });
 
   const upload = (rows: string[]) =>
-    request(app).post('/api/expenses/upload').attach('statement', csv(rows), 'extrato.csv');
+    request(app).post('/api/expenses/upload').set('Cookie', cookie).attach('statement', csv(rows), 'extrato.csv');
+
+  const getExpenses = () =>
+    request(app).get('/api/expenses').set('Cookie', cookie);
 
   it('uploads a CSV statement and lists the categorized expenses', async () => {
     const res = await upload(['15/03/2026,-42.50,UBER TRIP', '16/03/2026,-120.00,Mercado Extra']);
@@ -24,7 +39,7 @@ describe('/api/expenses', () => {
     expect(res.status).toBe(200);
     expect(res.body.expenses).toHaveLength(2);
 
-    const list = await request(app).get('/api/expenses');
+    const list = await getExpenses();
     expect(list.body.map((e: any) => [e.date, e.amount, e.description, e.category])).toEqual([
       ['2026-03-16', 120, 'Mercado Extra', 'Alimentação'],
       ['2026-03-15', 42.5, 'UBER TRIP', 'Transporte'],
@@ -35,6 +50,7 @@ describe('/api/expenses', () => {
     const first = await upload(['15/03/2026,-42.50,UBER TRIP']);
     const put = await request(app)
       .put(`/api/expenses/${first.body.expenses[0].id}`)
+      .set('Cookie', cookie)
       .send({ category: 'Lazer' });
     expect(put.status).toBe(200);
 
@@ -46,9 +62,9 @@ describe('/api/expenses', () => {
   it('keeps a learned correction after the corrected expense is deleted', async () => {
     const first = await upload(['15/03/2026,-42.50,UBER TRIP']);
     const id = first.body.expenses[0].id;
-    await request(app).put(`/api/expenses/${id}`).send({ category: 'Lazer' });
+    await request(app).put(`/api/expenses/${id}`).set('Cookie', cookie).send({ category: 'Lazer' });
 
-    expect((await request(app).delete(`/api/expenses/${id}`)).status).toBe(200);
+    expect((await request(app).delete(`/api/expenses/${id}`).set('Cookie', cookie)).status).toBe(200);
 
     const second = await upload(['20/03/2026,-30.00,UBER TRIP']);
     expect(second.body.expenses[0].category).toBe('Lazer');
@@ -70,17 +86,17 @@ describe('/api/expenses', () => {
     const { body } = await upload(['15/03/2026,-10.00,UBER TRIP']);
     const id = body.expenses[0].id;
 
-    const put = await request(app).put(`/api/expenses/${id}`).send({ description: 'Uber aeroporto', amount: 58.4 });
+    const put = await request(app).put(`/api/expenses/${id}`).set('Cookie', cookie).send({ description: 'Uber aeroporto', amount: 58.4 });
     expect(put.status).toBe(200);
 
-    const { body: expense } = await request(app).get(`/api/expenses/${id}`);
+    const { body: expense } = await request(app).get(`/api/expenses/${id}`).set('Cookie', cookie);
     expect([expense.description, expense.amount, expense.category]).toEqual(['Uber aeroporto', 58.4, 'Transporte']);
   });
 
   it('rejects an edit with an invalid amount', async () => {
     const { body } = await upload(['15/03/2026,-10.00,UBER TRIP']);
 
-    const put = await request(app).put(`/api/expenses/${body.expenses[0].id}`).send({ amount: -5 });
+    const put = await request(app).put(`/api/expenses/${body.expenses[0].id}`).set('Cookie', cookie).send({ amount: -5 });
 
     expect(put.status).toBe(400);
   });
@@ -95,13 +111,27 @@ describe('/api/expenses', () => {
     const { body } = await upload(['15/03/2026,-10.00,UBER TRIP']);
     const id = body.expenses[0].id;
 
-    expect((await request(app).delete(`/api/expenses/${id}`)).status).toBe(200);
-    expect((await request(app).get(`/api/expenses/${id}`)).status).toBe(404);
+    expect((await request(app).delete(`/api/expenses/${id}`).set('Cookie', cookie)).status).toBe(200);
+    expect((await request(app).get(`/api/expenses/${id}`).set('Cookie', cookie)).status).toBe(404);
+  });
+
+  it("hides another user's expense as not found on read, update and delete", async () => {
+    const { body } = await upload(['15/03/2026,-42.50,UBER TRIP']);
+    const id = body.expenses[0].id;
+
+    await request(app).post('/api/auth/register').send({ username: 'outro', password: 'outra-senha-123' });
+    const other = String((await request(app).post('/api/auth/login').send({ username: 'outro', password: 'outra-senha-123' })).headers['set-cookie']);
+
+    expect((await request(app).get(`/api/expenses/${id}`).set('Cookie', other)).status).toBe(404);
+    expect((await request(app).put(`/api/expenses/${id}`).set('Cookie', other).send({ category: 'Lazer' })).status).toBe(404);
+    expect((await request(app).delete(`/api/expenses/${id}`).set('Cookie', other)).status).toBe(404);
+    expect((await request(app).get(`/api/expenses/${id}`).set('Cookie', cookie)).status).toBe(200);
   });
 
   it('rejects files that are not PDF or CSV', async () => {
     const res = await request(app)
       .post('/api/expenses/upload')
+      .set('Cookie', cookie)
       .attach('statement', Buffer.from('x'), 'extrato.txt');
 
     expect(res.status).toBe(400);

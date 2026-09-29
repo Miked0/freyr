@@ -10,15 +10,15 @@ import { FileProcessorService } from './services/file.processor.service';
 export interface AppDeps {
   db: DatabaseService;
   ai: AIService;
-  password?: string;
   secureCookies?: boolean;
+  sessionSecret?: string;
   fileProcessor?: FileProcessorService;
   logRequests?: boolean;
 }
 
-export function createApp({ db, ai, password, secureCookies, fileProcessor = new FileProcessorService(), logRequests = true }: AppDeps) {
+export function createApp({ db, ai, secureCookies, sessionSecret, fileProcessor = new FileProcessorService(), logRequests = true }: AppDeps) {
   const app = express();
-  const auth = createAuth({ password, secureCookies });
+  const auth = createAuth({ db, secureCookies, sessionSecret });
 
   app.use(helmet());
   if (logRequests) app.use(morgan('dev'));
