@@ -2,11 +2,44 @@ import { useMemo } from 'react';
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import { useExpenses } from '@/store/expenses';
 import { formatCurrency, totalsByCategory } from '@/lib/finance';
-import { categoryColor, pieSlices, type PieSlice } from '@/lib/categoryColors';
+import { categoryColor, pieSlices, readableTextOn, type PieSlice } from '@/lib/categoryColors';
 
 const BACKGROUND = '#F7F6F3';
 
 const formatPercent = (share: number) => `${(share * 100).toFixed(1).replace('.', ',')}%`;
+
+// Below this share a slice is too thin for its label; the tooltip and the list still carry it.
+const MIN_LABELLED_SHARE = 0.05;
+const RADIAN = Math.PI / 180;
+
+interface SliceLabelProps {
+  cx: number;
+  cy: number;
+  midAngle: number;
+  innerRadius: number;
+  outerRadius: number;
+  payload: PieSlice;
+}
+
+const SliceLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, payload }: SliceLabelProps) => {
+  if (payload.share < MIN_LABELLED_SHARE) return null;
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.62;
+  return (
+    <text
+      x={cx + radius * Math.cos(-midAngle * RADIAN)}
+      y={cy + radius * Math.sin(-midAngle * RADIAN)}
+      fill={readableTextOn(payload.color)}
+      textAnchor="middle"
+      dominantBaseline="central"
+      className="num"
+      fontSize={14}
+      fontWeight={600}
+      pointerEvents="none"
+    >
+      {formatPercent(payload.share)}
+    </text>
+  );
+};
 
 const SliceTooltip = ({ active, payload }: { active?: boolean; payload?: { payload?: PieSlice }[] }) => {
   const slice = payload?.[0]?.payload;
@@ -34,13 +67,13 @@ export default function CategoryBreakdown() {
   return (
     <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] items-start">
       <div
-        className="h-[280px] sm:h-[320px] lg:sticky lg:top-24"
+        className="h-[280px] sm:h-[320px]"
         role="img"
         aria-label={`Gráfico de pizza da participação de cada categoria: ${slices.map(s => `${s.category} ${formatPercent(s.share)}`).join(', ')}`}
       >
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
-            <Pie data={slices} dataKey="total" nameKey="category" outerRadius="92%" startAngle={90} endAngle={-270} stroke={BACKGROUND} strokeWidth={2} isAnimationActive={false}>
+            <Pie data={slices} dataKey="total" nameKey="category" outerRadius="92%" startAngle={90} endAngle={-270} stroke={BACKGROUND} strokeWidth={2} isAnimationActive={false} labelLine={false} label={props => <SliceLabel {...(props as unknown as SliceLabelProps)} />}>
               {slices.map(slice => (
                 <Cell key={slice.category} fill={slice.color} />
               ))}
