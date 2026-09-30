@@ -36,18 +36,7 @@ function App() {
     if (canSeeData) load();
   }, [canSeeData, load]);
 
-  if (session.state === 'checking') {
-    return <LoadingFallback />;
-  }
-
-  if (session.state === 'required') {
-    return (
-      <Suspense fallback={<LoadingFallback />}>
-        <LoginScreenV2 onSuccess={session.refresh} />
-      </Suspense>
-    );
-  }
-
+  // Hooks must run on every render, so they stay above the early returns below.
   // Prepare category slices for DonutChart
   const categories = useMemo(() => {
     const acc: Record<string, number> = {};
@@ -68,6 +57,18 @@ function App() {
       }))
       .sort((a, b) => b.total - a.total);
   }, [categories, expenses]);
+
+  if (session.state === 'checking') {
+    return <LoadingFallback />;
+  }
+
+  if (session.state === 'required') {
+    return (
+      <Suspense fallback={<LoadingFallback />}>
+        <LoginScreenV2 onSuccess={session.refresh} />
+      </Suspense>
+    );
+  }
 
   return (
     <>
