@@ -52,7 +52,7 @@ export default function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
   };
 
   return (
-    <main className="on-ink bg-ink text-bg min-h-screen flex flex-col">
+    <main className="on-text bg-text text-surface min-h-screen flex flex-col">
       <div className="max-w-[1240px] w-full mx-auto px-5 sm:px-10 py-6">
         <Logo className="text-[34px]" />
       </div>
@@ -67,7 +67,7 @@ export default function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
                 type="button"
                 onClick={toggleMode}
                 className={`flex-1 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                  !isRegister ? 'bg-accent-light text-ink' : 'bg-transparent text-on-ink-muted hover:bg-on-ink-hairline'
+                  !isRegister ? 'bg-brand-primary-light text-text' : 'bg-transparent text-on-text-muted hover:bg-on-text-line'
                 }`}
               >
                 Entrar
@@ -76,7 +76,7 @@ export default function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
                 type="button"
                 onClick={toggleMode}
                 className={`flex-1 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                  isRegister ? 'bg-accent-light text-ink' : 'bg-transparent text-on-ink-muted hover:bg-on-ink-hairline'
+                  isRegister ? 'bg-brand-primary-light text-text' : 'bg-transparent text-on-text-muted hover:bg-on-text-line'
                 }`}
               >
                 Cadastrar
@@ -85,11 +85,11 @@ export default function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
 
             {isRegister && (
               <div className="mb-4">
-                <label htmlFor="username" className="block text-sm text-on-ink-muted mb-2">
+                <label htmlFor="username" className="block text-sm text-on-text-muted mb-2">
                   Nome de usuário
                 </label>
                 <div className="relative">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-on-ink-muted pointer-events-none" />
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-on-text-muted pointer-events-none" />
                   <input
                     id="username"
                     type="text"
@@ -97,7 +97,7 @@ export default function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
                     autoFocus
                     value={username}
                     onChange={e => setUsername(e.target.value)}
-                    className="w-full rounded-full bg-transparent border border-on-ink-hairline pl-11 pr-5 py-3.5 text-bg placeholder:text-on-ink-muted outline-none focus:border-accent-light"
+                    className="w-full rounded-full bg-transparent border border-on-text-line pl-11 pr-5 py-3.5 text-surface placeholder:text-on-text-muted outline-none focus:border-brand-primary-light"
                     placeholder="Escolha um nome de usuário"
                     required
                     disabled={submitting}
@@ -107,11 +107,11 @@ export default function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
             )}
 
             <div className="mb-4">
-              <label htmlFor="password" className="block text-sm text-on-ink-muted mb-2">
+              <label htmlFor="password" className="block text-sm text-on-text-muted mb-2">
                 {isRegister ? 'Criar senha' : 'Senha de acesso'}
               </label>
               <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-on-ink-muted pointer-events-none" />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-on-text-muted pointer-events-none" />
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
@@ -119,7 +119,7 @@ export default function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
                   autoFocus={!isRegister}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="w-full rounded-full bg-transparent border border-on-ink-hairline pl-11 pr-14 py-3.5 text-bg placeholder:text-on-ink-muted outline-none focus:border-accent-light"
+                  className="w-full rounded-full bg-transparent border border-on-text-line pl-11 pr-14 py-3.5 text-surface placeholder:text-on-text-muted outline-none focus:border-brand-primary-light"
                   placeholder={isRegister ? 'Mínimo 8 caracteres' : 'Digite a senha'}
                   required
                   disabled={submitting}
@@ -127,7 +127,7 @@ export default function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-on-ink-muted hover:text-bg transition-colors"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-on-text-muted hover:text-surface transition-colors"
                   aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -137,18 +137,18 @@ export default function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
 
             {isRegister && (
               <div className="mb-4">
-                <label htmlFor="confirmPassword" className="block text-sm text-on-ink-muted mb-2">
+                <label htmlFor="confirmPassword" className="block text-sm text-on-text-muted mb-2">
                   Confirmar senha
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-on-ink-muted pointer-events-none" />
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-on-text-muted pointer-events-none" />
                   <input
                     id="confirmPassword"
                     type={showPassword ? 'text' : 'password'}
                     autoComplete="new-password"
                     value={confirmPassword}
                     onChange={e => setConfirmPassword(e.target.value)}
-                    className="w-full rounded-full bg-transparent border border-on-ink-hairline pl-11 pr-5 py-3.5 text-bg placeholder:text-on-ink-muted outline-none focus:border-accent-light"
+                    className="w-full rounded-full bg-transparent border border-on-text-line pl-11 pr-5 py-3.5 text-surface placeholder:text-on-text-muted outline-none focus:border-brand-primary-light"
                     placeholder="Confirme a senha"
                     required
                     disabled={submitting}
@@ -158,7 +158,7 @@ export default function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
             )}
 
             {error && (
-              <p className="mb-4 flex items-center gap-2 text-sm text-[#F0A08C]" role="alert">
+              <p className="mb-4 flex items-center gap-2 text-sm text-alert" role="alert">
                 <AlertCircle className="h-4 w-4" /> {error}
               </p>
             )}

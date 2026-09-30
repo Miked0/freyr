@@ -7,6 +7,10 @@ const COOKIE = 'freyr_session';
 const SESSION_DAYS = 30;
 const FAILED_LOGIN_DELAY_MS = 500;
 const BCRYPT_ROUNDS = 12;
+const LOGIN_ATTEMPTS = 10;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const REGISTRATIONS = 5;
+const REGISTRATION_WINDOW_MS = 60 * 60 * 1000;
 
 interface AuthOptions {
   db: DatabaseService;
@@ -37,8 +41,33 @@ function readCookie(req: Request, name: string): string | undefined {
   return undefined;
 }
 
-function sign(userId: string, expiresAt: number, signingKey: Buffer): string {
-  return createHmac('sha256', signingKey).update(`${userId}.${expiresAt}`).digest('base64url');
+// The session version is signed but not sent: bumping it in the database revokes older cookies.
+function sign(userId: string, expiresAt: number, sessionVersion: number, signingKey: Buffer): string {
+  return createHmac('sha256', signingKey).update(`${userId}.${expiresAt}.${sessionVersion}`).digest('base64url');
+}
+
+// In-memory, so each serverless instance counts on its own; still caps bursts against one instance.
+function createAttemptLimiter(max: number, windowMs: number) {
+  const attempts = new Map<string, { count: number; resetAt: number }>();
+  return {
+    /** Counts an attempt for key; false once key has used up its attempts in the current window. */
+    take(key: string): boolean {
+      const now = Date.now();
+      if (attempts.size > 10_000) {
+        for (const [k, entry] of attempts) if (entry.resetAt <= now) attempts.delete(k);
+      }
+      const entry = attempts.get(key);
+      if (!entry || entry.resetAt <= now) {
+        attempts.set(key, { count: 1, resetAt: now + windowMs });
+        return true;
+      }
+      entry.count += 1;
+      return entry.count <= max;
+    },
+    reset(key: string) {
+      attempts.delete(key);
+    },
+  };
 }
 
 function createCookie(value: string, maxAgeSeconds: number, secureCookies: boolean): string {
@@ -53,10 +82,11 @@ export function createAuth({ db, secureCookies = false, sessionSecret }: AuthOpt
     const token = readCookie(req, COOKIE);
     const [userId, expiresAt, signature] = token?.split('.') ?? [];
     if (!userId || !expiresAt || !signature || Number(expiresAt) < Date.now()) return null;
-    if (!safeEqual(Buffer.from(signature), Buffer.from(sign(userId, Number(expiresAt), signingKey)))) return null;
-    
+
     const user = await db.getUserById(userId);
     if (!user) return null;
+    const expected = sign(userId, Number(expiresAt), Number(user.session_version), signingKey);
+    if (!safeEqual(Buffer.from(signature), Buffer.from(expected))) return null;
     
     return { id: user.id, username: user.username };
   };
@@ -70,6 +100,8 @@ export function createAuth({ db, secureCookies = false, sessionSecret }: AuthOpt
     res.status(401).json({ error: 'Faça login para continuar.' });
   };
 
+  const loginAttempts = createAttemptLimiter(LOGIN_ATTEMPTS, LOGIN_WINDOW_MS);
+  const registrations = createAttemptLimiter(REGISTRATIONS, REGISTRATION_WINDOW_MS);
   const router = Router();
 
   router.get('/session', async (req, res) => {
@@ -87,6 +119,9 @@ export function createAuth({ db, secureCookies = false, sessionSecret }: AuthOpt
     if (!password || password.length < 8) {
       return res.status(400).json({ error: 'A senha deve ter no mínimo 8 caracteres.' });
     }
+    if (!registrations.take(req.ip ?? 'unknown')) {
+      return res.status(429).json({ error: 'Muitos cadastros a partir deste endereço. Tente novamente em uma hora.' });
+    }
 
     try {
       const existingUser = await db.getUserByUsername(username);
@@ -103,7 +138,7 @@ export function createAuth({ db, secureCookies = false, sessionSecret }: AuthOpt
       if (isFirstUser) await db.adoptLegacyData(userId);
 
       const expiresAt = Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000;
-      const token = `${userId}.${expiresAt}.${sign(userId, expiresAt, signingKey)}`;
+      const token = `${userId}.${expiresAt}.${sign(userId, expiresAt, 0, signingKey)}`;
       res.setHeader('Set-Cookie', createCookie(token, SESSION_DAYS * 24 * 60 * 60, secureCookies));
       
       res.json({ authenticated: true, user: { id: userId, username } });
@@ -124,6 +159,10 @@ export function createAuth({ db, secureCookies = false, sessionSecret }: AuthOpt
     if (!username || !password) {
       return res.status(400).json({ error: 'Usuário e senha são obrigatórios.' });
     }
+    const client = req.ip ?? 'unknown';
+    if (!loginAttempts.take(client)) {
+      return res.status(429).json({ error: 'Muitas tentativas de login. Tente novamente em 15 minutos.' });
+    }
 
     try {
       const user = await db.getUserByUsername(username);
@@ -133,8 +172,9 @@ export function createAuth({ db, secureCookies = false, sessionSecret }: AuthOpt
         return res.status(401).json({ error: 'Usuário ou senha incorretos.' });
       }
 
+      loginAttempts.reset(client);
       const expiresAt = Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000;
-      const token = `${user.id}.${expiresAt}.${sign(user.id, expiresAt, signingKey)}`;
+      const token = `${user.id}.${expiresAt}.${sign(user.id, expiresAt, Number(user.session_version), signingKey)}`;
       res.setHeader('Set-Cookie', createCookie(token, SESSION_DAYS * 24 * 60 * 60, secureCookies));
       
       res.json({ authenticated: true, user: { id: user.id, username: user.username } });
@@ -144,7 +184,9 @@ export function createAuth({ db, secureCookies = false, sessionSecret }: AuthOpt
     }
   });
 
-  router.post('/logout', (req, res) => {
+  router.post('/logout', async (req, res) => {
+    const user = await isAuthenticated(req);
+    if (user) await db.endAllSessions(user.id);
     res.setHeader('Set-Cookie', createCookie('', 0, secureCookies));
     res.json({ authenticated: false });
   });

@@ -131,12 +131,12 @@ const UploadComponent: React.FC<UploadComponentProps> = ({ onComplete }) => {
           className={`dropzone flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 !text-left ${isDragging ? 'dropzone-active' : ''}`}
         >
           <div className="flex items-start gap-4">
-            <Upload className="h-7 w-7 text-accent flex-shrink-0 mt-1" strokeWidth={1.5} />
+            <Upload className="h-7 w-7 text-brand-primary flex-shrink-0 mt-1" strokeWidth={1.5} />
             <div>
               <p className="text-2xl font-medium tracking-[-0.03em] leading-tight">
                 {isDragging ? 'Solte o arquivo aqui' : 'Arraste o PDF ou CSV para cá'}
               </p>
-              <p className="text-muted mt-1">
+              <p className="text-ink-muted mt-1">
                 Extrato bancário ou fatura de cartão · até 4 MB · no CSV, colunas de data, valor e descrição
               </p>
             </div>
@@ -147,18 +147,18 @@ const UploadComponent: React.FC<UploadComponentProps> = ({ onComplete }) => {
 
       {phase === 'uploading' && (
         <div className="dropzone flex items-center gap-4 !text-left" role="status" aria-live="polite">
-          <Spinner size="lg" className="text-accent flex-shrink-0" />
+          <Spinner size="lg" className="text-brand-primary flex-shrink-0" />
           <div>
             <p className="text-xl font-medium flex items-center gap-2">
-              <FileText className="h-5 w-5 text-accent" strokeWidth={1.75} /> {fileName}
+              <FileText className="h-5 w-5 text-brand-primary" strokeWidth={1.75} /> {fileName}
             </p>
-            <p className="text-muted">Lendo o extrato e categorizando cada despesa — com a IA ativa, cerca de 1 segundo por item.</p>
+            <p className="text-ink-muted">Lendo o extrato e categorizando cada despesa — com a IA ativa, cerca de 1 segundo por item.</p>
           </div>
         </div>
       )}
 
       {error && (
-        <div className="mt-4 p-4 rounded-2xl bg-danger-soft text-danger flex items-start gap-3 animate-fade-in" role="alert">
+        <div className="mt-4 p-4 rounded-2xl bg-alert-soft text-alert flex items-start gap-3 animate-fade-in" role="alert">
           <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
           <div className="flex-1">
             <p className="font-medium">Não foi possível processar o arquivo</p>
@@ -171,7 +171,7 @@ const UploadComponent: React.FC<UploadComponentProps> = ({ onComplete }) => {
       )}
 
       {notice && phase === 'idle' && (
-        <div className="mt-4 p-4 rounded-2xl bg-success-soft text-success flex items-center gap-3 animate-fade-in" role="status">
+        <div className="mt-4 p-4 rounded-2xl bg-positive-soft text-positive flex items-center gap-3 animate-fade-in" role="status">
           <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
           <p className="font-medium flex-1">{notice}</p>
           <button onClick={() => setNotice(null)} className="cursor-pointer hover:opacity-70" aria-label="Fechar aviso">
@@ -185,7 +185,7 @@ const UploadComponent: React.FC<UploadComponentProps> = ({ onComplete }) => {
           <div className="flex flex-wrap items-end justify-between gap-4 mb-4">
             <div className="min-w-0">
               <p className="text-2xl font-medium tracking-[-0.03em] truncate">{fileName}</p>
-              <p className="text-muted">
+              <p className="text-ink-muted">
                 {uploaded.length} {uploaded.length === 1 ? 'despesa encontrada' : 'despesas encontradas'} somando <span className="marker num">{formatCurrency(uploadedTotal)}</span>. Já estão salvas — desmarque as que não quer manter.
               </p>
             </div>
@@ -194,23 +194,23 @@ const UploadComponent: React.FC<UploadComponentProps> = ({ onComplete }) => {
             </Button>
           </div>
 
-          <ul className="divide-y divide-hairline border-y border-hairline max-h-[28rem] overflow-y-auto">
+          <ul className="divide-y divide-line border-y border-line max-h-[28rem] overflow-y-auto">
             {uploaded.map(exp => {
               const isSelected = selected.has(exp.id);
               return (
                 <li key={exp.id}>
-                  <label className={`flex items-center gap-4 py-3.5 px-1 cursor-pointer transition-opacity hover:bg-wash ${isSelected ? '' : 'opacity-40'}`}>
+                  <label className={`flex items-center gap-4 py-3.5 px-1 cursor-pointer transition-opacity hover:bg-surface-wash ${isSelected ? '' : 'opacity-40'}`}>
                     <input
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => toggle(exp.id)}
                       disabled={phase === 'saving'}
-                      className="w-4 h-4 accent-accent flex-shrink-0"
+                      className="w-4 h-4 accent-brand-primary flex-shrink-0"
                     />
-                    <span className="text-muted num text-sm w-[84px] flex-shrink-0">{formatDate(exp.date)}</span>
+                    <span className="text-ink-muted num text-sm w-[84px] flex-shrink-0">{formatDate(exp.date)}</span>
                     <span className="flex-1 min-w-0">
                       <span className="block font-medium truncate">{exp.description}</span>
-                      <span className="inline-flex items-center gap-2 text-sm text-muted">
+                      <span className="inline-flex items-center gap-2 text-sm text-ink-muted">
                         <span className="w-2 h-2 rounded-full" style={{ backgroundColor: categoryColor(exp.category) }} aria-hidden="true" />
                         {exp.category}
                       </span>

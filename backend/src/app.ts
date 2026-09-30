@@ -14,10 +14,13 @@ export interface AppDeps {
   sessionSecret?: string;
   fileProcessor?: FileProcessorService;
   logRequests?: boolean;
+  /** Read the client address from X-Forwarded-For; only behind a proxy that overwrites it (Vercel). */
+  trustProxy?: boolean;
 }
 
-export function createApp({ db, ai, secureCookies, sessionSecret, fileProcessor = new FileProcessorService(), logRequests = true }: AppDeps) {
+export function createApp({ db, ai, secureCookies, sessionSecret, fileProcessor = new FileProcessorService(), logRequests = true, trustProxy = false }: AppDeps) {
   const app = express();
+  app.set('trust proxy', trustProxy);
   const auth = createAuth({ db, secureCookies, sessionSecret });
 
   app.use(helmet());

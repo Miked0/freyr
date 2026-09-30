@@ -61,7 +61,7 @@ describe('FileProcessorService.processFile (PDF)', () => {
 });
 
 describe('FileProcessorService.processFile (PDF, fatura Inter)', () => {
-  it('reads dates written with month names and skips credits marked with +', async () => {
+  it('reads dates written with month names and includes credits marked with +', async () => {
     const expenses = await processPdf([
       'Vencimento 15/10/2026 R$ 1.234,56',
       '05 de set. 2026 PADARIA REAL - R$ 27,90',
@@ -70,10 +70,11 @@ describe('FileProcessorService.processFile (PDF, fatura Inter)', () => {
       '20 de ago. 2026 IFD*RESTAURANTE - R$ 1.045,00',
     ]);
 
-    expect(expenses.map(e => [e.date, e.amount, e.description])).toEqual([
-      ['2026-09-05', 27.9, 'PADARIA REAL'],
-      ['2025-12-12', 89.9, 'LOJA X (Parcela 10 de 10)'],
-      ['2026-08-20', 1045, 'IFD*RESTAURANTE'],
+    expect(expenses.map(e => [e.date, e.amount, e.description, e.sign])).toEqual([
+      ['2026-09-05', 27.9, 'PADARIA REAL', 'negative'],
+      ['2026-09-06', 500, 'PAGAMENTO ON LINE', 'credit'],
+      ['2025-12-12', 89.9, 'LOJA X (Parcela 10 de 10)', 'negative'],
+      ['2026-08-20', 1045, 'IFD*RESTAURANTE', 'negative'],
     ]);
   });
 });

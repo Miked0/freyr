@@ -7,8 +7,8 @@ interface PillButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> 
 }
 
 const TONES = {
-  light: 'bg-bg text-ink hover:bg-white',
-  dark: 'bg-ink text-bg hover:bg-ink/85',
+  light: 'bg-surface text-text border border-transparent hover:bg-white disabled:bg-transparent disabled:text-on-text-muted disabled:border-on-text-line disabled:opacity-100',
+  dark: 'bg-text text-surface hover:bg-text/85',
 };
 
 const PillButton: React.FC<PillButtonProps> = ({ tone = 'dark', icon, className = '', children, ...props }) => (
@@ -18,7 +18,7 @@ const PillButton: React.FC<PillButtonProps> = ({ tone = 'dark', icon, className 
     {...props}
   >
     <span className="whitespace-nowrap">{children}</span>
-    <span className="w-10 h-10 rounded-full bg-accent text-bg flex items-center justify-center transition-transform group-hover:translate-x-0.5">
+    <span className="w-10 h-10 rounded-full bg-brand-primary text-surface flex items-center justify-center transition-transform group-hover:translate-x-0.5">
       {icon ?? <ArrowRight className="h-4 w-4" />}
     </span>
   </button>
