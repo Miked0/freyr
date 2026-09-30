@@ -7,6 +7,7 @@ interface PillButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> 
 }
 
 const TONES = {
+  // Disabled on a dark surface: an outlined ghost instead of a washed-out grey block.
   light: 'bg-surface text-text border border-transparent hover:bg-white disabled:bg-transparent disabled:text-on-text-muted disabled:border-on-text-line disabled:opacity-100',
   dark: 'bg-text text-surface hover:bg-text/85',
 };

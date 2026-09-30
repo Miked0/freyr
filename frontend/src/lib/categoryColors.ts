@@ -1,3 +1,5 @@
+import type { CategoryTotal } from './finance';
+
 // Categorical palette validated (dataviz validate_palette.js, light, surface #F7F6F3):
 // adjacent CVD ΔE ≥ 8.1, normal-vision ΔE ≥ 15.5. Ochre is < 3:1 contrast, so
 // category identity is always paired with a text label (legend / table), never color alone.
@@ -27,7 +29,7 @@ export interface PieSlice {
 
 // Categories without a palette slot would repeat the Outros colour as adjacent,
 // indistinguishable slices, so the pie folds them into Outros (the list keeps them apart).
-export function pieSlices(totals: { category: string; total: number; count: number; share: number }[]): PieSlice[] {
+export function pieSlices(totals: CategoryTotal[]): PieSlice[] {
   const grandTotal = totals.reduce((sum, item) => sum + item.total, 0);
   const merged = new Map<string, number>();
   for (const { category, total } of totals) {
