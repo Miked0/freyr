@@ -117,6 +117,46 @@ describe('authentication', () => {
     });
   });
 
+  it('locks out an address after 10 login attempts, even with the right password', async () => {
+    await Promise.all(Array.from({ length: 10 }, () => login(TEST_USER, 'errada')));
+
+    const res = await login(TEST_USER, TEST_PASS);
+
+    expect(res.status).toBe(429);
+    expect(res.headers['set-cookie']).toBeUndefined();
+  }, 15_000);
+
+  it('behind a proxy, a locked-out client does not lock out others', async () => {
+    const proxied = createApp({
+      db: await DatabaseService.connect({ url: ':memory:' }),
+      ai: new AIService({ apiKey: '', apiUrl: '', model: '' }),
+      trustProxy: true,
+      logRequests: false,
+    });
+    await request(proxied).post('/api/auth/register').send({ username: TEST_USER, password: TEST_PASS });
+    const loginFrom = (ip: string, password: string) =>
+      request(proxied).post('/api/auth/login').set('X-Forwarded-For', ip).send({ username: TEST_USER, password });
+
+    await Promise.all(Array.from({ length: 11 }, () => loginFrom('203.0.113.1', 'errada')));
+
+    expect((await loginFrom('198.51.100.7', TEST_PASS)).status).toBe(200);
+  }, 15_000);
+
+  it('refuses a sixth registration from the same address within an hour', async () => {
+    // beforeEach already registered one account from this address.
+    for (let i = 1; i <= 4; i++) expect((await register(`conta${i}`, 'senha-da-conta')).status).toBe(200);
+
+    expect((await register('conta5', 'senha-da-conta')).status).toBe(429);
+  }, 15_000);
+
+  it('rejects a session cookie that was logged out, even if someone kept a copy', async () => {
+    const stolen = String((await login(TEST_USER, TEST_PASS)).headers['set-cookie']);
+
+    await request(app).post('/api/auth/logout').set('Cookie', stolen);
+
+    expect((await request(app).get('/api/expenses').set('Cookie', stolen)).status).toBe(401);
+  });
+
   it('keeps the health check public', async () => {
     expect((await request(app).get('/api/health')).status).toBe(200);
   });

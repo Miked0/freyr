@@ -45,5 +45,37 @@ describe('legacy database migration', () => {
 
     const categories = (await request(app).get('/api/expenses/categories/all').set('Cookie', cookie)).body.map((c: any) => c.name);
     expect(categories.filter((n: string) => n === 'Alimentação')).toHaveLength(1);
-  });
+  }, 15_000);
+
+  it('accepts uploads on a multi-user database created before income/expense types existed', async () => {
+    const dbUrl = url();
+    const raw = createClient({ url: dbUrl });
+    await raw.executeMultiple(PRE_TYPE_SCHEMA);
+    raw.close();
+
+    const app = createApp({
+      db: await DatabaseService.connect({ url: dbUrl }),
+      ai: new AIService({ apiKey: '', apiUrl: '', model: '' }),
+      logRequests: false,
+    });
+    const cookie = String((await request(app).post('/api/auth/register').send({ username: 'dono', password: 'senha-do-dono-1' })).headers['set-cookie']);
+
+    const upload = await request(app)
+      .post('/api/expenses/upload')
+      .set('Cookie', cookie)
+      .attach('statement', Buffer.from('date,amount,description\n15/03/2026,+3000.00,SALARIO'), 'extrato.csv');
+    expect(upload.status).toBe(200);
+
+    const expenses = await request(app).get('/api/expenses').set('Cookie', cookie);
+    expect(expenses.body.map((e: any) => [e.description, e.type])).toEqual([['SALARIO', 'income']]);
+  }, 15_000);
 });
+
+// Schema as shipped with multi-user support, before the income/expense type column.
+const PRE_TYPE_SCHEMA = `
+CREATE TABLE users (id TEXT PRIMARY KEY, username TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE expenses (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, date TEXT NOT NULL, amount REAL NOT NULL,
+  description TEXT NOT NULL, category TEXT NOT NULL, raw_description TEXT, source_file TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE);
+`;

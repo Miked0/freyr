@@ -1,31 +1,54 @@
-/* Freyr — Guia Visual (palette) with the editorial structure of the Dria reference. */
+/* Freyr — Guia Visual (palette) v2.0 with the editorial structure of the Dria reference. */
 @import "tailwindcss";
 
 @theme {
-  --font-sans: 'Inter Tight', ui-sans-serif, system-ui, sans-serif;
-  --font-serif: 'Instrument Serif', Georgia, serif;
+  --font-sans: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+  --font-serif: 'Petrona', Georgia, serif;
 
-  --color-bg: #F7F6F3;
-  --color-ink: #1E1C1A;
-  --color-on-ink-muted: rgb(247 246 243 / 0.62);
-  --color-on-ink-hairline: rgb(247 246 243 / 0.16);
-  --color-accent-light: #B9B8E6;
-  --color-muted: rgb(30 28 26 / 0.58);
-  --color-hairline: rgb(30 28 26 / 0.12);
-  --color-wash: rgb(30 28 26 / 0.04);
+  --color-surface: #F7F6F3;
+  --color-text: #1E1C1A;
+  --color-on-text-muted: rgb(247 246 243 / 0.62);
+  --color-on-text-line: rgb(247 246 243 / 0.16);
+  --color-brand-primary-light: #B9B8E6;
+  --color-ink-muted: rgb(30 28 26 / 0.58);
+  --color-line: rgb(30 28 26 / 0.12);
+  --color-surface-wash: rgb(30 28 26 / 0.04);
 
-  --color-accent: #5B5A96;
-  --color-accent-soft: rgb(91 90 150 / 0.12);
-  --color-warm: #C97B3D;
-  --color-warm-soft: rgb(201 123 61 / 0.14);
-  --color-success: #3E7A5E;
-  --color-success-soft: rgb(62 122 94 / 0.12);
-  --color-danger: #B5533C;
-  --color-danger-soft: rgb(181 83 60 / 0.12);
+  --color-brand-primary: #5B5A96;
+  --color-brand-primary-soft: rgb(91 90 150 / 0.12);
+  --color-brand-warm: #C97B3D;
+  --color-brand-warm-soft: rgb(201 123 61 / 0.14);
+  --color-positive: #3E7A5E;
+  --color-positive-soft: rgb(62 122 94 / 0.12);
+  --color-alert: #B5533C;
+  --color-alert-soft: rgb(181 83 60 / 0.12);
 
-  --radius-ds: 10px;
+  --radius-ds: 8px;
 
   --animate-fade-in: fade-in 200ms ease-out;
+}
+
+/* Dark theme (Noite polar) — ready via data-theme="dark" */
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="dark"] {
+    --color-surface: #1A1917;
+    --color-text: #F7F6F3;
+    --color-on-text-muted: rgb(247 246 243 / 0.58);
+    --color-on-text-line: rgb(247 246 243 / 0.12);
+    --color-brand-primary-light: #B9B8E6;
+    --color-ink-muted: rgb(247 246 243 / 0.52);
+    --color-line: rgb(247 246 243 / 0.1);
+    --color-surface-wash: rgb(247 246 243 / 0.03);
+
+    --color-brand-primary: #7A79B8;
+    --color-brand-primary-soft: rgb(122 121 184 / 0.15);
+    --color-brand-warm: #D9955F;
+    --color-brand-warm-soft: rgb(217 149 95 / 0.15);
+    --color-positive: #5BB88A;
+    --color-positive-soft: rgb(91 184 138 / 0.15);
+    --color-alert: #D47A66;
+    --color-alert-soft: rgb(212 122 102 / 0.15);
+  }
 }
 
 @keyframes fade-in {
@@ -40,8 +63,8 @@
 
   body {
     margin: 0;
-    background: var(--color-bg);
-    color: var(--color-ink);
+    background: var(--color-surface);
+    color: var(--color-text);
     font-family: var(--font-sans);
     font-size: 16px;
     line-height: 1.5;
@@ -51,12 +74,12 @@
   }
 
   ::selection {
-    background: var(--color-accent);
-    color: var(--color-bg);
+    background: var(--color-brand-primary);
+    color: var(--color-surface);
   }
 
   a {
-    color: var(--color-accent);
+    color: var(--color-brand-primary);
     text-decoration: none;
   }
 
@@ -65,7 +88,7 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-accent);
+    outline: 2px solid var(--color-brand-primary);
     outline-offset: 2px;
   }
 
@@ -81,7 +104,7 @@
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--color-muted);
+    color: var(--color-ink-muted);
   }
 
   .field-label {
@@ -91,7 +114,7 @@
     font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: var(--color-muted);
+    color: var(--color-ink-muted);
   }
 
   /* Display type: tight tracking and leading, medium weight */
@@ -101,31 +124,31 @@
     line-height: 0.95;
   }
 
-  /* Keyword in headlines: serif italic in the accent color */
+  /* Keyword in headlines: serif italic in the brand-primary color */
   .keyword {
     font-family: var(--font-serif);
     font-style: italic;
-    font-weight: 400;
+    font-weight: 500;
     letter-spacing: -0.02em;
-    color: var(--color-accent);
+    color: var(--color-brand-primary);
   }
 
-  .on-ink .keyword {
-    color: var(--color-accent-light);
+  .on-text .keyword {
+    color: var(--color-brand-primary-light);
   }
 
   /* Highlighter on key figures */
   .marker {
-    background: var(--color-ink);
-    color: var(--color-bg);
+    background: var(--color-text);
+    color: var(--color-surface);
     padding: 0 0.2em;
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;
   }
 
-  .on-ink .marker {
-    background: var(--color-bg);
-    color: var(--color-ink);
+  .on-text .marker {
+    background: var(--color-surface);
+    color: var(--color-text);
   }
 
   .num {
@@ -137,21 +160,21 @@
     padding: 12px 14px;
     font: inherit;
     font-size: 15px;
-    color: var(--color-ink);
-    background: var(--color-bg);
-    border: 1px solid var(--color-hairline);
+    color: var(--color-text);
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
     border-radius: var(--radius-ds);
     outline: none;
     transition: border-color 150ms, box-shadow 150ms;
   }
 
   .input::placeholder {
-    color: var(--color-muted);
+    color: var(--color-ink-muted);
   }
 
   .input:focus {
-    border-color: var(--color-accent);
-    box-shadow: 0 0 0 3px var(--color-accent-soft);
+    border-color: var(--color-brand-primary);
+    box-shadow: 0 0 0 3px var(--color-brand-primary-soft);
   }
 
   .data-table {
@@ -166,15 +189,15 @@
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--color-muted);
-    border-bottom: 1px solid var(--color-hairline);
+    color: var(--color-ink-muted);
+    border-bottom: 1px solid var(--color-line);
     white-space: nowrap;
   }
 
   .data-table td {
     padding: 14px 16px;
     font-size: 15px;
-    border-bottom: 1px solid var(--color-hairline);
+    border-bottom: 1px solid var(--color-line);
   }
 
   .data-table tbody tr:last-child td {
@@ -182,21 +205,21 @@
   }
 
   .data-table tbody tr:hover {
-    background: var(--color-wash);
+    background: var(--color-surface-wash);
   }
 
   .dropzone {
     padding: 48px 24px;
     text-align: center;
-    border: 1.5px dashed var(--color-hairline);
+    border: 1.5px dashed var(--color-line);
     border-radius: 20px;
     background: repeating-linear-gradient(135deg, rgb(30 28 26 / 0.02), rgb(30 28 26 / 0.02) 10px, transparent 10px, transparent 20px);
     transition: border-color 150ms, background-color 150ms;
   }
 
   .dropzone-active {
-    border-color: var(--color-accent);
-    background: var(--color-accent-soft);
+    border-color: var(--color-brand-primary);
+    background: var(--color-brand-primary-soft);
   }
 }
 

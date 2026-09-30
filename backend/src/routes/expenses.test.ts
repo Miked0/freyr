@@ -136,4 +136,39 @@ describe('/api/expenses', () => {
 
     expect(res.status).toBe(400);
   });
+
+  it('explains why an unreadable PDF was rejected', async () => {
+    const res = await request(app)
+      .post('/api/expenses/upload')
+      .set('Cookie', cookie)
+      .attach('statement', Buffer.from('não é um pdf'), 'extrato.pdf');
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toMatch(/Não foi possível ler o PDF/);
+  });
+
+  it('hides internal error details from the client when an upload fails', async () => {
+    const failing = createApp({
+      db: await DatabaseService.connect({ url: ':memory:' }),
+      ai: offlineAI(),
+      fileProcessor: { processFile: async () => { throw new Error('SQLITE_ERROR: table expenses has no column named type'); } } as any,
+      logRequests: false,
+    });
+    const session = String((await request(failing).post('/api/auth/register').send({ username: 'u', password: 'senha-segura-1' })).headers['set-cookie']);
+
+    const res = await request(failing).post('/api/expenses/upload').set('Cookie', session).attach('statement', csv([]), 'extrato.csv');
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).not.toMatch(/SQLITE/);
+  });
+
+  it('rejects a statement with more than 500 transactions without saving any of them', async () => {
+    const rows = Array.from({ length: 501 }, (_, i) => `15/03/2026,-1.00,COMPRA ${i}`);
+
+    const res = await upload(rows);
+
+    expect(res.status).toBe(422);
+    expect(res.body.error).toMatch(/500/);
+    expect((await getExpenses()).body).toEqual([]);
+  });
 });

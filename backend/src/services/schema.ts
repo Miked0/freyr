@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   username TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
+  session_version INTEGER NOT NULL DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -13,6 +14,7 @@ CREATE TABLE IF NOT EXISTS expenses (
   amount REAL NOT NULL,
   description TEXT NOT NULL,
   category TEXT NOT NULL,
+  type TEXT NOT NULL DEFAULT 'expense' CHECK (type IN ('income','expense')),
   raw_description TEXT,
   source_file TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,

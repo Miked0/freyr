@@ -6,11 +6,25 @@ import path from 'path';
 // Explicit worker path so serverless bundlers (Vercel) ship the pdf.js worker file.
 PDFParse.setWorker(getPath());
 
+export type Sign = 'negative' | 'credit' | 'none';
+
+/** A problem with the uploaded statement itself; its message is safe to show the user. */
+export class StatementError extends Error {}
+
+export interface ParsedTransaction {
+  date: string;
+  amount: number;
+  description: string;
+  rawDescription: string;
+  sourceFile: string;
+  sign: Sign;
+}
+
 export class FileProcessorService {
   /**
    * Process uploaded file based on its extension
    */
-  async processFile(content: Buffer, originalName: string): Promise<any[]> {
+  async processFile(content: Buffer, originalName: string): Promise<ParsedTransaction[]> {
     const ext = path.extname(originalName).toLowerCase();
     
     switch (ext) {
@@ -19,14 +33,14 @@ export class FileProcessorService {
       case '.pdf':
         return this.processPdf(content, originalName);
       default:
-        throw new Error(`Unsupported file format: ${ext}`);
+        throw new StatementError(`Unsupported file format: ${ext}`);
     }
   }
 
   /**
    * Process CSV file
    */
-  private async processCsv(content: Buffer, originalName: string): Promise<any[]> {
+  private async processCsv(content: Buffer, originalName: string): Promise<ParsedTransaction[]> {
     const fileContent = content.toString('utf8');
     const headerLine = fileContent.split(/\r?\n/, 1)[0];
     const records = parse(fileContent, {
@@ -42,20 +56,21 @@ export class FileProcessorService {
       amount: Math.abs(this.parseAmount(record.amount || record.Amount || record.VALOR || '0')),
       description: this.cleanDescription(record.description || record.Description || record.HISTORICO || ''),
       rawDescription: record.description || record.Description || record.HISTORICO || '',
-      sourceFile: originalName
+      sourceFile: originalName,
+      sign: this.detectSign(record) as Sign
     }));
   }
 
   /**
    * Process PDF file
    */
-  private async processPdf(content: Buffer, originalName: string): Promise<any[]> {
+  private async processPdf(content: Buffer, originalName: string): Promise<ParsedTransaction[]> {
     const parser = new PDFParse({ data: new Uint8Array(content) });
     let text: string;
     try {
       text = (await parser.getText()).text;
     } catch {
-      throw new Error('Não foi possível ler o PDF. Ele pode estar protegido por senha ou corrompido.');
+      throw new StatementError('Não foi possível ler o PDF. Ele pode estar protegido por senha ou corrompido.');
     } finally {
       await parser.destroy();
     }
@@ -68,8 +83,8 @@ export class FileProcessorService {
     const fullDatePattern = /^(\d{2})[\/\-](\d{2})[\/\-](\d{4})/;
     const dayMonthPattern = /^(\d{2})[\/\-](\d{2})(?![\/\-]\d)/;
     const monthNamePattern = /^(\d{1,2})\s+de\s+([a-zç]{3})[a-zç]*\.?\s+(\d{4})/i;
-    // "- R$ 10,00" is an empty column (Inter); "-10,00" / "- 10,00" / "-R$" are negative; "+" marks a credit.
-    const amountPattern = /(?:(-\s?(?=\d)|-(?=R\$))|(\+\s*))?(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*,\d{2}|\d+\.\d{2})/g;
+    // "- R$ 10,00" is an empty column (Inter); "-10,00" / "- 10,00" / "-R$" / "- R$" are negative; "+" marks a credit.
+    const amountPattern = /(?:(-\s*(?=\d|R\$))|(\+\s*))?(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*,\d{2}|\d+\.\d{2})/g;
 
     // Statements that only print DD/MM carry the year elsewhere (period/closing/due date).
     const fullDates = [...text.matchAll(anyFullDate)]
@@ -78,7 +93,6 @@ export class FileProcessorService {
       .sort((a, b) => a.year - b.year || a.month - b.month || a.day - b.day);
     const reference = fullDates[fullDates.length - 1] ?? { year: new Date().getFullYear(), month: 12 };
 
-    type Sign = 'negative' | 'credit' | 'none';
     const transactions: { date: string; amount: number; sign: Sign; description: string; raw: string }[] = [];
     const pad = (n: number | string) => String(n).padStart(2, '0');
 
@@ -128,14 +142,34 @@ export class FileProcessorService {
     const expenseSign: Sign = negatives > transactions.length / 2 ? 'negative' : 'none';
 
     return transactions
-      .filter(t => t.sign === expenseSign)
+      .filter(t => t.sign === expenseSign || t.sign === 'credit')
       .map(t => ({
         date: t.date,
         amount: t.amount,
         description: t.description,
         rawDescription: t.raw,
-        sourceFile: originalName
+        sourceFile: originalName,
+        sign: t.sign
       }));
+  }
+
+  /**
+   * Detect sign from CSV record
+   */
+  private detectSign(record: any): Sign {
+    // Check for explicit sign in amount or other fields
+    const amountStr = String(record.amount || record.Amount || record.VALOR || '');
+    const val = this.parseAmount(amountStr);
+    
+    // If amount is negative, it's an expense
+    if (amountStr.trim().startsWith('-') || val < 0) {
+      return 'negative';
+    }
+    // Check for credit indicators
+    if (amountStr.trim().startsWith('+') || amountStr.includes('credit') || amountStr.includes('crédito')) {
+      return 'credit';
+    }
+    return 'none';
   }
 
   /**
@@ -182,7 +216,7 @@ export class FileProcessorService {
 
     return text
       .replace(/\s+/g, ' ')
-      .replace(/[^\p{L}\p{N}\s\-.,\/()*&]/gu, '')
+      .replace(/[^\p{L}\p{N}\s\-\.,\/\(\)*&]/gu, '')
       .replace(/[\s\-]+$/, '')
       .trim();
   }

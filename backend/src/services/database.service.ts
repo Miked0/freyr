@@ -11,6 +11,7 @@ interface UserRow {
   id: string;
   username: string;
   password_hash: string;
+  session_version: number;
   created_at: string;
 }
 
@@ -21,6 +22,7 @@ interface ExpenseRow {
   amount: number;
   description: string;
   category: string;
+  type: 'income' | 'expense';
   raw_description: string | null;
   source_file: string | null;
   created_at: string;
@@ -56,6 +58,8 @@ export class DatabaseService {
     await client.execute('PRAGMA foreign_keys = ON');
     await client.executeMultiple(SCHEMA);
     await DatabaseService.addLegacyOwnerColumns(client);
+    await DatabaseService.addLegacyTypeColumn(client);
+    await DatabaseService.addLegacySessionVersionColumn(client);
     await client.executeMultiple(INDEXES);
     await DatabaseService.migrateLegacyCorrections(client);
     return new DatabaseService(client);
@@ -69,6 +73,19 @@ export class DatabaseService {
       if (columns.rows.some(row => row.name === 'user_id')) continue;
       await client.execute(`ALTER TABLE ${table} ADD COLUMN user_id TEXT`);
     }
+  }
+
+  // Databases created before income/expense tracking treat every row as an expense.
+  private static async addLegacyTypeColumn(client: Client) {
+    const columns = await client.execute('PRAGMA table_info(expenses)');
+    if (columns.rows.some(row => row.name === 'type')) return;
+    await client.execute(`ALTER TABLE expenses ADD COLUMN type TEXT NOT NULL DEFAULT 'expense' CHECK (type IN ('income','expense'))`);
+  }
+
+  private static async addLegacySessionVersionColumn(client: Client) {
+    const columns = await client.execute('PRAGMA table_info(users)');
+    if (columns.rows.some(row => row.name === 'session_version')) return;
+    await client.execute('ALTER TABLE users ADD COLUMN session_version INTEGER NOT NULL DEFAULT 0');
   }
 
   private static async migrateLegacyCorrections(client: Client) {
@@ -108,6 +125,11 @@ export class DatabaseService {
   async getUserById(id: string): Promise<UserRow | undefined> {
     const rows = await this.all<UserRow>('SELECT * FROM users WHERE id = ?', [id]);
     return rows[0];
+  }
+
+  /** Invalidates every session cookie issued to the user so far. */
+  async endAllSessions(userId: string): Promise<void> {
+    await this.run('UPDATE users SET session_version = session_version + 1 WHERE id = ?', [userId]);
   }
 
   // Category methods with user_id
@@ -151,30 +173,32 @@ export class DatabaseService {
   }
 
   async createExpenseForUser(userId: string, expense: {
-    id: string;
-    date: string;
-    amount: number;
-    description: string;
-    category: string;
-    rawDescription?: string;
-    sourceFile?: string;
-  }): Promise<string> {
-    await this.run(
-      `INSERT INTO expenses (id, user_id, date, amount, description, category, raw_description, source_file)
-       VALUES (@id, @user_id, @date, @amount, @description, @category, @raw_description, @source_file)`,
-      {
-        id: expense.id,
-        user_id: userId,
-        date: expense.date,
-        amount: expense.amount,
-        description: expense.description,
-        category: expense.category,
-        raw_description: expense.rawDescription ?? null,
-        source_file: expense.sourceFile ?? null,
-      }
-    );
-    return expense.id;
-  }
+      id: string;
+      date: string;
+      amount: number;
+      description: string;
+      category: string;
+      type: 'income' | 'expense';
+      rawDescription?: string;
+      sourceFile?: string;
+    }): Promise<string> {
+      await this.run(
+        `INSERT INTO expenses (id, user_id, date, amount, description, category, type, raw_description, source_file)
+         VALUES (@id, @user_id, @date, @amount, @description, @category, @type, @raw_description, @source_file)`,
+        {
+          id: expense.id,
+          user_id: userId,
+          date: expense.date,
+          amount: expense.amount,
+          description: expense.description,
+          category: expense.category,
+          type: expense.type,
+          raw_description: expense.rawDescription ?? null,
+          source_file: expense.sourceFile ?? null,
+        }
+      );
+      return expense.id;
+    }
 
   async updateExpenseForUser(userId: string, id: string, updates: Record<string, string | number>): Promise<boolean> {
     const keys = Object.keys(updates);

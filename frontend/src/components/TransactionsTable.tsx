@@ -64,10 +64,10 @@ export default function TransactionsTable() {
       <th scope="col" className={align === 'right' ? '!text-right' : ''} aria-sort={active ? (sort.direction === 'asc' ? 'ascending' : 'descending') : undefined}>
         <button
           onClick={() => handleSort(key)}
-          className={`inline-flex items-center gap-1 uppercase tracking-[0.06em] cursor-pointer hover:text-ink ${active ? 'text-ink' : ''}`}
+          className={`inline-flex items-center gap-1 uppercase tracking-[0.06em] cursor-pointer hover:text-text ${active ? 'text-text' : ''}`}
         >
           {SORT_LABELS[key]}
-          <Icon className={`h-3.5 w-3.5 ${active ? 'text-accent' : ''}`} aria-hidden="true" />
+          <Icon className={`h-3.5 w-3.5 ${active ? 'text-brand-primary' : ''}`} aria-hidden="true" />
         </button>
       </th>
     );
@@ -127,7 +127,7 @@ export default function TransactionsTable() {
   };
 
   const handleExport = () => {
-    downloadText(`despesas-${todayStamp()}.csv`, '﻿' + toCsv(filteredExpenses), 'text/csv;charset=utf-8');
+    downloadText(`despesas-${todayStamp()}.csv`, '\uFEFF' + toCsv(filteredExpenses), 'text/csv;charset=utf-8');
   };
 
   const clearFilters = () => {
@@ -139,8 +139,8 @@ export default function TransactionsTable() {
 
   if (status === 'idle' || status === 'loading') {
     return (
-      <div className="py-16 flex flex-col items-center gap-3 text-muted" role="status">
-        <Spinner className="text-accent" />
+      <div className="py-16 flex flex-col items-center gap-3 text-ink-muted" role="status">
+        <Spinner className="text-brand-primary" />
         <p className="text-sm">Carregando despesas…</p>
       </div>
     );
@@ -148,8 +148,8 @@ export default function TransactionsTable() {
 
   if (status === 'error') {
     return (
-      <div className="p-5 rounded-2xl bg-danger-soft flex flex-col sm:flex-row sm:items-center gap-3" role="alert">
-        <div className="flex items-center gap-3 text-danger">
+      <div className="p-5 rounded-2xl bg-alert-soft flex flex-col sm:flex-row sm:items-center gap-3" role="alert">
+        <div className="flex items-center gap-3 text-alert">
           <AlertCircle className="h-5 w-5 flex-shrink-0" />
           <p className="font-medium">{loadError}</p>
         </div>
@@ -167,7 +167,7 @@ export default function TransactionsTable() {
         <label>
           <span className="field-label">Buscar</span>
           <span className="relative block">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-muted pointer-events-none" />
             <input type="search" placeholder="Descrição ou categoria" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="input !pl-10" />
           </span>
         </label>
@@ -197,7 +197,7 @@ export default function TransactionsTable() {
       </div>
 
       {actionError && (
-        <div className="mb-4 p-3 flex items-center gap-3 rounded-xl bg-danger-soft text-danger" role="alert">
+        <div className="mb-4 p-3 flex items-center gap-3 rounded-xl bg-alert-soft text-alert" role="alert">
           <AlertCircle className="h-4 w-4 flex-shrink-0" />
           <p className="text-sm font-medium flex-1">{actionError}</p>
           <button onClick={() => setActionError(null)} className="cursor-pointer hover:opacity-70" aria-label="Fechar aviso">
@@ -206,7 +206,7 @@ export default function TransactionsTable() {
         </div>
       )}
 
-      <div className="overflow-x-auto border-y border-hairline">
+      <div className="overflow-x-auto border-y border-line">
         <table className="data-table min-w-[680px]">
           <thead>
             <tr>
@@ -224,7 +224,7 @@ export default function TransactionsTable() {
                   <p className="font-medium text-lg mb-1">
                     {hasActiveFilters ? 'Nenhuma despesa encontrada' : 'Nenhuma despesa ainda'}
                   </p>
-                  <p className="text-muted mb-4">
+                  <p className="text-ink-muted mb-4">
                     {hasActiveFilters ? 'Ajuste ou limpe os filtros.' : 'Envie um extrato na seção 01 para começar.'}
                   </p>
                   {hasActiveFilters && <Button variant="secondary" size="sm" onClick={clearFilters}>Limpar filtros</Button>}
@@ -235,7 +235,7 @@ export default function TransactionsTable() {
                 const isEditing = editingId === expense.id;
                 return (
                   <tr key={expense.id}>
-                    <td className="whitespace-nowrap num text-muted">{formatDate(expense.date)}</td>
+                    <td className="whitespace-nowrap num text-ink-muted">{formatDate(expense.date)}</td>
                     <td className="max-w-[340px]">
                       {isEditing ? (
                         <input
@@ -294,7 +294,7 @@ export default function TransactionsTable() {
                             <Button variant="ghost" size="sm" onClick={() => handleEditClick(expense)} aria-label={`Editar ${expense.description}`} title="Editar">
                               <Pencil className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleDelete(expense)} aria-label={`Excluir ${expense.description}`} title="Excluir" className="hover:!text-danger">
+                            <Button variant="ghost" size="sm" onClick={() => handleDelete(expense)} aria-label={`Excluir ${expense.description}`} title="Excluir" className="hover:!text-alert">
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </>
@@ -311,7 +311,7 @@ export default function TransactionsTable() {
 
       {filteredExpenses.length > 0 && (
         <div className="pt-4 flex flex-wrap items-baseline justify-between gap-2">
-          <span className="text-muted">
+          <span className="text-ink-muted">
             {filteredExpenses.length} de {expenses.length} transações{hasActiveFilters ? ' (filtradas)' : ''}
           </span>
           <span className="text-2xl font-medium tracking-[-0.03em] num">Total <span className="marker">{formatCurrency(totalAmount)}</span></span>

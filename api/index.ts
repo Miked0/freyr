@@ -14,6 +14,7 @@ const ready = (async () => {
     secureCookies: true,
     sessionSecret: process.env.SESSION_SECRET,
     logRequests: false,
+    trustProxy: true,
   });
 })();
 

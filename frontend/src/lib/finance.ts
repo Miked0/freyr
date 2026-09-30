@@ -4,6 +4,7 @@ export interface Expense {
   amount: number;
   description: string;
   category: string;
+  type: 'income' | 'expense';
 }
 
 export interface MonthTotal {
@@ -11,6 +12,9 @@ export interface MonthTotal {
   label: string;
   total: number;
   count: number;
+  income: number;
+  expense: number;
+  balance: number;
 }
 
 const MONTH_NAMES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
@@ -26,6 +30,11 @@ export function formatCurrency(amount: number): string {
   return currencyFormatter.format(amount);
 }
 
+export function formatBRL(amount: number, type?: 'income' | 'expense'): string {
+  const sign = type === 'income' ? '+' : type === 'expense' ? '−' : '';
+  return `${sign}${currencyFormatter.format(Math.abs(amount))}`;
+}
+
 export function formatChange(percent: number): string {
   const rounded = Math.round(percent) || 0;
   return `${rounded > 0 ? '+' : ''}${rounded}%`;
@@ -38,7 +47,7 @@ export function parseAmountInput(input: string): number {
 }
 
 function csvField(value: string): string {
-  return /[;"\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+  return /[;\"\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
 
 export function toCsv(expenses: Expense[]): string {
@@ -76,11 +85,17 @@ export function totalsByCategory(expenses: Expense[]): CategoryTotal[] {
 
 export function totalsByMonth(expenses: Expense[]): MonthTotal[] {
   const byMonth = new Map<string, MonthTotal>();
-  for (const { date, amount } of expenses) {
+  for (const { date, amount, type } of expenses) {
     const key = date.slice(0, 7);
-    const month = byMonth.get(key) ?? { key, label: monthLabel(key), total: 0, count: 0 };
+    const month = byMonth.get(key) ?? { key, label: monthLabel(key), total: 0, count: 0, income: 0, expense: 0, balance: 0 };
     month.total += amount;
     month.count += 1;
+    if (type === 'income') {
+      month.income += amount;
+    } else {
+      month.expense += amount;
+    }
+    month.balance = month.income - month.expense;
     byMonth.set(key, month);
   }
   return [...byMonth.values()].sort((a, b) => a.key.localeCompare(b.key));

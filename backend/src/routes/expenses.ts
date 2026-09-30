@@ -1,6 +1,6 @@
 import { RequestHandler, Router } from 'express';
 import { DatabaseService } from '../services/database.service';
-import { FileProcessorService } from '../services/file.processor.service';
+import { FileProcessorService, StatementError, type ParsedTransaction } from '../services/file.processor.service';
 import { AIService } from '../services/ai.service';
 import { randomUUID } from 'crypto';
 import multer from 'multer';
@@ -16,6 +16,8 @@ interface ExpensesRouterDeps {
 // Vercel functions reject request bodies above 4.5 MB.
 export const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 const AI_CONCURRENCY = 5;
+// Caps paid AI calls per upload; a month of statements fits well under it.
+const MAX_TRANSACTIONS_PER_UPLOAD = 500;
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -32,6 +34,11 @@ const upload = multer({
     }
   }
 });
+
+function signToType(sign: ParsedTransaction['sign']): 'income' | 'expense' {
+  if (sign === 'credit') return 'income';
+  return 'expense';
+}
 
 export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDeps) {
   const router = Router();
@@ -87,6 +94,9 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
     try {
       const userId = req.user!.id;
       const rawExpenses = await fileProcessor.processFile(file.buffer, file.originalname);
+      if (rawExpenses.length > MAX_TRANSACTIONS_PER_UPLOAD) {
+        return res.status(422).json({ error: `O extrato tem ${rawExpenses.length} transações; o máximo por envio é ${MAX_TRANSACTIONS_PER_UPLOAD}.` });
+      }
       const categoryNames = (await db.getAllCategoriesForUser(userId)).map(cat => cat.name);
 
       const expenses = await mapWithConcurrency(rawExpenses, AI_CONCURRENCY, async rawExpense => {
@@ -99,6 +109,7 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
           amount: rawExpense.amount,
           description: rawExpense.description,
           category,
+          type: signToType(rawExpense.sign),
           rawDescription: rawExpense.rawDescription,
           sourceFile: file.originalname
         };
@@ -113,17 +124,17 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
         expenses,
         message: `Processed ${expenses.length} expenses from ${file.originalname}`
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error('Upload error:', error);
-      res.status(500).json({ error: error.message || 'Failed to process file' });
+      res.status(500).json({ error: error instanceof StatementError ? error.message : 'Failed to process file' });
     }
   });
 
   router.put('/:id', async (req, res) => {
     try {
       const userId = req.user!.id;
-      const { category, description, amount } = req.body ?? {};
-      const updates: { category?: string; description?: string; amount?: number } = {};
+      const { category, description, amount, type } = req.body ?? {};
+      const updates: { category?: string; description?: string; amount?: number; type?: 'income' | 'expense' } = {};
 
       if (category !== undefined) {
         if (typeof category !== 'string' || !category.trim()) {
@@ -142,6 +153,12 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
           return res.status(400).json({ error: 'Amount must be a positive number' });
         }
         updates.amount = amount;
+      }
+      if (type !== undefined) {
+        if (type !== 'income' && type !== 'expense') {
+          return res.status(400).json({ error: 'Type must be income or expense' });
+        }
+        updates.type = type;
       }
       if (Object.keys(updates).length === 0) {
         return res.status(400).json({ error: 'Nothing to update' });
