@@ -2,7 +2,6 @@ import React, { useState, type FormEvent } from 'react';
 import { AlertCircle, Lock, User, Eye, EyeOff, X } from 'lucide-react';
 import PillButton from '@/components/ui/PillButton';
 import Spinner from '@/components/ui/Spinner';
-import Button from '@/components/ui/Button';
 import { Logo } from '@/components/Hero';
 import { api } from '@/api';
 
@@ -16,21 +15,21 @@ const TextInput = React.forwardRef<HTMLInputElement, TextInputProps>(({ label, i
   const inputId = id || label.toLowerCase().replace(/\s+/g, '-');
   return (
     <div className="mb-4">
-      <label htmlFor={inputId} className="block text-sm text-on-ink-muted mb-2">
+      <label htmlFor={inputId} className="block text-sm text-on-text-muted mb-2">
         {label}
       </label>
       <div className="relative">
-        {icon && <span className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-on-ink-muted pointer-events-none">{icon}</span>}
+        {icon && <span className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-on-text-muted pointer-events-none">{icon}</span>}
         <input
           ref={ref}
           id={inputId}
-          className={`w-full rounded-full bg-transparent border pl-11 pr-5 py-3.5 text-bg placeholder:text-on-ink-muted outline-none focus:border-accent-light transition-colors ${
-            error ? 'border-danger focus:border-danger focus:ring-2 focus:ring-danger-soft' : 'border-on-ink-hairline hover:border-on-ink-muted/50'
+          className={`w-full rounded-full bg-transparent border pl-11 pr-5 py-3.5 text-surface placeholder:text-on-text-muted focus:border-brand-primary-light transition-colors ${
+            error ? 'border-on-text-alert' : 'border-on-text-control hover:border-on-text-muted'
           } ${className}`}
           {...props}
         />
       </div>
-      {error && <p className="mt-1.5 text-sm text-danger flex items-center gap-1.5" role="alert"><AlertCircle className="h-3.5 w-3.5" /> {error}</p>}
+      {error && <p className="mt-1.5 text-sm text-on-text-alert flex items-center gap-1.5" role="alert"><AlertCircle className="h-3.5 w-3.5" /> {error}</p>}
     </div>
   );
 });
@@ -45,16 +44,16 @@ interface AlertProps {
 
 function Alert({ children, variant = 'error', onClose }: AlertProps) {
   const styles = {
-    error: 'bg-danger-soft text-danger',
-    success: 'bg-success-soft text-success',
-    warning: 'bg-warm-soft text-warm',
-    info: 'bg-accent-soft text-accent',
+    error: 'bg-alert-soft text-on-text-alert',
+    success: 'bg-positive-soft text-surface',
+    warning: 'bg-brand-warm-soft text-surface',
+    info: 'bg-brand-primary-soft text-brand-primary-light',
   };
   return (
     <div className={`mb-4 p-3 flex items-center gap-3 rounded-xl ${styles[variant]}`} role="alert">
       <AlertCircle className="h-4 w-4 flex-shrink-0" />
       <p className="text-sm font-medium flex-1">{children}</p>
-      {onClose && <button onClick={onClose} className="cursor-pointer hover:opacity-70" aria-label="Fechar aviso"><X className="h-4 w-4" /></button>}
+      {onClose && <button type="button" onClick={onClose} className="cursor-pointer hover:opacity-70" aria-label="Fechar aviso"><X className="h-4 w-4" /></button>}
     </div>
   );
 }
@@ -97,8 +96,9 @@ export default function LoginScreenV2({ onSuccess }: { onSuccess: () => void }) 
     }
   };
 
-  const toggleMode = () => {
-    setIsRegister(prev => !prev);
+  const selectMode = (register: boolean) => {
+    if (register === isRegister) return;
+    setIsRegister(register);
     setError(null);
     setUsername('');
     setPassword('');
@@ -106,7 +106,7 @@ export default function LoginScreenV2({ onSuccess }: { onSuccess: () => void }) 
   };
 
   return (
-    <main className="on-ink bg-ink text-bg min-h-screen flex flex-col">
+    <main className="on-text bg-text text-surface min-h-screen flex flex-col">
       <div className="max-w-[1240px] w-full mx-auto px-5 sm:px-10 py-6">
         <Logo className="text-[34px]" />
       </div>
@@ -119,18 +119,20 @@ export default function LoginScreenV2({ onSuccess }: { onSuccess: () => void }) 
             <div className="flex gap-2 mb-6">
               <button
                 type="button"
-                onClick={toggleMode}
-                className={`flex-1 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                  !isRegister ? 'bg-accent-light text-ink' : 'bg-transparent text-on-ink-muted hover:bg-on-ink-hairline'
+                onClick={() => selectMode(false)}
+                aria-pressed={!isRegister}
+                className={`flex-1 px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
+                  !isRegister ? 'bg-brand-primary-light text-text' : 'bg-transparent text-on-text-muted hover:bg-on-text-line'
                 }`}
               >
                 Entrar
               </button>
               <button
                 type="button"
-                onClick={toggleMode}
-                className={`flex-1 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                  isRegister ? 'bg-accent-light text-ink' : 'bg-transparent text-on-ink-muted hover:bg-on-ink-hairline'
+                onClick={() => selectMode(true)}
+                aria-pressed={isRegister}
+                className={`flex-1 px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
+                  isRegister ? 'bg-brand-primary-light text-text' : 'bg-transparent text-on-text-muted hover:bg-on-text-line'
                 }`}
               >
                 Cadastrar
@@ -151,18 +153,18 @@ export default function LoginScreenV2({ onSuccess }: { onSuccess: () => void }) 
             />
 
             <div className="mb-4">
-              <label htmlFor="password" className="block text-sm text-on-ink-muted mb-2">
+              <label htmlFor="password" className="block text-sm text-on-text-muted mb-2">
                 {isRegister ? 'Criar senha' : 'Senha de acesso'}
               </label>
               <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-on-ink-muted pointer-events-none" />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-on-text-muted pointer-events-none" />
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   autoComplete={isRegister ? 'new-password' : 'current-password'}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="w-full rounded-full bg-transparent border border-on-ink-hairline pl-11 pr-14 py-3.5 text-bg placeholder:text-on-ink-muted outline-none focus:border-accent-light"
+                  className="w-full rounded-full bg-transparent border border-on-text-control hover:border-on-text-muted pl-11 pr-14 py-3.5 text-surface placeholder:text-on-text-muted focus:border-brand-primary-light transition-colors"
                   placeholder={isRegister ? 'Mínimo 8 caracteres' : 'Digite a senha'}
                   required
                   disabled={submitting}
@@ -170,7 +172,7 @@ export default function LoginScreenV2({ onSuccess }: { onSuccess: () => void }) 
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-on-ink-muted hover:text-bg transition-colors"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-3 rounded-full text-on-text-muted hover:text-surface transition-colors"
                   aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}

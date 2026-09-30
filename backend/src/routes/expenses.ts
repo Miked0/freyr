@@ -15,9 +15,10 @@ interface ExpensesRouterDeps {
 
 // Vercel functions reject request bodies above 4.5 MB.
 export const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
-const AI_CONCURRENCY = 5;
-// Caps paid AI calls per upload; a month of statements fits well under it.
-const MAX_TRANSACTIONS_PER_UPLOAD = 500;
+const AI_CONCURRENCY = 10;
+// Caps paid AI calls per upload and keeps the import inside the 60 s function limit
+// (~1 s per AI call at AI_CONCURRENCY); a month of statements fits well under it.
+const MAX_TRANSACTIONS_PER_UPLOAD = 300;
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -30,7 +31,7 @@ const upload = multer({
     if (allowedTypes.includes(ext)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only PDF and CSV are allowed.'));
+      cb(new Error('Formato não suportado. Envie um arquivo PDF ou CSV.'));
     }
   }
 });
@@ -49,7 +50,7 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
       const userId = req.user!.id;
       res.json(await db.getAllExpensesForUser(userId));
     } catch (error) {
-      res.status(500).json({ error: 'Failed to fetch expenses' });
+      res.status(500).json({ error: 'Não foi possível carregar as transações.' });
     }
   });
 
@@ -58,7 +59,7 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
       const userId = req.user!.id;
       res.json(await db.getAllCategoriesForUser(userId));
     } catch (error) {
-      res.status(500).json({ error: 'Failed to fetch categories' });
+      res.status(500).json({ error: 'Não foi possível carregar as categorias.' });
     }
   });
 
@@ -67,11 +68,11 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
       const userId = req.user!.id;
       const expense = await db.getExpenseByIdForUser(userId, req.params.id);
       if (!expense) {
-        return res.status(404).json({ error: 'Expense not found' });
+        return res.status(404).json({ error: 'Transação não encontrada.' });
       }
       res.json(expense);
     } catch (error) {
-      res.status(500).json({ error: 'Failed to fetch expense' });
+      res.status(500).json({ error: 'Não foi possível carregar a transação.' });
     }
   });
 
@@ -88,7 +89,7 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
   router.post('/upload', receiveStatement, async (req, res) => {
     const file = req.file;
     if (!file) {
-      return res.status(400).json({ error: 'No file uploaded' });
+      return res.status(400).json({ error: 'Nenhum arquivo foi enviado.' });
     }
 
     try {
@@ -122,11 +123,11 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
       res.json({
         success: true,
         expenses,
-        message: `Processed ${expenses.length} expenses from ${file.originalname}`
+        message: `${expenses.length} transações importadas de ${file.originalname}`
       });
     } catch (error) {
       console.error('Upload error:', error);
-      res.status(500).json({ error: error instanceof StatementError ? error.message : 'Failed to process file' });
+      res.status(500).json({ error: error instanceof StatementError ? error.message : 'Não foi possível processar o arquivo.' });
     }
   });
 
@@ -138,40 +139,40 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
 
       if (category !== undefined) {
         if (typeof category !== 'string' || !category.trim()) {
-          return res.status(400).json({ error: 'Category must be a non-empty string' });
+          return res.status(400).json({ error: 'Informe uma categoria.' });
         }
         updates.category = category;
       }
       if (description !== undefined) {
         if (typeof description !== 'string' || !description.trim()) {
-          return res.status(400).json({ error: 'Description must be a non-empty string' });
+          return res.status(400).json({ error: 'A descrição não pode ficar vazia.' });
         }
         updates.description = description.trim();
       }
       if (amount !== undefined) {
         if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) {
-          return res.status(400).json({ error: 'Amount must be a positive number' });
+          return res.status(400).json({ error: 'Informe um valor maior que zero.' });
         }
         updates.amount = amount;
       }
       if (type !== undefined) {
         if (type !== 'income' && type !== 'expense') {
-          return res.status(400).json({ error: 'Type must be income or expense' });
+          return res.status(400).json({ error: 'O tipo deve ser receita ou despesa.' });
         }
         updates.type = type;
       }
       if (Object.keys(updates).length === 0) {
-        return res.status(400).json({ error: 'Nothing to update' });
+        return res.status(400).json({ error: 'Nada para atualizar.' });
       }
 
       const currentExpense = await db.getExpenseByIdForUser(userId, req.params.id);
       if (!currentExpense) {
-        return res.status(404).json({ error: 'Expense not found' });
+        return res.status(404).json({ error: 'Transação não encontrada.' });
       }
 
       const success = await db.updateExpenseForUser(userId, req.params.id, updates);
       if (!success) {
-        return res.status(500).json({ error: 'Failed to update expense' });
+        return res.status(500).json({ error: 'Não foi possível atualizar a transação.' });
       }
 
       if (category !== undefined && currentExpense.category !== category) {
@@ -183,9 +184,9 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
         });
       }
 
-      res.json({ message: 'Expense updated successfully' });
+      res.json({ message: 'Transação atualizada.' });
     } catch (error) {
-      res.status(500).json({ error: 'Failed to update expense' });
+      res.status(500).json({ error: 'Não foi possível atualizar a transação.' });
     }
   });
 
@@ -194,15 +195,15 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
       const userId = req.user!.id;
       const expense = await db.getExpenseByIdForUser(userId, req.params.id);
       if (!expense) {
-        return res.status(404).json({ error: 'Expense not found' });
+        return res.status(404).json({ error: 'Transação não encontrada.' });
       }
       const success = await db.deleteExpenseForUser(userId, req.params.id);
       if (!success) {
-        return res.status(500).json({ error: 'Failed to delete expense' });
+        return res.status(500).json({ error: 'Não foi possível excluir a transação.' });
       }
-      res.json({ message: 'Expense deleted successfully' });
+      res.json({ message: 'Transação excluída.' });
     } catch (error) {
-      res.status(500).json({ error: 'Failed to delete expense' });
+      res.status(500).json({ error: 'Não foi possível excluir a transação.' });
     }
   });
 

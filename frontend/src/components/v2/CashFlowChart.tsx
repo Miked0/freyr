@@ -2,138 +2,98 @@ import { useMemo } from 'react';
 import { useExpenses } from '@/store/expenses';
 import { formatCurrency, totalsByMonth } from '@/lib/finance';
 
-interface CashFlowMonth {
-  key: string;
-  label: string;
-  expense: number;
-  balance: number;
-}
+// Plot geometry in viewBox units; the SVG scales uniformly so text is never stretched.
+const WIDTH = 400;
+const HEIGHT = 300;
+const PLOT_TOP = 12;
+const PLOT_BOTTOM = 256;
+const PLOT_LEFT = 8;
+const PLOT_RIGHT = 336;
+const GRID_LINES = 4;
 
-const CHART_HEIGHT = 280;
-const MARGIN_TOP = 8;
-const MARGIN_RIGHT = 8;
-const MARGIN_LEFT = 0;
-const MARGIN_BOTTOM = 0;
-
-const ACCENT = '#5B5A96';
-const HAIRLINE = 'rgba(30,28,26,0.12)';
-const MUTED = 'rgba(30,28,26,0.58)';
+// Theme tokens, so the chart follows the palette (and the dark theme) instead of fixed colours.
+const ACCENT = 'var(--color-brand-primary)';
+const LINE = 'var(--color-line)';
+const MUTED = 'var(--color-ink-muted)';
+const SURFACE = 'var(--color-surface)';
 
 const compactCurrency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', notation: 'compact', maximumFractionDigits: 1 });
-
-const ChartTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value?: number }[]; label?: string }) => {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="bg-ink text-bg rounded-xl px-3.5 py-2.5 text-sm shadow-lg">
-      <p className="text-on-ink-muted text-xs">{label}</p>
-      <p className="font-medium num text-base">{formatCurrency(payload[0].value ?? 0)}</p>
-    </div>
-  );
-};
 
 export function CashFlowChart() {
   const { expenses } = useExpenses();
   const months = useMemo(() => totalsByMonth(expenses), [expenses]);
 
   if (months.length === 0) {
-    return <p className="text-muted text-center py-8">A evolução mês a mês aparece aqui depois do primeiro extrato.</p>;
+    return <p className="text-ink-muted text-center py-8">A evolução mês a mês aparece aqui depois do primeiro extrato.</p>;
   }
 
-  // Convert MonthTotal to CashFlowMonth format (expense only for now)
-  const chartData = months.map(m => ({
-    key: m.key,
-    label: m.label,
-    expense: m.total,
-    balance: m.total,
-  }));
+  const maxVal = Math.max(...months.map(m => m.total));
+  const scale = maxVal > 0 ? maxVal : 1;
+  const xAt = (i: number) =>
+    months.length === 1 ? (PLOT_LEFT + PLOT_RIGHT) / 2 : PLOT_LEFT + ((PLOT_RIGHT - PLOT_LEFT) * i) / (months.length - 1);
+  const yAt = (value: number) => PLOT_BOTTOM - ((PLOT_BOTTOM - PLOT_TOP) * value) / scale;
+  const points = months.map((m, i) => [xAt(i), yAt(m.total)] as const);
+  const line = points.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x} ${y}`).join(' ');
+  const area = `${line} L${points[points.length - 1][0]} ${PLOT_BOTTOM} L${points[0][0]} ${PLOT_BOTTOM} Z`;
 
   return (
     <div>
-      {months.length < 2 && <p className="text-muted mb-4">Envie extratos de mais de um mês para ver a evolução.</p>}
-      <div className="h-[280px] sm:h-[320px]" role="img" aria-label="Gráfico da evolução mensal dos gastos">
-        <svg width="100%" height="100%" viewBox="0 0 400 280" preserveAspectRatio="none">
-          <defs>
-            <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={ACCENT} stopOpacity="0.15" />
-              <stop offset="100%" stopColor={ACCENT} stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          
-          {/* Grid lines */}
-          <g stroke={HAIRLINE} strokeWidth={1}>
-            {(() => {
-              const maxVal = Math.max(...chartData.map(d => d.expense));
-              const lines = 4;
-              return Array.from({ length: lines + 1 }, (_, i) => {
-                const y = MARGIN_TOP + (CHART_HEIGHT - MARGIN_TOP - MARGIN_BOTTOM) * i / lines;
-                return <line key={i} x1={MARGIN_LEFT} y1={y} x2={400 - MARGIN_RIGHT} y2={y} />;
-              });
-            })()}
-          </g>
-          
-          {/* X Axis */}
-          <g stroke={HAIRLINE} strokeWidth={1}>
-            {chartData.map((d, i) => {
-              const x = MARGIN_LEFT + (400 - MARGIN_LEFT - MARGIN_RIGHT) * i / (chartData.length - 1 || 1);
-              return (
-                <g key={d.key}>
-                  <line x1={x} y1={CHART_HEIGHT - MARGIN_BOTTOM} x2={x} y2={CHART_HEIGHT - MARGIN_BOTTOM + 4} />
-                  <text x={x} y={CHART_HEIGHT - MARGIN_BOTTOM + 16} fill={MUTED} fontSize={12} textAnchor="middle" dominantBaseline="middle">{d.label}</text>
-                </g>
-              );
-            })}
-          </g>
-          
-          {/* Y Axis labels */}
-          <g>
-            {(() => {
-              const maxVal = Math.max(...chartData.map(d => d.expense));
-              const lines = 4;
-              return Array.from({ length: lines + 1 }, (_, i) => {
-                const val = maxVal * (1 - i / lines);
-                const y = MARGIN_TOP + (CHART_HEIGHT - MARGIN_TOP - MARGIN_BOTTOM) * i / lines;
-                return (
-                  <text key={i} x={400 - MARGIN_RIGHT - 4} y={y + 4} fill={MUTED} fontSize={11} textAnchor="end" dominantBaseline="middle">{compactCurrency.format(val)}</text>
-                );
-              });
-            })()}
-          </g>
-          
-          {/* Area chart */}
-          <path
-            d={(() => {
-              const points = chartData.map((d, i) => {
-                const x = MARGIN_LEFT + (400 - MARGIN_LEFT - MARGIN_RIGHT) * i / (chartData.length - 1 || 1);
-                const maxVal = Math.max(...chartData.map(d => d.expense));
-                const y = MARGIN_TOP + (CHART_HEIGHT - MARGIN_TOP - MARGIN_BOTTOM) * (1 - d.expense / maxVal);
-                return [x, y];
-              });
-              const areaPoints = [
-                [MARGIN_LEFT, CHART_HEIGHT - MARGIN_BOTTOM],
-                ...points,
-                [400 - MARGIN_RIGHT, CHART_HEIGHT - MARGIN_BOTTOM]
-              ];
-              return areaPoints.map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0]} ${p[1]}`).join(' ') + ' Z';
-            })()}
-            fill="url(#areaGradient)"
-            stroke={ACCENT}
-            strokeWidth={2}
-            fillOpacity={1}
-          />
-          
-          {/* Dots */}
-          <g>
-            {chartData.map((d, i) => {
-              const x = MARGIN_LEFT + (400 - MARGIN_LEFT - MARGIN_RIGHT) * i / (chartData.length - 1 || 1);
-              const maxVal = Math.max(...chartData.map(d => d.expense));
-              const y = MARGIN_TOP + (CHART_HEIGHT - MARGIN_TOP - MARGIN_BOTTOM) * (1 - d.expense / maxVal);
-              return (
-                <circle key={d.key} cx={x} cy={y} r={4} fill={ACCENT} stroke="#F7F6F3" strokeWidth={2} />
-              );
-            })}
-          </g>
-        </svg>
-      </div>
+      {months.length < 2 && <p className="text-ink-muted mb-4">Envie extratos de mais de um mês para ver a evolução.</p>}
+      {/* The sr-only table below carries the data for screen readers. */}
+      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full h-auto" aria-hidden="true">
+        <defs>
+          <linearGradient id="cashflow-area" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={ACCENT} stopOpacity="0.15" />
+            <stop offset="100%" stopColor={ACCENT} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+
+        <g>
+          {Array.from({ length: GRID_LINES + 1 }, (_, i) => {
+            const y = PLOT_TOP + ((PLOT_BOTTOM - PLOT_TOP) * i) / GRID_LINES;
+            return (
+              <g key={i}>
+                <line x1={PLOT_LEFT} y1={y} x2={PLOT_RIGHT} y2={y} stroke={LINE} strokeWidth={1} />
+                <text x={WIDTH - 4} y={y} fill={MUTED} fontSize={12} textAnchor="end" dominantBaseline="middle" className="num">
+                  {compactCurrency.format(maxVal * (1 - i / GRID_LINES))}
+                </text>
+              </g>
+            );
+          })}
+
+          {months.map((m, i) => (
+            // Edge labels anchor inward so they are not clipped by the viewBox.
+            <text
+              key={m.key}
+              x={xAt(i)}
+              y={PLOT_BOTTOM + 24}
+              fill={MUTED}
+              fontSize={12}
+              textAnchor={months.length === 1 ? 'middle' : i === 0 ? 'start' : i === months.length - 1 ? 'end' : 'middle'}
+            >
+              {m.label}
+            </text>
+          ))}
+
+          {months.length > 1 && <path d={area} fill="url(#cashflow-area)" />}
+          {months.length > 1 && <path d={line} fill="none" stroke={ACCENT} strokeWidth={2} strokeLinejoin="round" />}
+          {points.map(([x, y], i) => (
+            <circle key={months[i].key} cx={x} cy={y} r={4} fill={ACCENT} stroke={SURFACE} strokeWidth={2} />
+          ))}
+        </g>
+      </svg>
+
+      <table className="sr-only">
+        <caption>Gastos por mês</caption>
+        <thead>
+          <tr><th scope="col">Mês</th><th scope="col">Gastos</th></tr>
+        </thead>
+        <tbody>
+          {months.map(m => (
+            <tr key={m.key}><td>{m.label}</td><td>{formatCurrency(m.total)}</td></tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

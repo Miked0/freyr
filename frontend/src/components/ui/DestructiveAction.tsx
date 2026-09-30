@@ -19,12 +19,12 @@ export interface DestructiveActionProps {
 
 const VARIANT_STYLES = {
   delete: {
-    button: 'bg-transparent text-danger border-danger hover:bg-danger-soft',
-    modalButton: 'bg-danger text-bg hover:bg-danger/90',
+    button: 'bg-transparent text-alert border-alert hover:bg-alert-soft',
+    modalButton: 'bg-alert text-surface hover:bg-alert/90',
   },
   discard: {
-    button: 'bg-transparent text-warm border-warm hover:bg-warm-soft',
-    modalButton: 'bg-warm text-bg hover:bg-warm/90',
+    button: 'bg-transparent text-brand-warm border-brand-warm hover:bg-brand-warm-soft',
+    modalButton: 'bg-brand-warm text-surface hover:bg-brand-warm/90',
   },
 };
 
@@ -119,27 +119,27 @@ const Modal: React.FC<{
     >
       <div
         ref={overlayRef}
-        className="absolute inset-0 bg-ink/60 backdrop-blur-sm animate-fade-in"
+        className="absolute inset-0 bg-text/60 backdrop-blur-sm animate-fade-in"
         onClick={onClose}
         aria-hidden="true"
       />
       <div
         ref={contentRef}
         tabIndex={-1}
-        className="relative bg-bg rounded-2xl p-6 w-full max-w-md shadow-xl animate-fade-in border border-hairline"
+        className="relative bg-surface rounded-2xl p-6 w-full max-w-md shadow-xl animate-fade-in border border-line"
       >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-1 rounded hover:bg-wash transition-colors"
+          className="absolute top-4 right-4 p-1 rounded hover:bg-surface-wash transition-colors"
           aria-label="Fechar"
         >
-          <X className="h-5 w-5 text-muted" />
+          <X className="h-5 w-5 text-ink-muted" />
         </button>
         
         <h2 id="modal-title" className="text-lg font-medium mb-2">
           {title}
         </h2>
-        <p id="modal-message" className="text-muted mb-6">
+        <p id="modal-message" className="text-ink-muted mb-6">
           {message}
         </p>
         

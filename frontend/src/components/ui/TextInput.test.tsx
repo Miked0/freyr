@@ -18,7 +18,7 @@ describe('TextInput', () => {
     render(<TextInput label="Senha" error="Senha muito curta" />);
     expect(screen.getByRole('alert')).toHaveTextContent('Senha muito curta');
     const input = screen.getByLabelText('Senha');
-    expect(input).toHaveClass('border-danger');
+    expect(input).toHaveClass('border-alert');
   });
 
   it('applies disabled styles and sets disabled attribute', () => {

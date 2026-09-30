@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useExpenses } from '@/store/expenses';
-import { formatChange, formatCurrency, totalsByMonth } from '@/lib/finance';
+import { formatChange, formatCurrency, percentChange, totalsByMonth } from '@/lib/finance';
 
 export function MonthList() {
   const { expenses } = useExpenses();
@@ -13,20 +13,20 @@ export function MonthList() {
   const recent = months.slice(-6).reverse();
 
   return (
-    <ol className="divide-y divide-hairline border-y border-hairline self-start">
+    <ol className="divide-y divide-line border-y border-line self-start">
       {recent.map((month, index) => {
         const previous = recent[index + 1];
-        const change = previous ? ((month.total - previous.total) / previous.total) * 100 : undefined;
+        const change = previous ? percentChange(month.total, previous.total) : undefined;
         return (
           <li key={month.key} className="flex items-baseline justify-between gap-4 py-4">
             <div>
               <p className="text-lg font-medium tracking-[-0.02em]">{month.label}</p>
-              <p className="text-sm text-muted">{month.count} {month.count === 1 ? 'transação' : 'transações'}</p>
+              <p className="text-sm text-ink-muted">{month.count} {month.count === 1 ? 'gasto' : 'gastos'}</p>
             </div>
             <div className="text-right">
               <p className="text-lg font-medium num">{formatCurrency(month.total)}</p>
               {change !== undefined && (
-                <p className={`text-sm num ${Math.round(change) > 0 ? 'text-danger' : Math.round(change) < 0 ? 'text-success' : 'text-muted'}`}>
+                <p className={`text-sm num ${Math.round(change) > 0 ? 'text-alert' : Math.round(change) < 0 ? 'text-positive' : 'text-ink-muted'}`}>
                   {formatChange(change)} vs. {previous!.label}
                 </p>
               )}

@@ -53,7 +53,7 @@ export default function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
   };
 
   return (
-    <main className="bg-bg text-ink min-h-screen flex flex-col">
+    <main className="bg-surface text-text min-h-screen flex flex-col">
       <div className="max-w-[1240px] w-full mx-auto px-5 sm:px-10 py-6">
         <Logo className="text-[34px]" />
       </div>
@@ -68,7 +68,7 @@ export default function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
                 type="button"
                 onClick={toggleMode}
                 className={`flex-1 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                  !isRegister ? 'bg-accent text-bg' : 'bg-transparent text-muted hover:bg-wash'
+                  !isRegister ? 'bg-brand-primary text-surface' : 'bg-transparent text-ink-muted hover:bg-surface-wash'
                 }`}
               >
                 Entrar
@@ -77,7 +77,7 @@ export default function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
                 type="button"
                 onClick={toggleMode}
                 className={`flex-1 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                  isRegister ? 'bg-accent text-bg' : 'bg-transparent text-muted hover:bg-wash'
+                  isRegister ? 'bg-brand-primary text-surface' : 'bg-transparent text-ink-muted hover:bg-surface-wash'
                 }`}
               >
                 Cadastrar
@@ -94,7 +94,7 @@ export default function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
               disabled={submitting}
               autoComplete="username"
               autoFocus
-              leftIcon={<User className="h-4 w-4 text-muted pointer-events-none" />}
+              leftIcon={<User className="h-4 w-4 text-ink-muted pointer-events-none" />}
             />
 
             <div className="mt-4 relative">
@@ -102,7 +102,7 @@ export default function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
                 {isRegister ? 'Criar senha' : 'Senha de acesso'}
               </label>
               <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none" />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-muted pointer-events-none" />
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
@@ -117,7 +117,7 @@ export default function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-ink transition-colors"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-ink-muted hover:text-text transition-colors"
                   aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -137,13 +137,13 @@ export default function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
                   required
                   disabled={submitting}
                   autoComplete="new-password"
-                  leftIcon={<Lock className="h-4 w-4 text-muted pointer-events-none" />}
+                  leftIcon={<Lock className="h-4 w-4 text-ink-muted pointer-events-none" />}
                 />
               </div>
             )}
 
             {error && (
-              <p className="mt-4 flex items-center gap-2 text-sm text-danger" role="alert">
+              <p className="mt-4 flex items-center gap-2 text-sm text-alert" role="alert">
                 <span className="flex-shrink-0">!</span> {error}
               </p>
             )}

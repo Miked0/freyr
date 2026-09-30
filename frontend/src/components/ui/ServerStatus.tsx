@@ -9,9 +9,9 @@ export interface ServerStatusProps {
 }
 
 const STATUS_CONFIG: Record<ServerStatusType, { label: string; color: string; pulse: boolean }> = {
-  online: { label: 'Online', color: 'text-success', pulse: true },
-  offline: { label: 'Offline', color: 'text-danger', pulse: false },
-  'ai-active': { label: 'IA ativa', color: 'text-accent', pulse: true },
+  online: { label: 'Online', color: 'text-positive', pulse: true },
+  offline: { label: 'Offline', color: 'text-alert', pulse: false },
+  'ai-active': { label: 'IA ativa', color: 'text-brand-primary', pulse: true },
 };
 
 const ServerStatus: React.FC<ServerStatusProps> = ({

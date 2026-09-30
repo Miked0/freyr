@@ -40,11 +40,11 @@ function SortIcon({ key, sortKey, sortDirection, sortable }: { key: string; sort
   if (!sortable) return <span className="w-5" aria-hidden="true" />;
   
   const active = sortKey === key;
-  if (!active) return <ChevronsUpDown className="h-3.5 w-3.5 text-muted" aria-hidden="true" />;
+  if (!active) return <ChevronsUpDown className="h-3.5 w-3.5 text-ink-muted" aria-hidden="true" />;
   
   return sortDirection === 'asc' 
-    ? <ChevronUp className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
-    : <ChevronDown className="h-3.5 w-3.5 text-accent" aria-hidden="true" />;
+    ? <ChevronUp className="h-3.5 w-3.5 text-brand-primary" aria-hidden="true" />
+    : <ChevronDown className="h-3.5 w-3.5 text-brand-primary" aria-hidden="true" />;
 }
 
 function EditableCell<T>({ 
@@ -238,7 +238,7 @@ export function DataTable<T extends Record<string, unknown>>({
   return (
     <div className={className}>
       {actionError && (
-        <div className="mb-4 p-3 flex items-center gap-3 rounded-xl bg-danger-soft text-danger" role="alert">
+        <div className="mb-4 p-3 flex items-center gap-3 rounded-xl bg-alert-soft text-alert" role="alert">
           <span className="flex-shrink-0">!</span>
           <p className="text-sm font-medium flex-1">{actionError}</p>
           <button onClick={() => setActionError(null)} className="cursor-pointer hover:opacity-70" aria-label="Fechar aviso">
@@ -247,7 +247,7 @@ export function DataTable<T extends Record<string, unknown>>({
         </div>
       )}
 
-      <div className="overflow-x-auto border-y border-hairline">
+      <div className="overflow-x-auto border-y border-line">
         <table className="data-table min-w-[680px]">
           <thead>
             <tr>
@@ -265,7 +265,7 @@ export function DataTable<T extends Record<string, unknown>>({
                   {column.sortable && onSort ? (
                     <button
                       onClick={() => handleSort(column.key as string)}
-                      className={`inline-flex items-center gap-1 uppercase tracking-[0.06em] cursor-pointer hover:text-ink ${sortKey === column.key ? 'text-ink' : ''}`}
+                      className={`inline-flex items-center gap-1 uppercase tracking-[0.06em] cursor-pointer hover:text-text ${sortKey === column.key ? 'text-text' : ''}`}
                     >
                       {column.header}
                       <SortIcon 
@@ -292,7 +292,7 @@ export function DataTable<T extends Record<string, unknown>>({
               <tr>
                 <td colSpan={columns.length + ((onEdit || onDelete) ? 1 : 0)} className="!py-14 text-center">
                   <p className="font-medium text-lg mb-1">{emptyMessage}</p>
-                  <p className="text-muted mb-4">{emptyDescription}</p>
+                  <p className="text-ink-muted mb-4">{emptyDescription}</p>
                 </td>
               </tr>
             ) : (
@@ -346,7 +346,7 @@ export function DataTable<T extends Record<string, unknown>>({
                                 </Button>
                               )}
                               {onDelete && (
-                                <Button variant="ghost" size="sm" onClick={() => handleDelete(row)} aria-label={`Excluir`} title="Excluir" className="hover:!text-danger">
+                                <Button variant="ghost" size="sm" onClick={() => handleDelete(row)} aria-label={`Excluir`} title="Excluir" className="hover:!text-alert">
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
                               )}

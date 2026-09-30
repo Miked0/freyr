@@ -1,12 +1,12 @@
-import { useEffect, useMemo } from 'react';
+import { lazy, Suspense, useEffect, useMemo } from 'react';
 import { useExpenses } from './store/expenses';
 import { useHealth } from './lib/useHealth';
 import { useSession } from './lib/useSession';
-
-// v2 components (lazy loaded for code splitting)
-import { lazy, Suspense } from 'react';
+import { totalsByCategory } from './lib/finance';
+import { pieSlices } from './lib/categoryColors';
 import Spinner from './components/ui/Spinner';
 
+// v2 components (lazy loaded for code splitting)
 const BentoHero = lazy(() => import('./components/v2/BentoHero').then(m => ({ default: m.BentoHero })));
 const BentoCard = lazy(() => import('./components/v2/BentoCard').then(m => ({ default: m.default })));
 const Dropzone = lazy(() => import('./components/v2/Dropzone').then(m => ({ default: m.Dropzone })));
@@ -20,9 +20,23 @@ const FooterV2 = lazy(() => import('./components/v2/Footer').then(m => ({ defaul
 
 function LoadingFallback() {
   return (
-    <div className="min-h-screen bg-ink flex items-center justify-center text-accent-light" role="status" aria-label="Carregando">
+    <div className="min-h-screen bg-text flex items-center justify-center text-brand-primary-light" role="status" aria-label="Carregando">
       <Spinner size="lg" />
     </div>
+  );
+}
+
+function OfflineScreen({ onRetry }: { onRetry: () => void }) {
+  return (
+    <main className="on-text min-h-screen bg-text text-surface flex items-center justify-center px-5">
+      <div className="max-w-md text-center" role="alert">
+        <h1 className="display text-[40px] sm:text-[56px] mb-4">Sem conexão</h1>
+        <p className="text-on-text-muted mb-8">Não foi possível falar com o servidor. Verifique sua conexão e tente de novo.</p>
+        <button type="button" onClick={onRetry} className="px-6 py-3 rounded-full bg-surface text-text font-medium hover:bg-white cursor-pointer">
+          Tentar de novo
+        </button>
+      </div>
+    </main>
   );
 }
 
@@ -37,29 +51,14 @@ function App() {
   }, [canSeeData, load]);
 
   // Hooks must run on every render, so they stay above the early returns below.
-  // Prepare category slices for DonutChart
-  const categories = useMemo(() => {
-    const acc: Record<string, number> = {};
-    expenses.forEach(exp => {
-      acc[exp.category] = (acc[exp.category] || 0) + exp.amount;
-    });
-    return acc;
-  }, [expenses]);
-
-  const slices = useMemo(() => {
-    const grandTotal = expenses.reduce((sum, e) => sum + e.amount, 0);
-    return Object.entries(categories)
-      .map(([category, total]) => ({
-        category,
-        total,
-        share: total / (grandTotal || 1),
-        color: '#5B5A96',
-      }))
-      .sort((a, b) => b.total - a.total);
-  }, [categories, expenses]);
+  const slices = useMemo(() => pieSlices(totalsByCategory(expenses)), [expenses]);
 
   if (session.state === 'checking') {
     return <LoadingFallback />;
+  }
+
+  if (session.state === 'offline') {
+    return <OfflineScreen onRetry={session.refresh} />;
   }
 
   if (session.state === 'required') {
@@ -70,70 +69,57 @@ function App() {
     );
   }
 
+  // One boundary for the whole dashboard: per-section fallbacks stacked full-screen spinners.
   return (
-    <>
-      <Suspense fallback={<LoadingFallback />}>
-        <BentoHero health={health} onLogout={session.canLogout ? session.logout : undefined} />
-      </Suspense>
+    <Suspense fallback={<LoadingFallback />}>
+      <BentoHero health={health} onLogout={session.canLogout ? session.logout : undefined} />
 
       <main className="max-w-[1240px] mx-auto px-5 sm:px-10 pt-16 sm:pt-24">
-        <Suspense fallback={<LoadingFallback />}>
-          <BentoCard
-            id="extrato"
-            number="01"
-            title={<>Envie um <span className="keyword">extrato</span></>}
-            description="PDF ou CSV do banco ou do cartão. Cada lançamento é lido, datado e categorizado — e o Freyr aprende com as suas correções."
-          >
-            <Dropzone onComplete={() => document.getElementById('transacoes')?.scrollIntoView({ behavior: 'smooth' })} />
-          </BentoCard>
-        </Suspense>
+        <BentoCard
+          id="extrato"
+          number="01"
+          title={<>Envie um <span className="keyword">extrato</span></>}
+          description="PDF ou CSV do banco ou do cartão. Cada lançamento é lido, datado e categorizado — e o Freyr aprende com as suas correções."
+        >
+          <Dropzone onComplete={() => document.getElementById('transacoes')?.scrollIntoView({ behavior: 'smooth' })} />
+        </BentoCard>
 
-        <Suspense fallback={<LoadingFallback />}>
-          <BentoCard
-            id="categorias"
-            number="02"
-            title={<>Para onde o dinheiro <span className="keyword">foi</span></>}
-            description="Cada categoria e o quanto ela pesa no total."
-          >
-            <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] items-start">
-              <div className="h-[280px] sm:h-[320px]" role="img" aria-label="Distribuição das categorias">
-                <DonutChart slices={slices} />
-              </div>
-              <BarChart />
-            </div>
-          </BentoCard>
-        </Suspense>
+        <BentoCard
+          id="categorias"
+          number="02"
+          title={<>Para onde o dinheiro <span className="keyword">foi</span></>}
+          description="Cada categoria de gasto e o quanto ela pesa no total. Receitas ficam de fora."
+        >
+          <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] items-start">
+            <DonutChart slices={slices} />
+            <BarChart />
+          </div>
+        </BentoCard>
 
-        <Suspense fallback={<LoadingFallback />}>
-          <BentoCard
-            id="meses"
-            number="03"
-            title={<>Mês a <span className="keyword">mês</span></>}
-            description="Como os seus gastos evoluem ao longo do tempo."
-          >
-            <div className="grid gap-10 lg:grid-cols-[1.4fr_1fr]">
-              <CashFlowChart />
-              <MonthList />
-            </div>
-          </BentoCard>
-        </Suspense>
+        <BentoCard
+          id="meses"
+          number="03"
+          title={<>Mês a <span className="keyword">mês</span></>}
+          description="Como os seus gastos evoluem ao longo do tempo."
+        >
+          <div className="grid gap-10 lg:grid-cols-[1.4fr_1fr]">
+            <CashFlowChart />
+            <MonthList />
+          </div>
+        </BentoCard>
 
-        <Suspense fallback={<LoadingFallback />}>
-          <BentoCard
-            id="transacoes"
-            number="04"
-            title={<>Todas as <span className="keyword">transações</span></>}
-            description="Busque, filtre, corrija a categoria ou o valor e exporte para planilha."
-          >
-            <TransactionList />
-          </BentoCard>
-        </Suspense>
+        <BentoCard
+          id="transacoes"
+          number="04"
+          title={<>Todas as <span className="keyword">transações</span></>}
+          description="Busque, filtre, corrija a categoria, o tipo ou o valor e exporte para planilha."
+        >
+          <TransactionList />
+        </BentoCard>
       </main>
 
-      <Suspense fallback={<LoadingFallback />}>
-        <FooterV2 health={health} />
-      </Suspense>
-    </>
+      <FooterV2 health={health} />
+    </Suspense>
   );
 }
 

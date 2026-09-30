@@ -30,7 +30,7 @@ export interface Session {
   user: User | null;
 }
 
-export type ExpensePatch = Partial<Pick<Expense, 'description' | 'amount' | 'category'>>;
+export type ExpensePatch = Partial<Pick<Expense, 'description' | 'amount' | 'category' | 'type'>>;
 
 export class UnauthorizedError extends Error {}
 

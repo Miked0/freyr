@@ -27,4 +27,13 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /todas as transações/i }, { timeout: 3000 })).toBeInTheDocument();
   });
+
+  it('tells the user the server is unreachable and offers to retry', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('Failed to fetch'); }));
+
+    render(<App />);
+
+    expect(await screen.findByText(/não foi possível falar com o servidor/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /tentar de novo/i })).toBeInTheDocument();
+  });
 });

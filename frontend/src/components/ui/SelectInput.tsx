@@ -36,7 +36,7 @@ const SelectInput: React.FC<SelectInputProps> = ({
     <div className="w-full">
       {label && (
         <label htmlFor={selectId} className="field-label">
-          {label} {required && <span className="text-danger" aria-hidden="true">*</span>}
+          {label} {required && <span className="text-alert" aria-hidden="true">*</span>}
         </label>
       )}
       <select
@@ -47,7 +47,7 @@ const SelectInput: React.FC<SelectInputProps> = ({
           [error && errorId, helperText && helperId].filter(Boolean).join(' ') || undefined
         }
         className={`input w-full ${
-          error ? 'border-danger focus:border-danger focus:ring-2 focus:ring-danger-soft' : ''
+          error ? 'border-alert focus:border-alert focus:ring-2 focus:ring-alert-soft' : ''
         } ${disabled ? 'opacity-45 cursor-not-allowed' : ''} ${className}`}
         {...props}
       >
@@ -63,12 +63,12 @@ const SelectInput: React.FC<SelectInputProps> = ({
         ))}
       </select>
       {error && (
-        <p id={errorId} className="mt-1.5 text-sm text-danger" role="alert">
+        <p id={errorId} className="mt-1.5 text-sm text-alert" role="alert">
           {error}
         </p>
       )}
       {helperText && !error && (
-        <p id={helperId} className="mt-1.5 text-sm text-muted">
+        <p id={helperId} className="mt-1.5 text-sm text-ink-muted">
           {helperText}
         </p>
       )}

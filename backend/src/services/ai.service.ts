@@ -1,5 +1,7 @@
 import axios from 'axios';
 
+const AI_TIMEOUT_MS = 8000;
+
 export interface AIConfig {
   apiKey: string;
   apiUrl: string;
@@ -62,7 +64,9 @@ export class AIService {
           headers: {
             'Authorization': `Bearer ${this.apiKey}`,
             'Content-Type': 'application/json'
-          }
+          },
+          // A slow call falls back to keywords instead of pushing the upload past the function limit.
+          timeout: AI_TIMEOUT_MS
         }
       );
 

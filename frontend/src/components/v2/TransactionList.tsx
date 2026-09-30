@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type KeyboardEvent } from 'react';
 import { Search, ChevronUp, ChevronDown, ChevronsUpDown, Trash2, Pencil, Download, Check, X, AlertCircle } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Spinner from '@/components/ui/Spinner';
 import { useExpenses } from '@/store/expenses';
-import { formatCurrency, formatDate, parseAmountInput, toCsv, type Expense } from '@/lib/finance';
+import { formatBRL, formatDate, parseAmountInput, toCsv, type Expense } from '@/lib/finance';
 import { categoryColor } from '@/lib/categoryColors';
 import { downloadText, todayStamp } from '@/lib/download';
 import type { ExpensePatch } from '@/api';
@@ -11,6 +11,8 @@ import type { ExpensePatch } from '@/api';
 type SortKey = 'date' | 'description' | 'category' | 'amount';
 
 const SORT_LABELS: Record<SortKey, string> = { date: 'Data', description: 'Descrição', category: 'Categoria', amount: 'Valor' };
+
+const signed = (e: Pick<Expense, 'amount' | 'type'>) => (e.type === 'income' ? e.amount : -e.amount);
 
 export function TransactionList() {
   const { expenses, categories: knownCategories, status, error: loadError, load, update, remove } = useExpenses();
@@ -21,7 +23,7 @@ export function TransactionList() {
   const [dateTo, setDateTo] = useState('');
   const [sort, setSort] = useState<{ key: SortKey; direction: 'asc' | 'desc' }>({ key: 'date', direction: 'desc' });
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ description: '', amount: '', category: '' });
+  const [editForm, setEditForm] = useState<{ description: string; amount: string; category: string; type: Expense['type'] }>({ description: '', amount: '', category: '', type: 'expense' });
   const [saving, setSaving] = useState(false);
 
   const usedCategories = useMemo(() => Array.from(new Set(expenses.map(e => e.category))).sort(), [expenses]);
@@ -40,8 +42,8 @@ export function TransactionList() {
         return matchesSearch && matchesCategory && matchesDate;
       })
       .sort((a, b) => {
-        const aVal = a[sort.key];
-        const bVal = b[sort.key];
+        const aVal = sort.key === 'amount' ? signed(a) : a[sort.key];
+        const bVal = sort.key === 'amount' ? signed(b) : b[sort.key];
         const order = typeof aVal === 'number' && typeof bVal === 'number'
           ? aVal - bVal
           : String(aVal).localeCompare(String(bVal), 'pt-BR');
@@ -64,17 +66,17 @@ export function TransactionList() {
       <th scope="col" className={align === 'right' ? '!text-right' : ''} aria-sort={active ? (sort.direction === 'asc' ? 'ascending' : 'descending') : undefined}>
         <button
           onClick={() => handleSort(key)}
-          className={`inline-flex items-center gap-1 uppercase tracking-[0.06em] cursor-pointer hover:text-ink ${active ? 'text-ink' : ''}`}
+          className={`inline-flex items-center gap-1 uppercase tracking-[0.06em] cursor-pointer hover:text-text ${active ? 'text-text' : ''}`}
         >
           {SORT_LABELS[key]}
-          <Icon className={`h-3.5 w-3.5 ${active ? 'text-accent' : ''}`} aria-hidden="true" />
+          <Icon className={`h-3.5 w-3.5 ${active ? 'text-brand-primary' : ''}`} aria-hidden="true" />
         </button>
       </th>
     );
   };
 
   const handleDelete = async (expense: Expense) => {
-    if (!window.confirm(`Excluir "${expense.description}" (${formatCurrency(expense.amount)})?`)) return;
+    if (!window.confirm(`Excluir "${expense.description}" (${formatBRL(expense.amount, expense.type)})?`)) return;
     try {
       setActionError(null);
       await remove([expense.id]);
@@ -90,6 +92,7 @@ export function TransactionList() {
       description: expense.description,
       amount: expense.amount.toFixed(2).replace('.', ','),
       category: expense.category,
+      type: expense.type,
     });
   };
 
@@ -108,6 +111,7 @@ export function TransactionList() {
     if (editForm.description.trim() !== expense.description) patch.description = editForm.description.trim();
     if (amount !== expense.amount) patch.amount = amount;
     if (editForm.category !== expense.category) patch.category = editForm.category;
+    if (editForm.type !== expense.type) patch.type = editForm.type;
 
     if (Object.keys(patch).length === 0) {
       setEditingId(null);
@@ -127,7 +131,7 @@ export function TransactionList() {
   };
 
   const handleExport = () => {
-    downloadText(`despesas-${todayStamp()}.csv`, '\uFEFF' + toCsv(filteredExpenses), 'text/csv;charset=utf-8');
+    downloadText(`transacoes-${todayStamp()}.csv`, '\uFEFF' + toCsv(filteredExpenses), 'text/csv;charset=utf-8');
   };
 
   const clearFilters = () => {
@@ -139,17 +143,17 @@ export function TransactionList() {
 
   if (status === 'idle' || status === 'loading') {
     return (
-      <div className="py-16 flex flex-col items-center gap-3 text-muted" role="status">
-        <Spinner className="text-accent" />
-        <p className="text-sm">Carregando despesas…</p>
+      <div className="py-16 flex flex-col items-center gap-3 text-ink-muted" role="status">
+        <Spinner className="text-brand-primary" />
+        <p className="text-sm">Carregando transações…</p>
       </div>
     );
   }
 
   if (status === 'error') {
     return (
-      <div className="p-5 rounded-2xl bg-danger-soft flex flex-col sm:flex-row sm:items-center gap-3" role="alert">
-        <div className="flex items-center gap-3 text-danger">
+      <div className="p-5 rounded-2xl bg-alert-soft flex flex-col sm:flex-row sm:items-center gap-3" role="alert">
+        <div className="flex items-center gap-3 text-alert">
           <AlertCircle className="h-5 w-5 flex-shrink-0" />
           <p className="font-medium">{loadError}</p>
         </div>
@@ -159,7 +163,11 @@ export function TransactionList() {
   }
 
   const hasActiveFilters = Boolean(searchTerm || categoryFilter !== 'all' || dateFrom || dateTo);
-  const totalAmount = filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+  const balance = filteredExpenses.reduce((sum, exp) => sum + signed(exp), 0);
+  const onEditKey = (expense: Expense) => (e: KeyboardEvent) => {
+    if (e.key === 'Enter') handleSaveEdit(expense);
+    if (e.key === 'Escape') setEditingId(null);
+  };
 
   return (
     <div className="space-y-6">
@@ -167,7 +175,7 @@ export function TransactionList() {
         <label>
           <span className="field-label">Buscar</span>
           <span className="relative block">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-muted pointer-events-none" />
             <input type="search" placeholder="Descrição ou categoria" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="input !pl-10" />
           </span>
         </label>
@@ -196,17 +204,25 @@ export function TransactionList() {
         </div>
       </div>
 
+      {loadError && (
+        <div className="p-3 flex flex-wrap items-center gap-3 rounded-xl bg-alert-soft text-alert" role="alert">
+          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+          <p className="text-sm font-medium flex-1">Não foi possível atualizar a lista: {loadError}</p>
+          <Button variant="secondary" size="sm" onClick={load}>Tentar novamente</Button>
+        </div>
+      )}
+
       {actionError && (
-        <div className="p-3 flex items-center gap-3 rounded-xl bg-danger-soft text-danger" role="alert">
+        <div className="p-3 flex items-center gap-3 rounded-xl bg-alert-soft text-alert" role="alert">
           <AlertCircle className="h-4 w-4 flex-shrink-0" />
           <p className="text-sm font-medium flex-1">{actionError}</p>
-          <button onClick={() => setActionError(null)} className="cursor-pointer hover:opacity-70" aria-label="Fechar aviso">
+          <button type="button" onClick={() => setActionError(null)} className="p-2 -m-2 cursor-pointer hover:opacity-70" aria-label="Fechar aviso">
             <X className="h-4 w-4" />
           </button>
         </div>
       )}
 
-      <div className="overflow-x-auto border-y border-hairline">
+      <div className="relative overflow-x-auto border-y border-line">
         <table className="data-table min-w-[680px]">
           <thead>
             <tr>
@@ -222,9 +238,9 @@ export function TransactionList() {
               <tr>
                 <td colSpan={5} className="!py-14 text-center">
                   <p className="font-medium text-lg mb-1">
-                    {hasActiveFilters ? 'Nenhuma despesa encontrada' : 'Nenhuma despesa ainda'}
+                    {hasActiveFilters ? 'Nenhuma transação encontrada' : 'Nenhuma transação ainda'}
                   </p>
-                  <p className="text-muted mb-4">
+                  <p className="text-ink-muted mb-4">
                     {hasActiveFilters ? 'Ajuste ou limpe os filtros.' : 'Envie um extrato na seção 01 para começar.'}
                   </p>
                   {hasActiveFilters && <Button variant="secondary" size="sm" onClick={clearFilters}>Limpar filtros</Button>}
@@ -235,7 +251,7 @@ export function TransactionList() {
                 const isEditing = editingId === expense.id;
                 return (
                   <tr key={expense.id}>
-                    <td className="whitespace-nowrap num text-muted">{formatDate(expense.date)}</td>
+                    <td className="whitespace-nowrap num text-ink-muted">{formatDate(expense.date)}</td>
                     <td className="max-w-[340px]">
                       {isEditing ? (
                         <input
@@ -243,6 +259,7 @@ export function TransactionList() {
                           onChange={e => setEditForm(prev => ({ ...prev, description: e.target.value }))}
                           className="input !py-2"
                           aria-label="Descrição"
+                          onKeyDown={onEditKey(expense)}
                           autoFocus
                         />
                       ) : (
@@ -258,6 +275,17 @@ export function TransactionList() {
                           aria-label="Categoria"
                         >
                           {categoryOptions.map(cat => <option key={cat} value={cat}>{cat.toUpperCase()}</option>)}
+                        </select>
+                      ) : null}
+                      {isEditing ? (
+                        <select
+                          value={editForm.type}
+                          onChange={e => setEditForm(prev => ({ ...prev, type: e.target.value as Expense['type'] }))}
+                          className="input !py-2 !w-auto ml-2"
+                          aria-label="Tipo"
+                        >
+                          <option value="expense">Despesa</option>
+                          <option value="income">Receita</option>
                         </select>
                       ) : (
                         <span className="inline-flex items-center gap-2 text-sm">
@@ -275,9 +303,10 @@ export function TransactionList() {
                           onChange={e => setEditForm(prev => ({ ...prev, amount: e.target.value }))}
                           className="input !py-2 !w-28 text-right num"
                           aria-label="Valor"
+                          onKeyDown={onEditKey(expense)}
                         />
                       ) : (
-                        formatCurrency(expense.amount)
+                        <span className={expense.type === 'income' ? 'text-positive' : ''}>{formatBRL(expense.amount, expense.type)}</span>
                       )}
                     </td>
                     <td className="whitespace-nowrap text-right !py-2">
@@ -294,7 +323,7 @@ export function TransactionList() {
                             <Button variant="ghost" size="sm" onClick={() => handleEditClick(expense)} aria-label={`Editar ${expense.description}`} title="Editar">
                               <Pencil className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleDelete(expense)} aria-label={`Excluir ${expense.description}`} title="Excluir" className="hover:!text-danger">
+                            <Button variant="ghost" size="sm" onClick={() => handleDelete(expense)} aria-label={`Excluir ${expense.description}`} title="Excluir" className="hover:!text-alert">
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </>
@@ -311,10 +340,10 @@ export function TransactionList() {
 
       {filteredExpenses.length > 0 && (
         <div className="pt-4 flex flex-wrap items-baseline justify-between gap-2">
-          <span className="text-muted">
+          <span className="text-ink-muted">
             {filteredExpenses.length} de {expenses.length} transações{hasActiveFilters ? ' (filtradas)' : ''}
           </span>
-          <span className="text-2xl font-medium tracking-[-0.03em] num">Total <span className="marker">{formatCurrency(totalAmount)}</span></span>
+          <span className="text-2xl font-medium tracking-[-0.03em] num">Saldo <span className="marker">{formatBRL(balance, balance >= 0 ? 'income' : 'expense')}</span></span>
         </div>
       )}
     </div>

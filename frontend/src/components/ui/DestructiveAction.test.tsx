@@ -43,8 +43,8 @@ describe('DestructiveAction', () => {
   it('uses discard variant styles', () => {
     render(<DestructiveAction label="Descartar" onConfirm={vi.fn()} variant="discard" />);
     const button = screen.getByRole('button', { name: /descartar/i });
-    expect(button).toHaveClass('text-warm');
-    expect(button).toHaveClass('border-warm');
+    expect(button).toHaveClass('text-brand-warm');
+    expect(button).toHaveClass('border-brand-warm');
   });
 
   it('shows custom modal title and message', () => {
