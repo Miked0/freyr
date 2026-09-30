@@ -111,10 +111,23 @@ describe('DonutChart', () => {
     expect(screen.getByText('Outros')).toBeInTheDocument();
   });
 
-  it('handles empty slices array', () => {
+  it('adds the folded slices to a real "Outros" category instead of listing it twice', () => {
+    const slices = [
+      { category: 'Outros', total: 10000, share: 0.9, color: '#9E5718' },
+      ...mockSlices,
+    ];
+    render(<DonutChart slices={slices} />);
+
+    const outros = screen.getAllByText('Outros');
+    expect(outros).toHaveLength(1);
+    // Saúde (R$ 50) is the 6th largest and folds into the real Outros (R$ 10.000).
+    expect(outros[0].closest('li')).toHaveTextContent('R$ 10.050,00');
+  });
+
+  it('says there is nothing to show when there is no spending', () => {
     render(<DonutChart slices={[]} />);
-    const chart = screen.getByRole('img');
-    expect(chart).toBeInTheDocument();
+
+    expect(screen.getByText(/nenhum gasto/i)).toBeInTheDocument();
   });
 
   it('respects reduced-motion preference', () => {

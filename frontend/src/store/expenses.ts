@@ -12,6 +12,9 @@ interface ExpensesState {
   remove: (ids: string[]) => Promise<void>;
 }
 
+// Only the latest load may write; an older response arriving late would undo newer edits.
+let latestLoad = 0;
+
 export const useExpenses = create<ExpensesState>((set, get) => ({
   expenses: [],
   categories: [],
@@ -19,12 +22,16 @@ export const useExpenses = create<ExpensesState>((set, get) => ({
   error: null,
 
   load: async () => {
+    const request = ++latestLoad;
     set({ status: get().status === 'ready' ? 'ready' : 'loading', error: null });
     try {
       const [expenses, categories] = await Promise.all([api.listExpenses(), api.listCategories()]);
+      if (request !== latestLoad) return;
       set({ expenses, categories: categories.map(c => c.name), status: 'ready' });
     } catch (err) {
-      set({ status: 'error', error: (err as Error).message });
+      if (request !== latestLoad) return;
+      // A failed reload keeps the list already on screen and only reports the error.
+      set({ status: get().status === 'ready' ? 'ready' : 'error', error: (err as Error).message });
     }
   },
 

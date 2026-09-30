@@ -13,10 +13,10 @@ export interface AlertProps {
 }
 
 const VARIANT_STYLES: Record<AlertVariant, { bg: string; border: string; text: string; iconColor: string }> = {
-  error: { bg: 'bg-danger-soft', border: 'border-danger', text: 'text-danger', iconColor: 'text-danger' },
-  success: { bg: 'bg-success-soft', border: 'border-success', text: 'text-success', iconColor: 'text-success' },
-  warning: { bg: 'bg-warm-soft', border: 'border-warm', text: 'text-warm', iconColor: 'text-warm' },
-  info: { bg: 'bg-accent-soft', border: 'border-accent', text: 'text-accent', iconColor: 'text-accent' },
+  error: { bg: 'bg-alert-soft', border: 'border-alert', text: 'text-alert', iconColor: 'text-alert' },
+  success: { bg: 'bg-positive-soft', border: 'border-positive', text: 'text-positive', iconColor: 'text-positive' },
+  warning: { bg: 'bg-brand-warm-soft', border: 'border-brand-warm', text: 'text-brand-warm', iconColor: 'text-brand-warm' },
+  info: { bg: 'bg-brand-primary-soft', border: 'border-brand-primary', text: 'text-brand-primary', iconColor: 'text-brand-primary' },
 };
 
 const VARIANT_ICONS: Record<AlertVariant, React.ReactNode> = {

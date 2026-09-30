@@ -7,36 +7,36 @@ describe('Alert', () => {
     render(<Alert variant="error" message="Algo deu errado" />);
     const alert = screen.getByRole('alert');
     expect(alert).toHaveTextContent('Algo deu errado');
-    expect(alert).toHaveClass('bg-danger-soft');
-    expect(alert).toHaveClass('border-danger');
-    expect(alert).toHaveClass('text-danger');
+    expect(alert).toHaveClass('bg-alert-soft');
+    expect(alert).toHaveClass('border-alert');
+    expect(alert).toHaveClass('text-alert');
   });
 
   it('renders success variant with status role', () => {
     render(<Alert variant="success" message="Operação concluída" />);
     const alert = screen.getByRole('status');
     expect(alert).toHaveTextContent('Operação concluída');
-    expect(alert).toHaveClass('bg-success-soft');
-    expect(alert).toHaveClass('border-success');
-    expect(alert).toHaveClass('text-success');
+    expect(alert).toHaveClass('bg-positive-soft');
+    expect(alert).toHaveClass('border-positive');
+    expect(alert).toHaveClass('text-positive');
   });
 
   it('renders warning variant with alert role', () => {
     render(<Alert variant="warning" message="Atenção necessária" />);
     const alert = screen.getByRole('alert');
     expect(alert).toHaveTextContent('Atenção necessária');
-    expect(alert).toHaveClass('bg-warm-soft');
-    expect(alert).toHaveClass('border-warm');
-    expect(alert).toHaveClass('text-warm');
+    expect(alert).toHaveClass('bg-brand-warm-soft');
+    expect(alert).toHaveClass('border-brand-warm');
+    expect(alert).toHaveClass('text-brand-warm');
   });
 
   it('renders info variant with status role', () => {
     render(<Alert variant="info" message="Informação útil" />);
     const alert = screen.getByRole('status');
     expect(alert).toHaveTextContent('Informação útil');
-    expect(alert).toHaveClass('bg-accent-soft');
-    expect(alert).toHaveClass('border-accent');
-    expect(alert).toHaveClass('text-accent');
+    expect(alert).toHaveClass('bg-brand-primary-soft');
+    expect(alert).toHaveClass('border-brand-primary');
+    expect(alert).toHaveClass('text-brand-primary');
   });
 
   it('renders title when provided', () => {

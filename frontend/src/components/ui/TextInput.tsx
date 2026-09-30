@@ -28,7 +28,7 @@ const TextInput: React.FC<TextInputProps> = ({
     <div className="w-full">
       {label && (
         <label htmlFor={inputId} className="field-label">
-          {label} {required && <span className="text-danger" aria-hidden="true">*</span>}
+          {label} {required && <span className="text-alert" aria-hidden="true">*</span>}
         </label>
       )}
       <div className="relative">
@@ -47,18 +47,18 @@ const TextInput: React.FC<TextInputProps> = ({
           className={`input w-full ${
             leftIcon ? 'pl-11' : ''
           } ${
-            error ? 'border-danger focus:border-danger focus:ring-2 focus:ring-danger-soft' : ''
+            error ? 'border-alert focus:border-alert focus:ring-2 focus:ring-alert-soft' : ''
           } ${disabled ? 'opacity-45 cursor-not-allowed' : ''} ${className}`}
           {...props}
         />
       </div>
       {error && (
-        <p id={errorId} className="mt-1.5 text-sm text-danger" role="alert">
+        <p id={errorId} className="mt-1.5 text-sm text-alert" role="alert">
           {error}
         </p>
       )}
       {helperText && !error && (
-        <p id={helperId} className="mt-1.5 text-sm text-muted">
+        <p id={helperId} className="mt-1.5 text-sm text-ink-muted">
           {helperText}
         </p>
       )}

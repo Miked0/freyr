@@ -10,7 +10,9 @@ export interface Expense {
 export interface MonthTotal {
   key: string;
   label: string;
+  /** Spending only; income is reported separately. */
   total: number;
+  /** Number of spending entries. */
   count: number;
   income: number;
   expense: number;
@@ -40,10 +42,18 @@ export function formatChange(percent: number): string {
   return `${rounded > 0 ? '+' : ''}${rounded}%`;
 }
 
+/** Percent change from previous to current; undefined when there is nothing to compare against. */
+export function percentChange(current: number, previous: number): number | undefined {
+  return previous > 0 ? ((current - previous) / previous) * 100 : undefined;
+}
+
 export function parseAmountInput(input: string): number {
   const raw = input.trim();
   if (!/^\d[\d.,]*$/.test(raw)) return NaN;
-  return Number(raw.includes(',') ? raw.replace(/\./g, '').replace(',', '.') : raw);
+  if (raw.includes(',')) return Number(raw.replace(/\./g, '').replace(',', '.'));
+  // Brazilian thousands separator ("1.234", "12.345.678"); "12.50" stays a decimal.
+  if (/^\d{1,3}(\.\d{3})+$/.test(raw)) return Number(raw.replace(/\./g, ''));
+  return Number(raw);
 }
 
 function csvField(value: string): string {
@@ -51,10 +61,13 @@ function csvField(value: string): string {
 }
 
 export function toCsv(expenses: Expense[]): string {
-  const rows = expenses.map(e =>
-    [formatDate(e.date), e.description, e.category, e.amount.toFixed(2).replace('.', ',')].map(csvField).join(';')
-  );
-  return ['Data;Descrição;Categoria;Valor', ...rows].join('\r\n');
+  const rows = expenses.map(e => {
+    const signed = e.type === 'income' ? e.amount : -e.amount;
+    return [formatDate(e.date), e.description, e.category, e.type === 'income' ? 'Receita' : 'Despesa', signed.toFixed(2).replace('.', ',')]
+      .map(csvField)
+      .join(';');
+  });
+  return ['Data;Descrição;Categoria;Tipo;Valor', ...rows].join('\r\n');
 }
 
 export function monthLabel(key: string): string {
@@ -69,17 +82,19 @@ export interface CategoryTotal {
   share: number;
 }
 
+/** How spending splits across categories; income entries are left out. */
 export function totalsByCategory(expenses: Expense[]): CategoryTotal[] {
-  const grandTotal = expenses.reduce((sum, e) => sum + e.amount, 0);
+  const spending = expenses.filter(e => e.type !== 'income');
+  const grandTotal = spending.reduce((sum, e) => sum + e.amount, 0);
   const byCategory = new Map<string, CategoryTotal>();
-  for (const { category, amount } of expenses) {
+  for (const { category, amount } of spending) {
     const entry = byCategory.get(category) ?? { category, total: 0, count: 0, share: 0 };
     entry.total += amount;
     entry.count += 1;
     byCategory.set(category, entry);
   }
   return [...byCategory.values()]
-    .map(entry => ({ ...entry, share: entry.total / grandTotal }))
+    .map(entry => ({ ...entry, share: grandTotal > 0 ? entry.total / grandTotal : 0 }))
     .sort((a, b) => b.total - a.total || a.category.localeCompare(b.category));
 }
 
@@ -88,12 +103,12 @@ export function totalsByMonth(expenses: Expense[]): MonthTotal[] {
   for (const { date, amount, type } of expenses) {
     const key = date.slice(0, 7);
     const month = byMonth.get(key) ?? { key, label: monthLabel(key), total: 0, count: 0, income: 0, expense: 0, balance: 0 };
-    month.total += amount;
-    month.count += 1;
     if (type === 'income') {
       month.income += amount;
     } else {
       month.expense += amount;
+      month.total += amount;
+      month.count += 1;
     }
     month.balance = month.income - month.expense;
     byMonth.set(key, month);

@@ -174,7 +174,7 @@ const Dropzone: React.FC<DropzoneProps> = ({
           >
             {isDragActive ? 'Solte o arquivo aqui' : 'Arraste o PDF ou CSV para cá'}
           </p>
-          <p id="dropzone-hint" className="text-sm text-muted mt-1">
+          <p id="dropzone-hint" className="text-sm text-ink-muted mt-1">
             Extrato bancário ou fatura de cartão · até 4 MB · no CSV, colunas de data, valor e descrição
           </p>
         </div>

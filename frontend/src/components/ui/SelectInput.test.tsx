@@ -28,7 +28,7 @@ describe('SelectInput', () => {
     render(<SelectInput label="Campo" options={options} error="Selecione uma opção" />);
     expect(screen.getByRole('alert')).toHaveTextContent('Selecione uma opção');
     const select = screen.getByLabelText('Campo');
-    expect(select).toHaveClass('border-danger');
+    expect(select).toHaveClass('border-alert');
   });
 
   it('applies disabled styles and sets disabled attribute', () => {

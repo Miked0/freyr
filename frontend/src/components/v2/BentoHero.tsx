@@ -2,9 +2,11 @@ import { useMemo } from 'react';
 import { LogOut, ChevronRight } from 'lucide-react';
 import PillButton from '@/components/ui/PillButton';
 import { useExpenses } from '@/store/expenses';
-import { formatChange, formatCurrency, totalsByCategory, totalsByMonth } from '@/lib/finance';
+import { formatChange, formatCurrency, percentChange, totalsByCategory, totalsByMonth } from '@/lib/finance';
 import type { HealthState } from '@/lib/useHealth';
 import { Logo, StatusDot } from '@/components/Hero';
+
+const SECTIONS = [['#extrato', 'Extrato'], ['#categorias', 'Categorias'], ['#meses', 'Meses'], ['#transacoes', 'Transações']] as const;
 
 export function BentoHero({ health, onLogout }: { health: HealthState; onLogout?: () => void }) {
   const { expenses, status } = useExpenses();
@@ -16,26 +18,34 @@ export function BentoHero({ health, onLogout }: { health: HealthState; onLogout?
     return {
       last,
       previous,
-      change: last && previous ? ((last.total - previous.total) / previous.total) * 100 : undefined,
-      total: expenses.reduce((sum, e) => sum + e.amount, 0),
+      change: last && previous ? percentChange(last.total, previous.total) : undefined,
+      spent: months.reduce((sum, m) => sum + m.total, 0),
       top: totalsByCategory(expenses)[0],
     };
   }, [expenses]);
 
-  const { last, previous, change, total, top } = summary;
+  const { last, previous, change, spent, top } = summary;
+  const direction = change === undefined ? undefined : Math.round(change) > 0 ? 'mais' : Math.round(change) < 0 ? 'menos' : 'o mesmo';
   const hasData = expenses.length > 0;
 
   return (
-    <header className="on-ink bg-ink text-bg" role="banner">
+    <header className="on-text bg-text text-surface">
       <div className="max-w-[1240px] mx-auto px-5 sm:px-10">
         <div className="flex flex-wrap items-center justify-between gap-4 py-6">
-          <a href="#" className="!text-bg !opacity-100" aria-label="Freyr, início">
+          <a href="#" className="!text-surface !opacity-100" aria-label="Freyr, início">
             <Logo className="text-[34px]" />
           </a>
+          <nav aria-label="Seções" className="order-last w-full sm:order-none sm:w-auto">
+            <ul className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+              {SECTIONS.map(([href, label]) => (
+                <li key={href}><a href={href} className="!text-on-text-muted hover:!text-surface">{label}</a></li>
+              ))}
+            </ul>
+          </nav>
           <div className="flex items-center gap-4">
             <StatusDot health={health} />
             {onLogout && (
-              <button onClick={onLogout} className="inline-flex items-center gap-1.5 text-sm text-on-ink-muted hover:text-bg cursor-pointer" title="Sair">
+              <button onClick={onLogout} className="inline-flex items-center gap-1.5 text-sm text-on-text-muted hover:text-surface cursor-pointer" title="Sair">
                 <LogOut className="h-4 w-4" /> Sair
               </button>
             )}
@@ -47,8 +57,8 @@ export function BentoHero({ health, onLogout }: { health: HealthState; onLogout?
             <h1 className="display text-[56px] sm:text-[88px] lg:text-[104px]">
               {status !== 'ready' || !hasData ? (
                 <>Para onde vai o seu <span className="keyword">dinheiro</span>?</>
-              ) : last && previous ? (
-                <>Você gastou <span className="keyword">{change! <= 0 ? 'menos' : 'mais'}</span> em {last.label}.</>
+              ) : last && direction ? (
+                <>Você gastou <span className="keyword">{direction}</span> em {last.label}.</>
               ) : (
                 <>Seus gastos de <span className="keyword">{last?.label}</span>.</>
               )}
@@ -56,9 +66,9 @@ export function BentoHero({ health, onLogout }: { health: HealthState; onLogout?
 
             {hasData && last ? (
               <div className="mt-8 lg:mt-12 lg:pb-3">
-                <p className="text-sm text-on-ink-muted mb-2">Total de {last.label}</p>
+                <p className="text-sm text-on-text-muted mb-2">Gastos de {last.label}</p>
                 <p className="display text-[48px] sm:text-[64px] num">{formatCurrency(last.total)}</p>
-                <p className="mt-4 text-lg leading-snug font-serif italic text-on-ink-muted">
+                <p className="mt-4 text-lg leading-snug font-serif italic text-on-text-muted">
                   {change !== undefined && previous ? (
                     <>
                       <span className="marker num">{formatChange(change)}</span> em relação a {previous.label}.
@@ -68,14 +78,14 @@ export function BentoHero({ health, onLogout }: { health: HealthState; onLogout?
                 </p>
               </div>
             ) : (
-              <p className="mt-8 text-lg text-on-ink-muted leading-snug lg:pb-3 max-w-md">
+              <p className="mt-8 text-lg text-on-text-muted leading-snug lg:pb-3 max-w-md">
                 Envie um extrato bancário ou fatura de cartão. O Freyr organiza cada gasto por categoria, sem planilhas.
               </p>
             )}
           </div>
 
           <div className="lg:col-span-5 lg:col-start-8 relative">
-            <div className="relative h-full min-h-[280px] sm:min-h-[320px] bg-on-ink-hairline/50 rounded-2xl p-6 sm:p-8 flex flex-col justify-end">
+            <div className="relative h-full min-h-[280px] sm:min-h-[320px] bg-on-text-line/50 rounded-2xl p-6 sm:p-8 flex flex-col justify-end">
               <div className="flex flex-wrap items-center gap-3 mb-4">
                 <PillButton tone="light" onClick={() => document.getElementById('extrato')?.scrollIntoView({ behavior: 'smooth' })}>
                   Enviar extrato
@@ -88,8 +98,8 @@ export function BentoHero({ health, onLogout }: { health: HealthState; onLogout?
               </div>
               {hasData && (
                 <div className="text-right">
-                  <p className="text-sm text-on-ink-muted mb-1">Total registrado</p>
-                  <p className="display text-[36px] sm:text-[48px] num">{formatCurrency(total)}</p>
+                  <p className="text-sm text-on-text-muted mb-1">Gastos registrados</p>
+                  <p className="display text-[36px] sm:text-[48px] num">{formatCurrency(spent)}</p>
                 </div>
               )}
             </div>

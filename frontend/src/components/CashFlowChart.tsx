@@ -27,8 +27,8 @@ const compactCurrency = new Intl.NumberFormat('pt-BR', {
 const ChartTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value?: number; name?: string; color?: string }[]; label?: string }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-ink text-bg rounded-xl px-3.5 py-2.5 text-sm shadow-lg">
-      <p className="text-on-ink-muted text-xs">{label}</p>
+    <div className="bg-text text-surface rounded-xl px-3.5 py-2.5 text-sm shadow-lg">
+      <p className="text-on-text-muted text-xs">{label}</p>
       {payload.map((p, i) => (
         <p key={i} className="font-medium num text-base flex items-center gap-2" style={{ color: p.color }}>
           <span className="w-2 h-2 rounded-full" />
@@ -44,7 +44,7 @@ export default function CashFlowChart() {
   const months = useMemo(() => totalsByMonth(expenses), [expenses]);
 
   if (months.length === 0) {
-    return <p className="text-muted">O fluxo de caixa aparece aqui depois do primeiro extrato.</p>;
+    return <p className="text-ink-muted">O fluxo de caixa aparece aqui depois do primeiro extrato.</p>;
   }
 
   const recent = months.slice(-6).reverse();
@@ -52,7 +52,7 @@ export default function CashFlowChart() {
   return (
     <div className="grid gap-10 lg:grid-cols-[1.4fr_1fr]">
       <div>
-        {months.length < 2 && <p className="text-muted mb-4">Envie extratos de mais de um mês para ver a evolução.</p>}
+        {months.length < 2 && <p className="text-ink-muted mb-4">Envie extratos de mais de um mês para ver a evolução.</p>}
         <div className="h-[280px] sm:h-[320px]" role="img" aria-label="Gráfico de fluxo de caixa mensal (receitas vs despesas)">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={months} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -99,7 +99,7 @@ export default function CashFlowChart() {
         </div>
       </div>
 
-      <ol className="divide-y divide-hairline border-y border-hairline self-start">
+      <ol className="divide-y divide-line border-y border-line self-start">
         {recent.map((month, index) => {
           const previous = recent[index + 1];
           const incomeChange = previous
@@ -116,31 +116,31 @@ export default function CashFlowChart() {
             <li key={month.key} className="flex items-baseline justify-between gap-4 py-4">
               <div>
                 <p className="text-lg font-medium tracking-[-0.02em]">{month.label}</p>
-                <p className="text-sm text-muted">{month.count} {month.count === 1 ? 'transação' : 'transações'}</p>
+                <p className="text-sm text-ink-muted">{month.count} {month.count === 1 ? 'transação' : 'transações'}</p>
               </div>
               <div className="text-right space-y-1">
                 <div className="flex items-baseline justify-end gap-2">
-                  <span className="text-success font-medium num">{formatCurrency(month.income)}</span>
+                  <span className="text-positive font-medium num">{formatCurrency(month.income)}</span>
                   {incomeChange !== undefined && (
-                    <span className={`text-xs num ${incomeChange > 0 ? 'text-success' : incomeChange < 0 ? 'text-danger' : 'text-muted'}`}>
+                    <span className={`text-xs num ${incomeChange > 0 ? 'text-positive' : incomeChange < 0 ? 'text-alert' : 'text-ink-muted'}`}>
                       {incomeChange > 0 ? '+' : ''}{incomeChange.toFixed(0)}%
                     </span>
                   )}
                 </div>
                 <div className="flex items-baseline justify-end gap-2">
-                  <span className="text-danger font-medium num">{formatCurrency(month.expense)}</span>
+                  <span className="text-alert font-medium num">{formatCurrency(month.expense)}</span>
                   {expenseChange !== undefined && (
-                    <span className={`text-xs num ${expenseChange > 0 ? 'text-danger' : expenseChange < 0 ? 'text-success' : 'text-muted'}`}>
+                    <span className={`text-xs num ${expenseChange > 0 ? 'text-alert' : expenseChange < 0 ? 'text-positive' : 'text-ink-muted'}`}>
                       {expenseChange > 0 ? '+' : ''}{expenseChange.toFixed(0)}%
                     </span>
                   )}
                 </div>
-                <div className="flex items-baseline justify-end gap-2 border-t border-hairline pt-1">
-                  <span className={`font-medium num ${month.balance >= 0 ? 'text-success' : 'text-danger'}`}>
+                <div className="flex items-baseline justify-end gap-2 border-t border-line pt-1">
+                  <span className={`font-medium num ${month.balance >= 0 ? 'text-positive' : 'text-alert'}`}>
                     {formatCurrency(month.balance)}
                   </span>
                   {balanceChange !== undefined && (
-                    <span className={`text-xs num ${balanceChange > 0 ? 'text-success' : balanceChange < 0 ? 'text-danger' : 'text-muted'}`}>
+                    <span className={`text-xs num ${balanceChange > 0 ? 'text-positive' : balanceChange < 0 ? 'text-alert' : 'text-ink-muted'}`}>
                       {balanceChange > 0 ? '+' : ''}{balanceChange.toFixed(0)}%
                     </span>
                   )}

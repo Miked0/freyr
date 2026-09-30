@@ -44,8 +44,8 @@ const SliceTooltip = ({ active, payload }: { active?: boolean; payload?: { paylo
   const slice = payload?.[0]?.payload;
   if (!active || !slice) return null;
   return (
-    <div className="bg-ink text-bg rounded-xl px-3.5 py-2.5 text-sm shadow-lg">
-      <p className="text-on-ink-muted text-xs">{slice.category}</p>
+    <div className="bg-text text-surface rounded-xl px-3.5 py-2.5 text-sm shadow-lg">
+      <p className="text-on-text-muted text-xs">{slice.category}</p>
       <p className="font-medium num text-base">
         {formatCurrency(slice.total)} · {formatPercent(slice.share)}
       </p>
@@ -59,7 +59,7 @@ export function DonutChart() {
   const slices = useMemo(() => pieSlices(categories), [categories]);
 
   if (categories.length === 0) {
-    return <p className="text-muted text-center py-8">As categorias aparecem aqui depois do primeiro extrato.</p>;
+    return <p className="text-ink-muted text-center py-8">As categorias aparecem aqui depois do primeiro extrato.</p>;
   }
 
   return (

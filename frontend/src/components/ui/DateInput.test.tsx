@@ -19,7 +19,7 @@ describe('DateInput', () => {
     render(<DateInput label="Data" error="Data inválida" />);
     expect(screen.getByRole('alert')).toHaveTextContent('Data inválida');
     const input = screen.getByLabelText('Data');
-    expect(input).toHaveClass('border-danger');
+    expect(input).toHaveClass('border-alert');
   });
 
   it('applies disabled styles and sets disabled attribute', () => {

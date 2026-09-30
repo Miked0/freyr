@@ -67,7 +67,7 @@ const SkeletonRow: React.FC = () => (
   <li className="py-3.5 px-1">
     <div className="flex items-center gap-4">
       <Skeleton className="w-4 h-4 rounded" />
-      <Skeleton className="text-muted num text-sm w-[84px] flex-shrink-0" />
+      <Skeleton className="text-ink-muted num text-sm w-[84px] flex-shrink-0" />
       <div className="flex-1 min-w-0">
         <Skeleton className="block h-4 w-3/4" />
         <Skeleton className="inline-flex items-center gap-2 text-sm mt-1 h-4 w-1/2" />
@@ -85,7 +85,7 @@ const ReviewItem: React.FC<{
 }> = ({ item, isSelected, onToggle, disabled }) => (
   <li>
     <label
-      className={`flex items-center gap-4 py-3.5 px-1 cursor-pointer transition-opacity hover:bg-wash ${
+      className={`flex items-center gap-4 py-3.5 px-1 cursor-pointer transition-opacity hover:bg-surface-wash ${
         isSelected ? '' : 'opacity-40'
       }`}
     >
@@ -94,13 +94,13 @@ const ReviewItem: React.FC<{
         checked={isSelected}
         onChange={onToggle}
         disabled={disabled}
-        className="w-4 h-4 accent-accent flex-shrink-0"
+        className="w-4 h-4 accent-brand-primary flex-shrink-0"
         aria-label={`Selecionar ${item.description}`}
       />
-      <span className="text-muted num text-sm w-[84px] flex-shrink-0">{formatDate(item.date)}</span>
+      <span className="text-ink-muted num text-sm w-[84px] flex-shrink-0">{formatDate(item.date)}</span>
       <span className="flex-1 min-w-0">
         <span className="block font-medium truncate">{item.description}</span>
-        <span className="inline-flex items-center gap-2 text-sm text-muted">
+        <span className="inline-flex items-center gap-2 text-sm text-ink-muted">
           <span
             className="w-2 h-2 rounded-full"
             style={{ backgroundColor: categoryColors[item.category] || categoryColors.outros }}
@@ -137,7 +137,7 @@ const ImportProgress: React.FC<ImportProgressProps> = ({
                 <Skeleton className="h-5 w-5 rounded" />
                 <span>{fileName}</span>
               </div>
-              <div className="text-muted">
+              <div className="text-ink-muted">
                 <Skeleton className="h-4 w-full max-w-md" />
               </div>
             </div>
@@ -147,7 +147,7 @@ const ImportProgress: React.FC<ImportProgressProps> = ({
         {!isBusy && (
           <>
             <svg
-              className="h-7 w-7 text-accent flex-shrink-0"
+              className="h-7 w-7 text-brand-primary flex-shrink-0"
               strokeWidth={1.75}
               viewBox="0 0 24 24"
               fill="none"
@@ -168,7 +168,7 @@ const ImportProgress: React.FC<ImportProgressProps> = ({
               <p className="text-xl font-medium flex items-center gap-2">
                 <span className="h-5 w-5" aria-hidden="true" /> {fileName}
               </p>
-              <p className="text-muted">
+              <p className="text-ink-muted">
                 {itemCount} {itemCount === 1 ? 'despesa encontrada' : 'despesas encontradas'} somando{' '}
                 <span className="marker num">{formatCurrency(totalAmount)}</span>
                 . {isReview ? 'Já estão salvas — desmarque as que não quer manter.' : ''}
@@ -184,7 +184,7 @@ const ImportProgress: React.FC<ImportProgressProps> = ({
             <div className="min-w-0" />
             <button
               type="button"
-              className="text-sm text-accent hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 rounded"
+              className="text-sm text-brand-primary hover:underline focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 rounded"
               onClick={onDiscardAll}
               disabled={isBusy}
               data-testid="discard-all-btn"
@@ -194,7 +194,7 @@ const ImportProgress: React.FC<ImportProgressProps> = ({
           </div>
 
           <ul
-            className="divide-y divide-hairline border-y border-hairline max-h-[28rem] overflow-y-auto"
+            className="divide-y divide-line border-y border-line max-h-[28rem] overflow-y-auto"
             role="list"
             aria-label="Lista de despesas para revisão"
             data-testid="review-list"
@@ -220,7 +220,7 @@ const ImportProgress: React.FC<ImportProgressProps> = ({
             </button>
             <button
               type="button"
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-accent text-bg font-medium rounded-[4px] hover:bg-accent/90 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:opacity-45 disabled:cursor-not-allowed cursor-pointer"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-primary text-surface font-medium rounded-[4px] hover:bg-brand-primary/90 focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 disabled:opacity-45 disabled:cursor-not-allowed cursor-pointer"
               onClick={() => onKeep([])}
               disabled={isBusy}
               data-testid="keep-btn"

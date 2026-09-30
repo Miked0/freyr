@@ -9,18 +9,24 @@
   --color-text: #1E1C1A;
   --color-on-text-muted: rgb(247 246 243 / 0.62);
   --color-on-text-line: rgb(247 246 243 / 0.16);
+  /* On the dark (bg-text) surfaces: form borders at 3.6:1 and alert text at 7.3:1. */
+  --color-on-text-control: rgb(247 246 243 / 0.4);
+  --color-on-text-alert: #F0A08C;
   --color-brand-primary-light: #B9B8E6;
-  --color-ink-muted: rgb(30 28 26 / 0.58);
+  /* Muted text and form borders are tuned to WCAG 2.1: 4.98:1 text, 3.24:1 control border on surface. */
+  --color-ink-muted: rgb(30 28 26 / 0.64);
   --color-line: rgb(30 28 26 / 0.12);
+  --color-line-strong: rgb(30 28 26 / 0.5);
   --color-surface-wash: rgb(30 28 26 / 0.04);
 
   --color-brand-primary: #5B5A96;
   --color-brand-primary-soft: rgb(91 90 150 / 0.12);
-  --color-brand-warm: #C97B3D;
+  /* Darkened so text on the matching -soft background stays above 4.5:1. */
+  --color-brand-warm: #8D562B;
   --color-brand-warm-soft: rgb(201 123 61 / 0.14);
-  --color-positive: #3E7A5E;
+  --color-positive: #376B53;
   --color-positive-soft: rgb(62 122 94 / 0.12);
-  --color-alert: #B5533C;
+  --color-alert: #9F4935;
   --color-alert-soft: rgb(181 83 60 / 0.12);
 
   --radius-ds: 8px;
@@ -38,6 +44,7 @@
     --color-brand-primary-light: #B9B8E6;
     --color-ink-muted: rgb(247 246 243 / 0.52);
     --color-line: rgb(247 246 243 / 0.1);
+    --color-line-strong: rgb(247 246 243 / 0.5);
     --color-surface-wash: rgb(247 246 243 / 0.03);
 
     --color-brand-primary: #7A79B8;
@@ -90,6 +97,11 @@
   :focus-visible {
     outline: 2px solid var(--color-brand-primary);
     outline-offset: 2px;
+  }
+
+  /* brand-primary is only 2.71:1 on the dark surfaces; the light tint keeps focus visible there. */
+  .on-text :focus-visible {
+    outline-color: var(--color-brand-primary-light);
   }
 
   code {
@@ -162,7 +174,7 @@
     font-size: 15px;
     color: var(--color-text);
     background: var(--color-surface);
-    border: 1px solid var(--color-line);
+    border: 1px solid var(--color-line-strong);
     border-radius: var(--radius-ds);
     outline: none;
     transition: border-color 150ms, box-shadow 150ms;
@@ -174,7 +186,8 @@
 
   .input:focus {
     border-color: var(--color-brand-primary);
-    box-shadow: 0 0 0 3px var(--color-brand-primary-soft);
+    outline: 2px solid var(--color-brand-primary);
+    outline-offset: 1px;
   }
 
   .data-table {

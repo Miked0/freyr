@@ -99,6 +99,7 @@ describe('/api/expenses', () => {
     const put = await request(app).put(`/api/expenses/${body.expenses[0].id}`).set('Cookie', cookie).send({ amount: -5 });
 
     expect(put.status).toBe(400);
+    expect(put.body.error).toMatch(/valor/i);
   });
 
   it('reports whether AI categorization is enabled', async () => {
@@ -135,6 +136,7 @@ describe('/api/expenses', () => {
       .attach('statement', Buffer.from('x'), 'extrato.txt');
 
     expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/PDF ou CSV/);
   });
 
   it('explains why an unreadable PDF was rejected', async () => {
@@ -162,13 +164,13 @@ describe('/api/expenses', () => {
     expect(res.body.error).not.toMatch(/SQLITE/);
   });
 
-  it('rejects a statement with more than 500 transactions without saving any of them', async () => {
-    const rows = Array.from({ length: 501 }, (_, i) => `15/03/2026,-1.00,COMPRA ${i}`);
+  it('rejects a statement with more than 300 transactions without saving any of them', async () => {
+    const rows = Array.from({ length: 301 }, (_, i) => `15/03/2026,-1.00,COMPRA ${i}`);
 
     const res = await upload(rows);
 
     expect(res.status).toBe(422);
-    expect(res.body.error).toMatch(/500/);
+    expect(res.body.error).toMatch(/300/);
     expect((await getExpenses()).body).toEqual([]);
   });
 });

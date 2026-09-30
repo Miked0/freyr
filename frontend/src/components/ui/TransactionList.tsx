@@ -81,12 +81,12 @@ export default function TransactionList({
       >
         <button
           onClick={() => handleSort(key)}
-          className={`inline-flex items-center gap-1 uppercase tracking-[0.06em] cursor-pointer hover:text-ink ${
-            active ? 'text-ink' : ''
+          className={`inline-flex items-center gap-1 uppercase tracking-[0.06em] cursor-pointer hover:text-text ${
+            active ? 'text-text' : ''
           }`}
         >
           {SORT_LABELS[key]}
-          <Icon className={`h-3.5 w-3.5 ${active ? 'text-accent' : ''}`} aria-hidden="true" />
+          <Icon className={`h-3.5 w-3.5 ${active ? 'text-brand-primary' : ''}`} aria-hidden="true" />
         </button>
       </th>
     );
@@ -141,7 +141,7 @@ export default function TransactionList({
 
   if (expenses.length === 0) {
     return (
-      <div className="py-16 flex flex-col items-center gap-3 text-muted text-center" role="status">
+      <div className="py-16 flex flex-col items-center gap-3 text-ink-muted text-center" role="status">
         <p className="font-medium text-lg">Nenhuma despesa ainda</p>
         <p className="text-sm">Envie um extrato para começar.</p>
       </div>
@@ -156,7 +156,7 @@ export default function TransactionList({
           <span className="field-label">Buscar</span>
           <span className="relative block">
             <svg
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none"
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-muted pointer-events-none"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -205,7 +205,7 @@ export default function TransactionList({
       {filteredExpenses.length === 0 && hasActiveFilters && (
         <div className="py-12 text-center">
           <p className="font-medium text-lg mb-1">Nenhuma despesa encontrada</p>
-          <p className="text-muted mb-4">Ajuste ou limpe os filtros.</p>
+          <p className="text-ink-muted mb-4">Ajuste ou limpe os filtros.</p>
           <Button variant="secondary" size="sm" onClick={clearFilters}>
             Limpar filtros
           </Button>
@@ -213,7 +213,7 @@ export default function TransactionList({
       )}
 
       {/* Table */}
-      <div className="overflow-x-auto border-y border-hairline rounded-xl">
+      <div className="overflow-x-auto border-y border-line rounded-xl">
         <table className="data-table min-w-[680px]">
           <thead>
             <tr>
@@ -233,7 +233,7 @@ export default function TransactionList({
               const isEditing = editingId === expense.id;
               return (
                 <tr key={expense.id}>
-                  <td className="whitespace-nowrap num text-muted">{formatDate(expense.date)}</td>
+                  <td className="whitespace-nowrap num text-ink-muted">{formatDate(expense.date)}</td>
                   <td className="max-w-[340px]">
                     {isEditing ? (
                       <input
@@ -334,7 +334,7 @@ export default function TransactionList({
                                 onClick={() => handleDelete(expense)}
                                 aria-label={`Excluir ${expense.description}`}
                                 title="Excluir"
-                                className="hover:!text-danger"
+                                className="hover:!text-alert"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -353,7 +353,7 @@ export default function TransactionList({
 
       {filteredExpenses.length > 0 && (
         <div className="pt-4 flex flex-wrap items-baseline justify-between gap-2">
-          <span className="text-muted">
+          <span className="text-ink-muted">
             {filteredExpenses.length} de {expenses.length} transações{hasActiveFilters ? ' (filtradas)' : ''}
           </span>
           <span className="text-2xl font-medium tracking-[-0.03em] num">
