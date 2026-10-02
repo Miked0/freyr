@@ -2,6 +2,7 @@ import { createClient, type Client, type InArgs, type ResultSet } from '@libsql/
 import { SCHEMA, INDEXES, type AvatarColor } from './schema';
 import { randomUUID } from 'crypto';
 import { DEFAULT_CATEGORY_NAMES } from './categories';
+import { importKey } from './import-key';
 import { GOALS_SCHEMA, createGoalsStore, type GoalsStore } from './goals';
 
 export interface DatabaseConfig {
@@ -39,6 +40,7 @@ interface ExpenseRow {
   type: 'income' | 'expense';
   raw_description: string | null;
   source_file: string | null;
+  import_key: string | null;
   created_at: string;
 }
 
@@ -79,10 +81,12 @@ export class DatabaseService {
     await DatabaseService.addLegacyTypeColumn(client);
     await DatabaseService.addLegacySessionVersionColumn(client);
     await DatabaseService.addProfileColumns(client);
+    await DatabaseService.addImportKeyColumn(client);
     await client.executeMultiple(INDEXES);
     await client.executeMultiple(GOALS_SCHEMA);
     await DatabaseService.migrateLegacyCorrections(client);
     await DatabaseService.backfillDefaultCategories(client);
+    await DatabaseService.backfillImportKeys(client);
     return new DatabaseService(client);
   }
 
@@ -107,6 +111,25 @@ export class DatabaseService {
     const columns = await client.execute('PRAGMA table_info(users)');
     if (columns.rows.some(row => row.name === 'session_version')) return;
     await client.execute('ALTER TABLE users ADD COLUMN session_version INTEGER NOT NULL DEFAULT 0');
+  }
+
+  private static async addImportKeyColumn(client: Client) {
+    const columns = await client.execute('PRAGMA table_info(expenses)');
+    if (columns.rows.some(row => row.name === 'import_key')) return;
+    await client.execute('ALTER TABLE expenses ADD COLUMN import_key TEXT');
+  }
+
+  // Rows saved before duplicate detection get a key from their current values; an edited row may then
+  // not match its statement line, which only lets that one line be imported again.
+  private static async backfillImportKeys(client: Client) {
+    const rows = toObjects<ExpenseRow>(
+      await client.execute('SELECT id, date, amount, description, type FROM expenses WHERE import_key IS NULL')
+    );
+    if (rows.length === 0) return;
+    await client.batch(
+      rows.map(row => ({ sql: 'UPDATE expenses SET import_key = ? WHERE id = ?', args: [importKey(row), row.id] })),
+      'write'
+    );
   }
 
   private static async addProfileColumns(client: Client) {
@@ -248,8 +271,8 @@ export class DatabaseService {
       sourceFile?: string;
     }): Promise<string> {
       await this.run(
-        `INSERT INTO expenses (id, user_id, date, amount, description, category, type, raw_description, source_file)
-         VALUES (@id, @user_id, @date, @amount, @description, @category, @type, @raw_description, @source_file)`,
+        `INSERT INTO expenses (id, user_id, date, amount, description, category, type, raw_description, source_file, import_key)
+         VALUES (@id, @user_id, @date, @amount, @description, @category, @type, @raw_description, @source_file, @import_key)`,
         {
           id: expense.id,
           user_id: userId,
@@ -260,6 +283,7 @@ export class DatabaseService {
           type: expense.type,
           raw_description: expense.rawDescription ?? null,
           source_file: expense.sourceFile ?? null,
+          import_key: importKey(expense),
         }
       );
       return expense.id;
@@ -270,6 +294,23 @@ export class DatabaseService {
     if (keys.length === 0) return false;
     const setClause = keys.map(key => `${key} = @${key}`).join(', ');
     return (await this.run(`UPDATE expenses SET ${setClause} WHERE user_id = @user_id AND id = @id`, { ...updates, user_id: userId, id })) > 0;
+  }
+
+  /** How many of the user's saved expenses carry each of these import keys. */
+  async countImportKeysForUser(userId: string, keys: string[]): Promise<Map<string, number>> {
+    const counts = new Map<string, number>();
+    const unique = [...new Set(keys)];
+    // Chunked to stay under SQLite's bound-parameter limit.
+    for (let i = 0; i < unique.length; i += 500) {
+      const chunk = unique.slice(i, i + 500);
+      const rows = await this.all<{ import_key: string; n: number }>(
+        `SELECT import_key, COUNT(*) AS n FROM expenses WHERE user_id = ? AND import_key IN (${chunk.map(() => '?').join(', ')})
+         GROUP BY import_key`,
+        [userId, ...chunk]
+      );
+      for (const row of rows) counts.set(row.import_key, Number(row.n));
+    }
+    return counts;
   }
 
   async deleteExpenseForUser(userId: string, id: string): Promise<boolean> {

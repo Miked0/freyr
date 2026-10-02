@@ -18,6 +18,8 @@ export interface User {
 export interface UploadResponse {
   message: string;
   expenses: Expense[];
+  /** Transactions skipped because they were already saved. */
+  duplicates?: number;
 }
 
 export interface Health {

@@ -19,6 +19,7 @@ export function Dropzone({ onComplete }: DropzoneProps) {
   const { load } = useExpenses();
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [uploading, setUploading] = useState<string | null>(null);
   // A ref, not state: two drops in the same tick would both still see uploading === null.
   const busy = useRef(false);
@@ -27,6 +28,7 @@ export function Dropzone({ onComplete }: DropzoneProps) {
   const processFile = useCallback(async (file: File | undefined) => {
     if (!file || busy.current) return;
     setError(null);
+    setNotice(null);
 
     if (!/\.(pdf|csv)$/i.test(file.name)) {
       setError('Formato não suportado. Envie um arquivo PDF ou CSV.');
@@ -42,7 +44,9 @@ export function Dropzone({ onComplete }: DropzoneProps) {
     try {
       const result = await api.uploadStatement(file);
       await load();
+      if (result.duplicates) setNotice(result.message);
       if (result.expenses.length === 0) {
+        if (result.duplicates) return;
         setError('Nenhuma transação foi encontrada nesse arquivo. Confira se ele tem data, descrição e valor em cada lançamento.');
         return;
       }
@@ -108,6 +112,9 @@ export function Dropzone({ onComplete }: DropzoneProps) {
             </div>
             <p className="fr-progress-step">Importando {uploading}… isso pode levar até um minuto.</p>
           </div>
+        )}
+        {notice && (
+          <p role="status" className="fr-progress-step" style={{ margin: 0 }}>{notice}</p>
         )}
       </div>
 
