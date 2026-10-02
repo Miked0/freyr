@@ -118,3 +118,41 @@ describe('default category backfill', () => {
     expect((await db.getAllCategoriesForUser(userId)).map(c => c.name).sort()).toEqual([...DEFAULT_CATEGORY_NAMES].sort());
   });
 });
+
+describe('import key backfill', () => {
+  it('recognizes a re-upload of transactions saved before duplicate detection existed', async () => {
+    const dbUrl = url();
+    const raw = createClient({ url: dbUrl });
+    await raw.executeMultiple(PRE_TYPE_SCHEMA);
+    raw.close();
+    const app = createApp({
+      db: await DatabaseService.connect({ url: dbUrl }),
+      ai: new AIService({ apiKey: '', apiUrl: '', model: '' }),
+      logRequests: false,
+    });
+    const register = await request(app).post('/api/auth/register').send({ username: 'dono', password: 'senha-do-dono-1' });
+    const cookie = String(register.headers['set-cookie']);
+    const userId = register.body.user.id;
+
+    // A row saved by an older version, without an import key.
+    const old = createClient({ url: dbUrl });
+    await old.execute({
+      sql: "INSERT INTO expenses (id, user_id, date, amount, description, category, type) VALUES ('e1', ?, '2026-03-15', 42.5, 'UBER TRIP', 'Transporte', 'expense')",
+      args: [userId],
+    });
+    await old.execute("UPDATE expenses SET import_key = NULL WHERE id = 'e1'");
+    old.close();
+
+    const reopened = createApp({
+      db: await DatabaseService.connect({ url: dbUrl }),
+      ai: new AIService({ apiKey: '', apiUrl: '', model: '' }),
+      logRequests: false,
+    });
+    const res = await request(reopened)
+      .post('/api/expenses/upload')
+      .set('Cookie', cookie)
+      .attach('statement', Buffer.from('date,amount,description\n15/03/2026,-42.50,UBER TRIP'), 'extrato.csv');
+
+    expect(res.body.duplicates).toBe(1);
+  }, 15_000);
+});

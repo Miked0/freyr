@@ -1,10 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useExpenses } from '@/store/expenses';
-import { summarizeOverview } from '@/lib/overview';
 import { totalsByMonth } from '@/lib/finance';
-import { monthLongLabel, monthName, overviewPhrase } from '@/lib/overviewPhrase';
+import { last30Phrase, monthLongLabel, monthName, overviewPhrase } from '@/lib/overviewPhrase';
 import { PageHeader } from '../PageHeader';
-import { OverviewCards } from '../OverviewCards';
+import { LAST_30_DAYS, OverviewCards, periodSummary } from '../OverviewCards';
 import { CashFlowCard } from '../CashFlowCard';
 import { ImportCard } from '../ImportCard';
 import { GoalsCard } from '../GoalsCard';
@@ -20,14 +19,22 @@ export interface OverviewPageProps {
 /** The "Visão geral financeira" screen of the Freyr 2.0 design system, fed by the user's entries. */
 export function OverviewPage({ onImported }: OverviewPageProps) {
   const { expenses } = useExpenses();
-  // Months with entries, newest first; the cards follow the one picked in the header (the latest by default).
+  // The last 30 days, then the months with entries, newest first; the cards follow the one picked in the header.
   const periods = useMemo(
-    () => totalsByMonth(expenses).reverse().map(m => ({ key: m.key, label: monthLongLabel(m.key) })),
+    () => [
+      { key: LAST_30_DAYS, label: 'Últimos 30 dias' },
+      ...totalsByMonth(expenses).reverse().map(m => ({ key: m.key, label: monthLongLabel(m.key) })),
+    ],
     [expenses],
   );
-  const [picked, setPicked] = useState<string>();
-  const summary = useMemo(() => summarizeOverview(expenses, picked), [expenses, picked]);
-  const phrase = summary ? overviewPhrase(summary.income, summary.expense, monthName(summary.monthKey)) : overviewPhrase(0, 0);
+  const [picked, setPicked] = useState(LAST_30_DAYS);
+  const period = periods.some(p => p.key === picked) ? picked : LAST_30_DAYS;
+  const summary = useMemo(() => periodSummary(expenses, period), [expenses, period]);
+  const phrase = !summary
+    ? overviewPhrase(0, 0)
+    : 'monthKey' in summary
+      ? overviewPhrase(summary.income, summary.expense, monthName(summary.monthKey))
+      : last30Phrase(summary.income, summary.expense);
 
   return (
     <>
@@ -35,14 +42,14 @@ export function OverviewPage({ onImported }: OverviewPageProps) {
         page="Visão geral"
         title="Visão geral financeira"
         phrase={phrase}
-        periodLabel={summary ? monthLongLabel(summary.monthKey) : undefined}
-        period={summary?.monthKey}
+        periodLabel={summary ? periods.find(p => p.key === period)?.label : undefined}
+        period={period}
         periods={periods}
         onPeriodChange={setPicked}
         onExport={csvExporter(expenses)}
       />
       <div className="fr-bento">
-        <OverviewCards monthKey={summary?.monthKey} />
+        <OverviewCards period={period} />
         <CashFlowCard />
         <div className="fr-span-4 grid gap-6 content-start min-w-0">
           <ImportCard onComplete={onImported} />

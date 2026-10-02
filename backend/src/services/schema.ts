@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS expenses (
   type TEXT NOT NULL DEFAULT 'expense' CHECK (type IN ('income','expense')),
   raw_description TEXT,
   source_file TEXT,
+  import_key TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
@@ -52,6 +53,7 @@ CREATE TABLE IF NOT EXISTS category_corrections (
 // Runs after the legacy column migration: pre-multi-user tables only gain user_id there.
 export const INDEXES = `
 CREATE INDEX IF NOT EXISTS idx_expenses_user_id ON expenses(user_id);
+CREATE INDEX IF NOT EXISTS idx_expenses_import_key ON expenses(user_id, import_key);
 CREATE INDEX IF NOT EXISTS idx_categories_user_id ON categories(user_id);
 CREATE INDEX IF NOT EXISTS idx_category_corrections_user_id ON category_corrections(user_id);
 CREATE INDEX IF NOT EXISTS idx_category_corrections_description ON category_corrections(description);

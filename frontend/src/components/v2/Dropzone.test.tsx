@@ -55,4 +55,45 @@ describe('Dropzone', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Formato não suportado');
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  describe('when the statement was already imported', () => {
+    const answer = (upload: object) =>
+      vi.fn(async (url: string) =>
+        new Response(JSON.stringify(String(url).endsWith('/upload') ? upload : []), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      );
+
+    it('says the transactions were already saved instead of reporting an empty file', async () => {
+      vi.stubGlobal('fetch', answer({
+        success: true, expenses: [], duplicates: 3,
+        message: 'Nenhuma transação nova em extrato.csv: 3 já estavam salvas e foram ignoradas.',
+      }));
+      const onComplete = vi.fn();
+      render(<Dropzone onComplete={onComplete} />);
+
+      fireEvent.change(screen.getByTestId('statement-input'), { target: { files: [statement()] } });
+
+      expect(await screen.findByRole('status')).toHaveTextContent('3 já estavam salvas e foram ignoradas');
+      expect(screen.queryByRole('alert')).toBeNull();
+      expect(onComplete).not.toHaveBeenCalled();
+    });
+
+    it('imports the new transactions and tells how many repeated ones were skipped', async () => {
+      vi.stubGlobal('fetch', answer({
+        success: true,
+        expenses: [{ id: 'e1', date: '2026-03-17', amount: 3000, description: 'SALARIO', category: 'Salário', type: 'income' }],
+        duplicates: 2,
+        message: '1 transação importada de extrato.csv; 2 já estavam salvas e foram ignoradas.',
+      }));
+      const onComplete = vi.fn();
+      render(<Dropzone onComplete={onComplete} />);
+
+      fireEvent.change(screen.getByTestId('statement-input'), { target: { files: [statement()] } });
+
+      expect(await screen.findByRole('status')).toHaveTextContent('2 já estavam salvas');
+      expect(onComplete).toHaveBeenCalledTimes(1);
+    });
+  });
 });

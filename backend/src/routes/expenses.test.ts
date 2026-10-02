@@ -184,6 +184,102 @@ describe('/api/expenses', () => {
     expect(res.body.error).not.toMatch(/SQLITE/);
   });
 
+  describe('duplicate uploads', () => {
+    const rows = ['15/03/2026,-42.50,UBER TRIP', '16/03/2026,-120.00,Mercado Extra', '17/03/2026,3000.00,SALARIO'];
+
+    it('skips every transaction when the same statement is uploaded twice', async () => {
+      await upload(rows);
+
+      const again = await upload(rows);
+
+      expect(again.status).toBe(200);
+      expect(again.body.expenses).toEqual([]);
+      expect(again.body.duplicates).toBe(3);
+      expect(again.body.message).toMatch(/já estavam salvas/);
+      expect((await getExpenses()).body).toHaveLength(3);
+    });
+
+    it('imports only the new transactions of a statement that overlaps an earlier one', async () => {
+      await upload(rows.slice(0, 2));
+
+      const res = await upload(rows);
+
+      expect(res.body.expenses.map((e: any) => e.description)).toEqual(['SALARIO']);
+      expect(res.body.duplicates).toBe(2);
+      expect((await getExpenses()).body).toHaveLength(3);
+    });
+
+    it('keeps identical transactions that appear more than once in the same statement', async () => {
+      const twoCoffees = ['15/03/2026,-8.00,CAFE DO PONTO', '15/03/2026,-8.00,CAFE DO PONTO'];
+
+      const first = await upload(twoCoffees);
+      const again = await upload(twoCoffees);
+
+      expect(first.body.expenses).toHaveLength(2);
+      expect(first.body.duplicates).toBe(0);
+      expect(again.body.duplicates).toBe(2);
+      expect((await getExpenses()).body).toHaveLength(2);
+    });
+
+    it('imports the extra copy when a later statement has one more identical transaction', async () => {
+      await upload(['15/03/2026,-8.00,CAFE DO PONTO']);
+
+      const res = await upload(['15/03/2026,-8.00,CAFE DO PONTO', '15/03/2026,-8.00,CAFE DO PONTO']);
+
+      expect(res.body.expenses).toHaveLength(1);
+      expect(res.body.duplicates).toBe(1);
+    });
+
+    it('treats descriptions that differ only in case or spacing as the same transaction', async () => {
+      await upload(['15/03/2026,-42.50,UBER TRIP']);
+
+      const res = await upload(['15/03/2026,-42.50,Uber  Trip ']);
+
+      expect(res.body.duplicates).toBe(1);
+    });
+
+    it('still imports a transaction with the same description on another date or with another amount', async () => {
+      await upload(['15/03/2026,-42.50,UBER TRIP']);
+
+      const res = await upload(['16/03/2026,-42.50,UBER TRIP', '15/03/2026,-42.51,UBER TRIP']);
+
+      expect(res.body.expenses).toHaveLength(2);
+      expect(res.body.duplicates).toBe(0);
+    });
+
+    it('recognizes a card refund that was already imported', async () => {
+      const invoice = ['15/03/2026,120.00,LOJA X', '16/03/2026,+120.00,ESTORNO LOJA X'];
+      await upload(invoice);
+
+      const again = await upload(invoice);
+
+      expect(again.body.duplicates).toBe(2);
+      expect((await getExpenses()).body).toHaveLength(2);
+    });
+
+    it('does not count another user\'s transactions as duplicates', async () => {
+      await upload(rows);
+      await request(app).post('/api/auth/register').send({ username: 'other', password: 'otherpass123' });
+      const login = await request(app).post('/api/auth/login').send({ username: 'other', password: 'otherpass123' });
+
+      const res = await request(app).post('/api/expenses/upload')
+        .set('Cookie', login.headers['set-cookie'] as unknown as string[])
+        .attach('statement', csv(rows), 'extrato.csv');
+
+      expect(res.body.expenses).toHaveLength(3);
+      expect(res.body.duplicates).toBe(0);
+    });
+
+    it('imports again a transaction that was deleted after the first upload', async () => {
+      const first = await upload(rows.slice(0, 1));
+      await request(app).delete(`/api/expenses/${first.body.expenses[0].id}`).set('Cookie', cookie);
+
+      const res = await upload(rows.slice(0, 1));
+
+      expect(res.body.expenses).toHaveLength(1);
+    });
+  });
+
   it('rejects a statement with more than 300 transactions without saving any of them', async () => {
     const rows = Array.from({ length: 301 }, (_, i) => `15/03/2026,-1.00,COMPRA ${i}`);
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { monthLongLabel, monthName, overviewPhrase } from './overviewPhrase';
+import { last30Phrase, monthLongLabel, monthName, overviewPhrase } from './overviewPhrase';
 
 describe('monthName', () => {
   it('names the month of a YYYY-MM key in Portuguese', () => {
@@ -32,5 +32,14 @@ describe('overviewPhrase', () => {
 
   it('says the month broke even when income equals spending', () => {
     expect(overviewPhrase(500, 500, 'Maio')).toBe('Maio fechou no zero a zero: entrou o mesmo que saiu.');
+  });
+});
+
+describe('last30Phrase', () => {
+  it('speaks of the last 30 days', () => {
+    expect(last30Phrase(3000, 500)).toBe('Nos últimos 30 dias entrou mais do que saiu. Boa colheita.');
+    expect(last30Phrase(500, 3000)).toBe('Nos últimos 30 dias saiu mais do que entrou. Hora de ajustar.');
+    expect(last30Phrase(100, 100)).toBe('Nos últimos 30 dias entrou o mesmo que saiu.');
+    expect(last30Phrase(0, 0)).toBe('Envie um extrato para começar.');
   });
 });

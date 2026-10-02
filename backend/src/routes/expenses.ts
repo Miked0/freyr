@@ -6,6 +6,7 @@ import { randomUUID } from 'crypto';
 import multer from 'multer';
 import path from 'path';
 import { mapWithConcurrency } from '../utils/concurrency';
+import { importKey, splitAlreadyImported } from '../services/import-key';
 
 interface ExpensesRouterDeps {
   db: DatabaseService;
@@ -35,6 +36,13 @@ const upload = multer({
     }
   }
 });
+
+function uploadMessage(imported: number, duplicates: number, fileName: string): string {
+  const saved = `${imported} ${imported === 1 ? 'transação importada' : 'transações importadas'} de ${fileName}`;
+  if (duplicates === 0) return saved;
+  const skipped = `${duplicates} ${duplicates === 1 ? 'já estava salva' : 'já estavam salvas'} e ${duplicates === 1 ? 'foi ignorada' : 'foram ignoradas'}`;
+  return imported === 0 ? `Nenhuma transação nova em ${fileName}: ${skipped}.` : `${saved}; ${skipped}.`;
+}
 
 function signToType(sign: ParsedTransaction['sign']): 'income' | 'expense' {
   if (sign === 'credit') return 'income';
@@ -98,20 +106,29 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
       if (rawExpenses.length > MAX_TRANSACTIONS_PER_UPLOAD) {
         return res.status(422).json({ error: `O extrato tem ${rawExpenses.length} transações; o máximo por envio é ${MAX_TRANSACTIONS_PER_UPLOAD}.` });
       }
+      const candidates = rawExpenses.map(rawExpense => ({
+        ...rawExpense,
+        // A refund on a card invoice takes spending back, so it is stored as negative spending.
+        amount: rawExpense.sign === 'refund' ? -rawExpense.amount : rawExpense.amount,
+        type: signToType(rawExpense.sign),
+      }));
+      const { fresh, duplicates } = splitAlreadyImported(
+        candidates,
+        await db.countImportKeysForUser(userId, candidates.map(importKey))
+      );
       const categoryNames = (await db.getAllCategoriesForUser(userId)).map(cat => cat.name);
 
-      const expenses = await mapWithConcurrency(rawExpenses, AI_CONCURRENCY, async rawExpense => {
+      const expenses = await mapWithConcurrency(fresh, AI_CONCURRENCY, async rawExpense => {
         const category =
           (await db.findCorrectedCategoryForUser(userId, rawExpense.description)) ??
           (await ai.categorizeExpense(rawExpense.description, categoryNames));
         return {
           id: randomUUID(),
           date: rawExpense.date,
-          // A refund on a card invoice takes spending back, so it is stored as negative spending.
-          amount: rawExpense.sign === 'refund' ? -rawExpense.amount : rawExpense.amount,
+          amount: rawExpense.amount,
           description: rawExpense.description,
           category,
-          type: signToType(rawExpense.sign),
+          type: rawExpense.type,
           rawDescription: rawExpense.rawDescription,
           sourceFile: file.originalname
         };
@@ -124,7 +141,8 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
       res.json({
         success: true,
         expenses,
-        message: `${expenses.length} transações importadas de ${file.originalname}`
+        duplicates,
+        message: uploadMessage(expenses.length, duplicates, file.originalname)
       });
     } catch (error) {
       console.error('Upload error:', error);
