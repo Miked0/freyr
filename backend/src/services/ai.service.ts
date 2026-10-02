@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { DEFAULT_CATEGORIES } from './categories';
+import { maskForAI } from './mask';
 
 const AI_TIMEOUT_MS = 8000;
 
@@ -42,7 +43,8 @@ export class AIService {
     }
 
     try {
-      const prompt = this.createCategorizationPrompt(description, availableCategories);
+      // Only a masked description leaves the server: the model runs outside Brazil (LGPD, art. 33).
+      const prompt = this.createCategorizationPrompt(maskForAI(description), availableCategories);
 
       const response = await axios.post(
         `${this.apiUrl}/chat/completions`,
