@@ -57,6 +57,34 @@ describe('TransactionList', () => {
     expect(screen.getByText('Aluguel').closest('tr')).toHaveTextContent('+R$ 1.500,00');
   });
 
+  it('shows a card refund as money back that lowers the spending', async () => {
+    stubApi([...rows, { id: 'r1', date: '2026-09-07', amount: -120, description: 'Estorno Loja X', category: 'Compras', type: 'expense' }]);
+    await renderLoaded();
+
+    expect(screen.getByText('Estorno Loja X').closest('tr')).toHaveTextContent('+R$ 120,00');
+    expect(screen.getByText(/saldo/i)).toHaveTextContent('+R$ 3.620,00');
+  });
+
+  it('shows a negative balance with a minus sign', async () => {
+    stubApi([rows[0]]);
+    await renderLoaded();
+
+    expect(screen.getByText(/saldo/i)).toHaveTextContent('−R$ 1.500,00');
+  });
+
+  it('edits a refund without asking for a positive amount', async () => {
+    stubApi([...rows, { id: 'r1', date: '2026-09-07', amount: -120, description: 'Estorno Loja X', category: 'Compras', type: 'expense' }]);
+    await renderLoaded();
+
+    const row = screen.getByText('Estorno Loja X').closest('tr')!;
+    fireEvent.click(within(row).getByRole('button', { name: /editar estorno loja x/i }));
+    fireEvent.change(screen.getByRole('textbox', { name: /descrição/i }), { target: { value: 'Estorno da loja' } });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: /salvar/i })));
+
+    const put = fetchMock.mock.calls.find(([, init]) => init?.method === 'PUT');
+    expect(JSON.parse(put?.[1].body)).toEqual({ description: 'Estorno da loja' });
+  });
+
   it('keeps showing the list when a later reload fails', async () => {
     stubApi();
     await renderLoaded();

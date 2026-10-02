@@ -90,7 +90,7 @@ export function TransactionList() {
     setEditingId(expense.id);
     setEditForm({
       description: expense.description,
-      amount: expense.amount.toFixed(2).replace('.', ','),
+      amount: Math.abs(expense.amount).toFixed(2).replace('.', ','),
       category: expense.category,
       type: expense.type,
     });
@@ -109,7 +109,9 @@ export function TransactionList() {
 
     const patch: ExpensePatch = {};
     if (editForm.description.trim() !== expense.description) patch.description = editForm.description.trim();
-    if (amount !== expense.amount) patch.amount = amount;
+    // A refund keeps its sign; the form only shows its size.
+    const signedAmount = expense.amount < 0 ? -amount : amount;
+    if (signedAmount !== expense.amount) patch.amount = signedAmount;
     if (editForm.category !== expense.category) patch.category = editForm.category;
     if (editForm.type !== expense.type) patch.type = editForm.type;
 
@@ -306,7 +308,7 @@ export function TransactionList() {
                           onKeyDown={onEditKey(expense)}
                         />
                       ) : (
-                        <span className={expense.type === 'income' ? 'text-positive' : ''}>{formatBRL(expense.amount, expense.type)}</span>
+                        <span className={signed(expense) > 0 ? 'text-positive' : ''}>{formatBRL(expense.amount, expense.type)}</span>
                       )}
                     </td>
                     <td className="whitespace-nowrap text-right !py-2">
@@ -343,7 +345,7 @@ export function TransactionList() {
           <span className="text-ink-muted">
             {filteredExpenses.length} de {expenses.length} transações{hasActiveFilters ? ' (filtradas)' : ''}
           </span>
-          <span className="text-2xl font-medium tracking-[-0.03em] num">Saldo <span className="marker">{formatBRL(balance, balance >= 0 ? 'income' : 'expense')}</span></span>
+          <span className="text-2xl font-medium tracking-[-0.03em] num">Saldo <span className="marker">{formatBRL(balance, 'income')}</span></span>
         </div>
       )}
     </div>
