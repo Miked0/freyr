@@ -1,11 +1,15 @@
 import React, { useRef, useState, useCallback } from 'react';
-import { Upload, AlertCircle, X } from 'lucide-react';
-import PillButton from '@/components/ui/PillButton';
-import Spinner from '@/components/ui/Spinner';
+import { X } from 'lucide-react';
+import { Button } from '@/components/freyr/Button';
+import { CategoryTag } from '@/components/freyr/CategoryTag';
+import { Icon } from '@/components/freyr/Icon';
+import { cx } from '@/components/freyr/format';
 import { api } from '@/api';
 import { useExpenses } from '@/store/expenses';
 
 const MAX_SIZE = 4 * 1024 * 1024;
+// Bar heights of the pulsing chart placeholder shown while a statement is read.
+const SKELETON = [62, 88, 40, 70, 30, 54];
 
 interface DropzoneProps {
   onComplete?: () => void;
@@ -68,53 +72,54 @@ export function Dropzone({ onComplete }: DropzoneProps) {
   };
 
   return (
-    <div>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".pdf,.csv"
-        className="hidden"
-        onChange={e => processFile(e.target.files?.[0])}
-        data-testid="statement-input"
-      />
-
-      <div
+    <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
+      <label
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`dropzone flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 !text-left ${isDragging ? 'dropzone-active' : ''}`}
+        className={cx('fr-drop', isDragging && 'is-over')}
         role="region"
         aria-label="Área de envio de extrato"
       >
-        <div className="flex items-start gap-4">
-          <Upload className="h-7 w-7 text-brand-primary flex-shrink-0 mt-1" strokeWidth={1.5} />
-          <div>
-            <p className="text-2xl font-medium tracking-[-0.03em] leading-tight">
-              {isDragging ? 'Solte o arquivo aqui' : 'Arraste o PDF ou CSV para cá'}
-            </p>
-            <p className="text-ink-muted mt-1">
-              Extrato bancário ou fatura de cartão · até 4 MB · no CSV, colunas de data, valor e descrição
-            </p>
-          </div>
-        </div>
-        <PillButton onClick={() => fileInputRef.current?.click()} disabled={uploading !== null}>Escolher arquivo</PillButton>
-      </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,.csv"
+          // The button below is the keyboard path; skipping the hidden input avoids a second tab stop.
+          tabIndex={-1}
+          disabled={uploading !== null}
+          onChange={e => processFile(e.target.files?.[0])}
+          data-testid="statement-input"
+        />
+        <CategoryTag tone="muted">Importar</CategoryTag>
+        <p className="fr-drop-title">{isDragging ? 'Solte o arquivo aqui' : 'Anexe ou arraste seu arquivo para iniciar a análise'}</p>
+        <p className="fr-drop-hint">Extratos PDF ou CSV · até 4 MB</p>
+        <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploading !== null}>
+          <Icon name="import" size={16} />
+          Escolher arquivo
+        </Button>
+      </label>
 
       <div aria-live="polite">
         {uploading && (
-          <p className="mt-4 flex items-center gap-3 text-ink-muted animate-fade-in">
-            <Spinner className="text-brand-primary" />
-            Importando {uploading}… cada lançamento é lido e categorizado, isso pode levar até um minuto.
-          </p>
+          <div className="fr-progress">
+            <div className="fr-skel" aria-hidden="true">
+              {SKELETON.map((h, i) => <span key={i} style={{ height: `${h}%` }} />)}
+            </div>
+            <p className="fr-progress-step">Importando {uploading}… isso pode levar até um minuto.</p>
+          </div>
         )}
       </div>
 
       {error && (
-        <div className="mt-4 p-4 rounded-2xl bg-alert-soft text-alert flex items-start gap-3 animate-fade-in" role="alert">
-          <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+        <div
+          role="alert"
+          className="flex items-start gap-3 animate-fade-in"
+          style={{ padding: 'var(--space-4)', borderRadius: 'var(--radius-md)', background: 'var(--alert-soft)', color: 'var(--alert-deep)' }}
+        >
           <div className="flex-1">
-            <p className="font-medium">Não foi possível processar o arquivo</p>
-            <p className="text-sm mt-0.5">{error}</p>
+            <p style={{ margin: 0, fontWeight: 700 }}>Não foi possível processar o arquivo</p>
+            <p style={{ margin: 0, marginTop: 'var(--space-1)', fontSize: 14, lineHeight: '20px' }}>{error}</p>
           </div>
           <button type="button" onClick={() => setError(null)} className="p-2 -m-2 cursor-pointer hover:opacity-70" aria-label="Fechar aviso">
             <X className="h-4 w-4" />
