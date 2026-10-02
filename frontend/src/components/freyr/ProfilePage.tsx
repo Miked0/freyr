@@ -1,7 +1,8 @@
 import { useId, useState, type FormEvent } from 'react';
-import type { Profile, ProfilePatch } from '@/api';
+import { endSession, type Profile, type ProfilePatch } from '@/api';
 import { AVATAR_COLORS, displayNameOf, formatBudget, parseBudget, useProfile, type AvatarColor } from '@/lib/useProfile';
 import { BentoCard } from './BentoCard';
+import { DeleteAccount } from './DeleteAccount';
 import { Button } from './Button';
 import { Avatar, ProfileStyles } from './ProfileCard';
 
@@ -59,6 +60,7 @@ export function ProfilePage() {
       <ProfileStyles />
       <style href="freyr-profile-page" precedence="default">{css}</style>
       <BentoCard title="Seu perfil" span={8}>{body}</BentoCard>
+      {profile ? <DeleteAccount onDeleted={endSession} /> : null}
     </div>
   );
 }

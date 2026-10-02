@@ -1,9 +1,11 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { useExpenses } from './store/expenses';
 import { useSession } from './lib/useSession';
 import Spinner from './components/ui/Spinner';
+import { legalDocFromHash } from './legal/content';
 
 const Dashboard = lazy(() => import('./components/freyr/Dashboard').then(m => ({ default: m.Dashboard })));
+const LegalPage = lazy(() => import('./components/LegalPage').then(m => ({ default: m.LegalPage })));
 const LoginScreenV2 = lazy(() => import('./components/v2/LoginScreen').then(m => ({ default: m.default })));
 
 function LoadingFallback() {
@@ -28,14 +30,34 @@ function OfflineScreen({ onRetry }: { onRetry: () => void }) {
   );
 }
 
+/** The legal document in the address, if any; those pages are public and open over any session state. */
+function useLegalDoc() {
+  const [doc, setDoc] = useState(() => legalDocFromHash(window.location.hash));
+  useEffect(() => {
+    const sync = () => setDoc(legalDocFromHash(window.location.hash));
+    window.addEventListener('hashchange', sync);
+    return () => window.removeEventListener('hashchange', sync);
+  }, []);
+  return doc;
+}
+
 function App() {
   const { load } = useExpenses();
   const session = useSession();
+  const legalDoc = useLegalDoc();
   const canSeeData = session.state === 'authenticated' || session.state === 'open';
 
   useEffect(() => {
     if (canSeeData) load();
   }, [canSeeData, load]);
+
+  if (legalDoc) {
+    return (
+      <Suspense fallback={<LoadingFallback />}>
+        <LegalPage doc={legalDoc} />
+      </Suspense>
+    );
+  }
 
   if (session.state === 'checking') {
     return <LoadingFallback />;
