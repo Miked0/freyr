@@ -3,6 +3,8 @@ import request from 'supertest';
 import { createApp } from '../app';
 import { DatabaseService } from '../services/database.service';
 import { AIService } from '../services/ai.service';
+import { randomUUID } from 'crypto';
+import type { Client } from '@libsql/client';
 
 const offlineAI = () => new AIService({ apiKey: '', apiUrl: '', model: '' });
 
@@ -288,5 +290,89 @@ describe('/api/expenses', () => {
     expect(res.status).toBe(422);
     expect(res.body.error).toMatch(/300/);
     expect((await getExpenses()).body).toEqual([]);
+  });
+});
+
+describe('/api/expenses/repeated', () => {
+  let db: DatabaseService;
+  let app: ReturnType<typeof createApp>;
+  let cookie: string;
+
+  const login = async (username: string) => {
+    await request(app).post('/api/auth/register').send({ username, password: 'testpass123' });
+    const res = await request(app).post('/api/auth/login').send({ username, password: 'testpass123' });
+    return res.headers['set-cookie'] as unknown as string;
+  };
+
+  beforeEach(async () => {
+    db = await DatabaseService.connect({ url: ':memory:' });
+    app = createApp({ db, ai: offlineAI(), secureCookies: false, logRequests: false });
+    cookie = await login('testuser');
+  });
+
+  const userId = async (username: string) => (await db.getUserByUsername(username))!.id;
+
+  /** Saves a transaction as an upload from before duplicates were skipped did. */
+  const saveImported = async (username: string, description: string, sourceFile: string, createdAt: string) => {
+    const id = randomUUID();
+    await db.createExpenseForUser(await userId(username), {
+      id, date: '2026-09-10', amount: 50, description, category: 'Outros', type: 'expense', sourceFile,
+    });
+    await (db as unknown as { client: Client }).client.execute({ sql: 'UPDATE expenses SET created_at = ? WHERE id = ?', args: [createdAt, id] });
+    return id;
+  };
+
+  const preview = (c = cookie) => request(app).get('/api/expenses/repeated').set('Cookie', c);
+  const remove = (ids: string[], c = cookie) =>
+    request(app).post('/api/expenses/repeated/remove').set('Cookie', c).send({ ids });
+
+  it('lists the copies left by importing the same statement twice', async () => {
+    await saveImported('testuser', 'MERCADO', 'extrato.csv', '2026-09-11 10:00:00');
+    const copy = await saveImported('testuser', 'MERCADO', 'extrato.csv', '2026-09-12 10:00:00');
+    await saveImported('testuser', 'PADARIA', 'extrato.csv', '2026-09-11 10:00:00');
+
+    const res = await preview();
+
+    expect(res.status).toBe(200);
+    expect(res.body.expenses.map((e: any) => [e.id, e.description])).toEqual([[copy, 'MERCADO']]);
+  });
+
+  it('removes the copies and keeps the original', async () => {
+    const original = await saveImported('testuser', 'MERCADO', 'extrato.csv', '2026-09-11 10:00:00');
+    const copy = await saveImported('testuser', 'MERCADO', 'extrato.pdf', '2026-09-12 10:00:00');
+
+    const res = await remove([copy]);
+
+    expect(res.status).toBe(200);
+    expect(res.body.removed).toBe(1);
+    const left = await request(app).get('/api/expenses').set('Cookie', cookie);
+    expect(left.body.map((e: any) => e.id)).toEqual([original]);
+    expect((await preview()).body.expenses).toEqual([]);
+  });
+
+  it('only removes ids that are still repeated copies', async () => {
+    const original = await saveImported('testuser', 'MERCADO', 'extrato.csv', '2026-09-11 10:00:00');
+    const copy = await saveImported('testuser', 'MERCADO', 'extrato.csv', '2026-09-12 10:00:00');
+    const unique = await saveImported('testuser', 'PADARIA', 'extrato.csv', '2026-09-11 10:00:00');
+
+    const res = await remove([original, copy, unique]);
+
+    expect(res.body.removed).toBe(1);
+    const left = await request(app).get('/api/expenses').set('Cookie', cookie);
+    expect(left.body.map((e: any) => e.id).sort()).toEqual([original, unique].sort());
+  });
+
+  it("never touches another user's transactions", async () => {
+    const other = await login('other');
+    await saveImported('other', 'MERCADO', 'extrato.csv', '2026-09-11 10:00:00');
+    const theirCopy = await saveImported('other', 'MERCADO', 'extrato.csv', '2026-09-12 10:00:00');
+
+    expect((await preview()).body.expenses).toEqual([]);
+    expect((await remove([theirCopy])).body.removed).toBe(0);
+    expect((await preview(other)).body.expenses.map((e: any) => e.id)).toEqual([theirCopy]);
+  });
+
+  it('rejects a body without a list of ids', async () => {
+    expect((await request(app).post('/api/expenses/repeated/remove').set('Cookie', cookie).send({})).status).toBe(400);
   });
 });
