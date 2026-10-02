@@ -18,8 +18,6 @@ interface UserRow {
   display_name: string | null;
   avatar_color: AvatarColor;
   monthly_budget: number | null;
-  google_sub: string | null;
-  email: string | null;
   created_at: string;
 }
 
@@ -28,8 +26,6 @@ export interface Profile {
   display_name: string | null;
   avatar_color: AvatarColor;
   monthly_budget: number | null;
-  /** Whether the account can be opened with "Entrar com Google". */
-  google_linked: boolean;
 }
 
 export type ProfileUpdate = Partial<Pick<Profile, 'display_name' | 'avatar_color' | 'monthly_budget'>>;
@@ -143,8 +139,6 @@ export class DatabaseService {
       ['display_name', 'TEXT'],
       ['avatar_color', "TEXT NOT NULL DEFAULT 'brand-primary'"],
       ['monthly_budget', 'REAL'],
-      ['google_sub', 'TEXT'],
-      ['email', 'TEXT'],
     ];
     for (const [name, definition] of added) {
       if (!existing.has(name)) await client.execute(`ALTER TABLE users ADD COLUMN ${name} ${definition}`);
@@ -204,32 +198,17 @@ export class DatabaseService {
     return rows[0];
   }
 
-  async getUserByGoogleSub(googleSub: string): Promise<UserRow | undefined> {
-    const rows = await this.all<UserRow>('SELECT * FROM users WHERE google_sub = ?', [googleSub]);
-    return rows[0];
-  }
-
-  /** Lets the user log in with this Google account; false if the user already has another one linked. */
-  async linkGoogleAccount(userId: string, googleSub: string, email: string): Promise<boolean> {
-    return (await this.run(
-      'UPDATE users SET google_sub = ?, email = ? WHERE id = ? AND (google_sub IS NULL OR google_sub = ?)',
-      [googleSub, email, userId, googleSub]
-    )) > 0;
-  }
-
   /** Invalidates every session cookie issued to the user so far. */
   async endAllSessions(userId: string): Promise<void> {
     await this.run('UPDATE users SET session_version = session_version + 1 WHERE id = ?', [userId]);
   }
 
   async getProfile(userId: string): Promise<Profile | undefined> {
-    const rows = await this.all<Omit<Profile, 'google_linked'> & { google_sub: string | null }>(
-      'SELECT username, display_name, avatar_color, monthly_budget, google_sub FROM users WHERE id = ?',
+    const rows = await this.all<Profile>(
+      'SELECT username, display_name, avatar_color, monthly_budget FROM users WHERE id = ?',
       [userId]
     );
-    if (!rows[0]) return undefined;
-    const { google_sub, ...profile } = rows[0];
-    return { ...profile, google_linked: google_sub !== null };
+    return rows[0];
   }
 
   /** Writes only the fields present in the update; returns the profile as stored afterwards. */
