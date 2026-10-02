@@ -23,4 +23,14 @@ describe('AppShell', () => {
     expect(css).toMatch(/\.fr-app\s*\{[^}]*grid-template-columns:\s*248px/);
     expect(css).toMatch(/@media \(max-width: 860px\)/);
   });
+
+  it('keeps the page links in a scrollable row on the mobile top bar', () => {
+    render(<AppShell nav={<nav />}>x</AppShell>);
+    const css = Array.from(document.querySelectorAll('style')).map(s => s.textContent).join('\n');
+    const mobile = css.slice(css.indexOf('@media (max-width: 860px)'));
+    expect(mobile).not.toMatch(/display:\s*none/);
+    expect(mobile).toMatch(/\.fr-side-sec\s*\{[^}]*overflow-x:\s*auto/);
+    expect(mobile).toMatch(/\.fr-side ul\s*\{[^}]*grid-auto-flow:\s*column/);
+    expect(mobile).toMatch(/\.fr-side-title\s*\{[^}]*position:\s*absolute/);
+  });
 });

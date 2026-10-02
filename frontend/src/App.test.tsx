@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 
@@ -13,19 +13,35 @@ function stubApi(routes: Record<string, unknown>) {
 describe('App', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    window.location.hash = '';
   });
 
+  const loggedIn = {
+    '/api/auth/session': { authenticated: true, user: { id: 'u1', username: 'ana' } },
+    '/api/health': { status: 'OK', ai: 'keywords' },
+    '/api/expenses': [],
+    '/api/expenses/categories/all': [],
+  };
+
   it('shows the dashboard to a user whose session is already open', async () => {
-    stubApi({
-      '/api/auth/session': { authenticated: true, user: { id: 'u1', username: 'ana' } },
-      '/api/health': { status: 'OK', ai: 'keywords' },
-      '/api/expenses': [],
-      '/api/expenses/categories/all': [],
-    });
+    stubApi(loggedIn);
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /todas as transações/i }, { timeout: 3000 })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Visão geral financeira' }, { timeout: 3000 })).toBeInTheDocument();
+  });
+
+  it('switches pages from the side nav', async () => {
+    stubApi(loggedIn);
+    vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+
+    render(<App />);
+    fireEvent.click(await screen.findByRole('link', { name: /^Transações/ }, { timeout: 3000 }));
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Todas as transações' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Visão geral financeira' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^Transações/ })).toHaveAttribute('aria-current', 'page');
   });
 
   it('tells the user the server is unreachable and offers to retry', async () => {

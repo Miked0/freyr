@@ -1,6 +1,8 @@
 import { createClient, type Client, type InArgs, type ResultSet } from '@libsql/client';
-import { SCHEMA, INDEXES } from './schema';
+import { SCHEMA, INDEXES, type AvatarColor } from './schema';
 import { randomUUID } from 'crypto';
+import { DEFAULT_CATEGORY_NAMES } from './categories';
+import { GOALS_SCHEMA, createGoalsStore, type GoalsStore } from './goals';
 
 export interface DatabaseConfig {
   url: string;
@@ -12,8 +14,20 @@ interface UserRow {
   username: string;
   password_hash: string;
   session_version: number;
+  display_name: string | null;
+  avatar_color: AvatarColor;
+  monthly_budget: number | null;
   created_at: string;
 }
+
+export interface Profile {
+  username: string;
+  display_name: string | null;
+  avatar_color: AvatarColor;
+  monthly_budget: number | null;
+}
+
+export type ProfileUpdate = Partial<Pick<Profile, 'display_name' | 'avatar_color' | 'monthly_budget'>>;
 
 interface ExpenseRow {
   id: string;
@@ -53,6 +67,10 @@ function toObjects<T>(rs: ResultSet): T[] {
 export class DatabaseService {
   private constructor(private client: Client) {}
 
+  get goals(): GoalsStore {
+    return createGoalsStore(this.client);
+  }
+
   static async connect(config: DatabaseConfig): Promise<DatabaseService> {
     const client = createClient({ url: config.url, authToken: config.authToken });
     await client.execute('PRAGMA foreign_keys = ON');
@@ -60,8 +78,11 @@ export class DatabaseService {
     await DatabaseService.addLegacyOwnerColumns(client);
     await DatabaseService.addLegacyTypeColumn(client);
     await DatabaseService.addLegacySessionVersionColumn(client);
+    await DatabaseService.addProfileColumns(client);
     await client.executeMultiple(INDEXES);
+    await client.executeMultiple(GOALS_SCHEMA);
     await DatabaseService.migrateLegacyCorrections(client);
+    await DatabaseService.backfillDefaultCategories(client);
     return new DatabaseService(client);
   }
 
@@ -86,6 +107,33 @@ export class DatabaseService {
     const columns = await client.execute('PRAGMA table_info(users)');
     if (columns.rows.some(row => row.name === 'session_version')) return;
     await client.execute('ALTER TABLE users ADD COLUMN session_version INTEGER NOT NULL DEFAULT 0');
+  }
+
+  private static async addProfileColumns(client: Client) {
+    const columns = await client.execute('PRAGMA table_info(users)');
+    const existing = new Set(columns.rows.map(row => row.name));
+    const added: Array<[string, string]> = [
+      ['display_name', 'TEXT'],
+      ['avatar_color', "TEXT NOT NULL DEFAULT 'brand-primary'"],
+      ['monthly_budget', 'REAL'],
+    ];
+    for (const [name, definition] of added) {
+      if (!existing.has(name)) await client.execute(`ALTER TABLE users ADD COLUMN ${name} ${definition}`);
+    }
+  }
+
+  // Accounts created before the default list grew gain the missing categories; existing names
+  // (default or custom) are left alone, so running this on every start is a no-op once done.
+  private static async backfillDefaultCategories(client: Client) {
+    await client.batch(
+      DEFAULT_CATEGORY_NAMES.map(name => ({
+        sql: `INSERT INTO categories (id, user_id, name, is_custom)
+              SELECT lower(hex(randomblob(16))), u.id, ?, 0 FROM users u
+              WHERE NOT EXISTS (SELECT 1 FROM categories c WHERE c.user_id = u.id AND lower(c.name) = lower(?))`,
+        args: [name, name],
+      })),
+      'write'
+    );
   }
 
   private static async migrateLegacyCorrections(client: Client) {
@@ -132,25 +180,42 @@ export class DatabaseService {
     await this.run('UPDATE users SET session_version = session_version + 1 WHERE id = ?', [userId]);
   }
 
+  async getProfile(userId: string): Promise<Profile | undefined> {
+    const rows = await this.all<Profile>(
+      'SELECT username, display_name, avatar_color, monthly_budget FROM users WHERE id = ?',
+      [userId]
+    );
+    return rows[0];
+  }
+
+  /** Writes only the fields present in the update; returns the profile as stored afterwards. */
+  async updateProfile(userId: string, update: ProfileUpdate): Promise<Profile | undefined> {
+    const fields = (['display_name', 'avatar_color', 'monthly_budget'] as const).filter(f => f in update);
+    if (fields.length > 0) {
+      await this.run(
+        `UPDATE users SET ${fields.map(f => `${f} = @${f}`).join(', ')} WHERE id = @id`,
+        { ...Object.fromEntries(fields.map(f => [f, update[f] ?? null])), id: userId }
+      );
+    }
+    return this.getProfile(userId);
+  }
+
   // Category methods with user_id
   async getAllCategoriesForUser(userId: string): Promise<CategoryRow[]> {
     return this.all<CategoryRow>('SELECT * FROM categories WHERE user_id = ? ORDER BY name', [userId]);
   }
 
+  /** Adds the default categories the user does not have yet; safe to call again. */
   async seedDefaultCategoriesForUser(userId: string): Promise<void> {
-    const defaultCategories = [
-      'Alimentação', 'Transporte', 'Moradia', 'Saúde', 'Lazer',
-      'Compras', 'Contas', 'Educação', 'Salário', 'Investimentos',
-      'Transferências', 'Outros'
-    ];
-
-    for (const name of defaultCategories) {
-      const id = randomUUID();
-      await this.run(
-        `INSERT INTO categories (id, user_id, name, is_custom) VALUES (@id, @user_id, @name, 0)`,
-        { id, user_id: userId, name }
-      );
-    }
+    await this.client.batch(
+      DEFAULT_CATEGORY_NAMES.map(name => ({
+        sql: `INSERT INTO categories (id, user_id, name, is_custom)
+              SELECT ?, ?, ?, 0
+              WHERE NOT EXISTS (SELECT 1 FROM categories WHERE user_id = ? AND lower(name) = lower(?))`,
+        args: [randomUUID(), userId, name, userId, name],
+      })),
+      'write'
+    );
   }
 
   async createCategory(userId: string, name: string, isCustom = true, parentId?: string): Promise<string> {

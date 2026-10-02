@@ -7,6 +7,7 @@ import { createClient } from '@libsql/client';
 import { createApp } from '../app';
 import { DatabaseService } from './database.service';
 import { AIService } from './ai.service';
+import { DEFAULT_CATEGORY_NAMES } from './categories';
 
 // Schema as shipped before multi-user support: no users, no user_id columns.
 const LEGACY_SCHEMA = `
@@ -79,3 +80,41 @@ CREATE TABLE expenses (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, date TEXT NOT
   description TEXT NOT NULL, category TEXT NOT NULL, raw_description TEXT, source_file TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE);
 `;
+
+describe('default category backfill', () => {
+  const OLD_DEFAULTS = [
+    'Alimentação', 'Transporte', 'Moradia', 'Saúde', 'Lazer', 'Compras', 'Contas', 'Educação',
+    'Salário', 'Investimentos', 'Transferências', 'Outros',
+  ];
+
+  it('gives existing accounts the new default categories once, keeping their own', async () => {
+    const dbUrl = url();
+    await DatabaseService.connect({ url: dbUrl });
+    const raw = createClient({ url: dbUrl });
+    await raw.execute("INSERT INTO users (id, username, password_hash) VALUES ('u1', 'antigo', 'x')");
+    for (const name of OLD_DEFAULTS) {
+      await raw.execute({ sql: "INSERT INTO categories (id, user_id, name, is_custom) VALUES (?, 'u1', ?, 0)", args: [`old-${name}`, name] });
+    }
+    await raw.execute("INSERT INTO categories (id, user_id, name, is_custom) VALUES ('mine', 'u1', 'Pets', 1)");
+    raw.close();
+
+    await DatabaseService.connect({ url: dbUrl });
+    const db = await DatabaseService.connect({ url: dbUrl });
+
+    const categories = await db.getAllCategoriesForUser('u1');
+    const names = categories.map(c => c.name);
+    expect([...names].sort()).toEqual([...DEFAULT_CATEGORY_NAMES].sort());
+    expect(categories.find(c => c.name === 'Alimentação')?.id).toBe('old-Alimentação');
+    expect(categories.find(c => c.name === 'Pets')).toMatchObject({ id: 'mine', is_custom: 1 });
+  }, 15_000);
+
+  it('seeds a new account with every default category, and seeding again adds nothing', async () => {
+    const db = await DatabaseService.connect({ url: ':memory:' });
+    const userId = await db.createUser('nova', 'x');
+
+    await db.seedDefaultCategoriesForUser(userId);
+    await db.seedDefaultCategoriesForUser(userId);
+
+    expect((await db.getAllCategoriesForUser(userId)).map(c => c.name).sort()).toEqual([...DEFAULT_CATEGORY_NAMES].sort());
+  });
+});
