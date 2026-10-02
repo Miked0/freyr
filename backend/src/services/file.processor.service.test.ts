@@ -130,12 +130,10 @@ describe('FileProcessorService.processFile (PDF, extrato de conta Inter)', () =>
     'SAC: 0800 940 9999 (opção 09)',
   ];
 
-  it('reads each transaction under its day header, taking the amount and not the running balance', async () => {
+  it('reads each transaction under its day header, taking the amount and not the running balance, without invoice payments or CDB', async () => {
     const expenses = await processPdf(statement);
 
     expect(expenses.map(e => [e.date, e.amount, e.sign, e.description])).toEqual([
-      ['2026-09-03', 64.86, 'credit', 'Estorno - CDB Porq Obj FULANO'],
-      ['2026-09-03', 545.75, 'negative', 'Pagamento efetuado - Pagamento fatura cartao Inter'],
       ['2026-09-03', 407.55, 'negative', 'Pix enviado - Fulano de Tal'],
       ['2026-09-04', 1124, 'credit', 'Pix recebido - CICLANA'],
       ['2026-09-04', 29, 'negative', 'Compra no debito - MP *ADEGAR7'],
@@ -202,6 +200,22 @@ describe('FileProcessorService.processFile (CSV)', () => {
       ['2026-09-30', 1528, 'credit', 'Pix recebido - Fulano de Tal'],
       ['2026-09-28', 82, 'negative', 'Pix enviado - Ciclana'],
     ]);
+  });
+
+  it('leaves out invoice payments and investment moves, which are not spending or income', async () => {
+    const expenses = await processCsv(
+      'Data Lançamento;Histórico;Descrição;Valor;Saldo\n' +
+      '26/09/2026;Pagamento efetuado;Pagamento Fatura;-81,90;10,00\n' +
+      '25/09/2026;Aplicação;Cdb Porquinho Banco Inter S A;-750,00;91,90\n' +
+      '24/09/2026;Resgate;Cdb Porq Obj Banco Inter S A;9,20;841,90\n' +
+      '23/09/2026;Débito Tesouro Direto;Compra Td 107026970;-22,34;832,70\n' +
+      '22/09/2026;Estorno;Cdb Porq Obj Fulano;64,86;855,04\n' +
+      '22/09/2026;Estorno;Aplicação;64,86;790,18\n' +
+      '21/09/2026;Compra no débito;Padaria Real;-5,99;790,18\n' +
+      '20/09/2026;Estorno;Loja X;12,00;796,17\n'
+    );
+
+    expect(expenses.map(e => e.description)).toEqual(['Compra no débito - Padaria Real', 'Estorno - Loja X']);
   });
 
   it('says which columns it needs when it cannot find the table header', async () => {
