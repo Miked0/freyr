@@ -1,10 +1,17 @@
-import { createHash, createHmac, timingSafeEqual } from 'crypto';
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import { Router, type Request, type RequestHandler } from 'express';
 import bcrypt from 'bcryptjs';
 import { DatabaseService, type ProfileUpdate } from '../services/database.service';
 import { AVATAR_COLORS, type AvatarColor } from '../services/schema';
+import { exchangeGoogleCode, googleAuthUrl, type GoogleConfig } from '../services/google';
 
 const COOKIE = 'freyr_session';
+const STATE_COOKIE = 'freyr_oauth_state';
+const STATE_MINUTES = 10;
+const GOOGLE_CALLBACK = '/api/auth/google/callback';
+const GOOGLE_FAILED = '/?login=google-erro';
+// Stored as the password hash of accounts created through Google: not a bcrypt hash, so no password matches it.
+const NO_PASSWORD = '!';
 const SESSION_DAYS = 30;
 const FAILED_LOGIN_DELAY_MS = 500;
 const BCRYPT_ROUNDS = 12;
@@ -19,6 +26,8 @@ interface AuthOptions {
   db: DatabaseService;
   secureCookies?: boolean;
   sessionSecret?: string;
+  /** Enables "Entrar com Google" when set. */
+  google?: GoogleConfig;
 }
 
 declare global {
@@ -109,11 +118,17 @@ export function parseProfileUpdate(body: unknown): { update: ProfileUpdate } | {
   return { update };
 }
 
-function createCookie(value: string, maxAgeSeconds: number, secureCookies: boolean): string {
-  return `${COOKIE}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAgeSeconds}${secureCookies ? '; Secure' : ''}`;
+function createCookie(value: string, maxAgeSeconds: number, secureCookies: boolean, name = COOKIE): string {
+  return `${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAgeSeconds}${secureCookies ? '; Secure' : ''}`;
 }
 
-export function createAuth({ db, secureCookies = false, sessionSecret }: AuthOptions) {
+/** A username from the e-mail's local part, e.g. "mike.silva" for mike.silva@gmail.com. */
+function usernameFromEmail(email: string): string {
+  const base = email.split('@')[0].toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 30);
+  return base || 'usuario';
+}
+
+export function createAuth({ db, secureCookies = false, sessionSecret, google }: AuthOptions) {
   // The fallback key is for local development only; api/index.ts refuses to start without SESSION_SECRET.
   const signingKey = sessionSecret ? sha256(sessionSecret) : createHash('sha256').update('freyr-session-signing-key').digest();
 
@@ -225,7 +240,7 @@ export function createAuth({ db, secureCookies = false, sessionSecret }: AuthOpt
 
     try {
       const user = await db.getUserByUsername(username);
-      const validPassword = user ? await bcrypt.compare(password, user.password_hash) : false;
+      const validPassword = user && user.password_hash !== NO_PASSWORD ? await bcrypt.compare(password, user.password_hash) : false;
       if (!user || !validPassword) {
         await new Promise(resolve => setTimeout(resolve, FAILED_LOGIN_DELAY_MS));
         return res.status(401).json({ error: 'Usuário ou senha incorretos.' });
@@ -243,6 +258,64 @@ export function createAuth({ db, secureCookies = false, sessionSecret }: AuthOpt
     }
   });
 
+  const openSession = (res: Parameters<RequestHandler>[1], userId: string, sessionVersion: number) => {
+    const expiresAt = Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000;
+    const token = `${userId}.${expiresAt}.${sign(userId, expiresAt, sessionVersion, signingKey)}`;
+    res.append('Set-Cookie', createCookie(token, SESSION_DAYS * 24 * 60 * 60, secureCookies));
+  };
+
+  if (google) {
+    const redirectUri = (req: Request) => google.redirectUri ?? `${req.protocol}://${req.get('host')}${GOOGLE_CALLBACK}`;
+
+    router.get('/google', (req, res) => {
+      const state = randomBytes(24).toString('base64url');
+      res.setHeader('Set-Cookie', createCookie(state, STATE_MINUTES * 60, secureCookies, STATE_COOKIE));
+      res.redirect(302, googleAuthUrl(google, redirectUri(req), state));
+    });
+
+    router.get('/google/callback', async (req, res) => {
+      const expectedState = readCookie(req, STATE_COOKIE);
+      const { code, state } = req.query;
+      res.append('Set-Cookie', createCookie('', 0, secureCookies, STATE_COOKIE));
+      if (!expectedState || typeof state !== 'string' || !safeEqual(Buffer.from(state), Buffer.from(expectedState)) ||
+          typeof code !== 'string' || !code) {
+        return res.redirect(302, GOOGLE_FAILED);
+      }
+
+      try {
+        const identity = await exchangeGoogleCode(google, code, redirectUri(req));
+        const owner = await db.getUserByGoogleSub(identity.sub);
+        const current = await isAuthenticated(req);
+
+        // Logged in already: this links Google to the current account so it opens the same data.
+        if (current) {
+          const linked = owner ? owner.id === current.id : await db.linkGoogleAccount(current.id, identity.sub, identity.email);
+          if (!linked) return res.redirect(302, '/?google=em-uso#/perfil');
+          const user = (await db.getUserById(current.id))!;
+          openSession(res, user.id, Number(user.session_version));
+          return res.redirect(302, '/#/perfil');
+        }
+
+        if (owner) {
+          openSession(res, owner.id, Number(owner.session_version));
+          return res.redirect(302, '/');
+        }
+
+        const base = usernameFromEmail(identity.email);
+        let username = base;
+        for (let n = 2; await db.getUserByUsername(username); n++) username = `${base}${n}`;
+        const userId = await db.createUser(username, NO_PASSWORD);
+        await db.linkGoogleAccount(userId, identity.sub, identity.email);
+        await db.seedDefaultCategoriesForUser(userId);
+        openSession(res, userId, 0);
+        res.redirect(302, '/');
+      } catch (error) {
+        console.error('Google login error:', error);
+        res.redirect(302, GOOGLE_FAILED);
+      }
+    });
+  }
+
   router.post('/logout', async (req, res) => {
     const user = await isAuthenticated(req);
     if (user) await db.endAllSessions(user.id);
@@ -250,5 +323,5 @@ export function createAuth({ db, secureCookies = false, sessionSecret }: AuthOpt
     res.json({ authenticated: false });
   });
 
-  return { router, requireSession };
+  return { router, requireSession, googleLogin: !!google };
 }

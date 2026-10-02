@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS users (
   display_name TEXT,
   avatar_color TEXT NOT NULL DEFAULT 'brand-primary',
   monthly_budget REAL,
+  google_sub TEXT,
+  email TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -52,6 +54,7 @@ CREATE TABLE IF NOT EXISTS category_corrections (
 
 // Runs after the legacy column migration: pre-multi-user tables only gain user_id there.
 export const INDEXES = `
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_sub ON users(google_sub);
 CREATE INDEX IF NOT EXISTS idx_expenses_user_id ON expenses(user_id);
 CREATE INDEX IF NOT EXISTS idx_expenses_import_key ON expenses(user_id, import_key);
 CREATE INDEX IF NOT EXISTS idx_categories_user_id ON categories(user_id);

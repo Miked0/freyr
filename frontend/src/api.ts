@@ -25,6 +25,7 @@ export interface UploadResponse {
 export interface Health {
   status: string;
   ai: 'nvidia' | 'keywords';
+  googleLogin?: boolean;
 }
 
 export interface Session {
@@ -37,6 +38,8 @@ export interface Profile {
   display_name: string | null;
   avatar_color: 'brand-primary' | 'frost' | 'brand-warm' | 'positive' | 'alert' | 'hero';
   monthly_budget: number | null;
+  /** Whether the account can be opened with "Entrar com Google". */
+  google_linked?: boolean;
 }
 
 export type ProfilePatch = Partial<Pick<Profile, 'display_name' | 'avatar_color' | 'monthly_budget'>>;
