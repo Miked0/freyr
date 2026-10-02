@@ -1,5 +1,5 @@
 import { render, screen, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OverviewCards } from './OverviewCards';
 import { useExpenses } from '@/store/expenses';
 import type { Expense } from '@/lib/finance';
@@ -19,7 +19,13 @@ function card(label: string) {
 
 describe('OverviewCards', () => {
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-15T12:00:00'));
     useExpenses.setState({ expenses: [], categories: [], status: 'ready', error: null });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('renders the three summary cards as siblings for the bento grid', () => {
@@ -42,11 +48,12 @@ describe('OverviewCards', () => {
     expect(within(hero).getByRole('link', { name: 'Ver transações' })).toHaveAttribute('href', '#transacoes');
   });
 
-  it("shows this month's income and spending, treating less spending as good news", () => {
+  it('shows the income and spending of the last 30 days, treating less spending as good news', () => {
     useExpenses.setState({ expenses: rows });
     render(<OverviewCards />);
     const income = card('Entradas');
-    expect(income).toHaveTextContent('Este mês');
+    expect(income).toHaveTextContent('Últimos 30 dias');
+    expect(card('Saídas')).toHaveTextContent('Últimos 30 dias');
     expect(text(income.querySelector('.fr-sum-value'))).toBe('R$ 6.000,00');
     expect(income.querySelector('.fr-chip')).toHaveClass('is-good');
     expect(text(income.querySelector('.fr-chip'))).toBe('↑ +20%');
@@ -57,6 +64,31 @@ describe('OverviewCards', () => {
     expect(spending.querySelector('.fr-chip')).toHaveClass('is-good');
     expect(text(spending.querySelector('.fr-chip'))).toBe('↓ −10%');
     expect(within(spending).getByRole('link', { name: 'Ver saídas' })).toHaveAttribute('href', '#transacoes');
+  });
+
+  it('counts income from the start of the window even when it fell in the previous month', () => {
+    vi.setSystemTime(new Date('2026-10-02T12:00:00'));
+    useExpenses.setState({ expenses: [...rows, { id: 'e', date: '2026-10-01', amount: 93, description: 'Padaria', category: 'Alimentação', type: 'expense' }] });
+    render(<OverviewCards />);
+
+    expect(text(card('Entradas').querySelector('.fr-sum-value'))).toBe('R$ 6.000,00');
+    expect(text(card('Saídas').querySelector('.fr-sum-value'))).toBe('R$ 2.793,00');
+  });
+
+  it('shows a picked month with its name', () => {
+    useExpenses.setState({ expenses: rows });
+    render(<OverviewCards period="2026-08" />);
+
+    expect(card('Entradas')).toHaveTextContent('Agosto 2026');
+    expect(text(card('Entradas').querySelector('.fr-sum-value'))).toBe('R$ 5.000,00');
+  });
+
+  it('says where the window ends when nothing happened in the last 30 days', () => {
+    vi.setSystemTime(new Date('2026-12-20T12:00:00'));
+    useExpenses.setState({ expenses: rows });
+    render(<OverviewCards />);
+
+    expect(card('Entradas')).toHaveTextContent('30 dias até 10/09');
   });
 
   it('shows zeroed cards without deltas when there is no data', () => {

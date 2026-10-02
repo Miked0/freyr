@@ -46,7 +46,7 @@ describe('PageHeader', () => {
     render(<PageHeader page="Visão geral" title="t" periodLabel="Outubro 2026" period="2026-10"
       periods={[{ key: '2026-10', label: 'Outubro 2026' }, { key: '2026-09', label: 'Setembro 2026' }]}
       onPeriodChange={onPeriodChange} />);
-    const picker = screen.getByRole('combobox', { name: 'Mês' });
+    const picker = screen.getByRole('combobox', { name: 'Período' });
     expect(picker).toHaveValue('2026-10');
     fireEvent.change(picker, { target: { value: '2026-09' } });
     expect(onPeriodChange).toHaveBeenCalledWith('2026-09');

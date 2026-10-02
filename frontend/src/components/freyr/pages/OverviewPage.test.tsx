@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OverviewPage } from './OverviewPage';
 import { useExpenses } from '@/store/expenses';
 import type { Expense } from '@/lib/finance';
@@ -13,7 +13,13 @@ const rows: Expense[] = [
 ];
 
 describe('OverviewPage', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-25T12:00:00'));
     useExpenses.setState({ expenses: rows, categories: [], status: 'ready', error: null });
     useGoals.setState({ goals: [], status: 'ready' });
   });
@@ -22,8 +28,10 @@ describe('OverviewPage', () => {
     render(<OverviewPage />);
     expect(screen.getByText('Visão geral', { selector: 'b' }).parentElement).toHaveTextContent('Finanças / Visão geral');
     expect(screen.getByRole('heading', { level: 1, name: 'Visão geral financeira' })).toBeInTheDocument();
-    expect(screen.getByText('Setembro rendeu mais do que saiu. Boa colheita.')).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: 'Mês' })).toHaveValue('2026-09');
+    expect(screen.getByText('Nos últimos 30 dias entrou mais do que saiu. Boa colheita.')).toBeInTheDocument();
+    const period = screen.getByRole('combobox', { name: 'Período' });
+    expect(period).toHaveValue('30d');
+    expect([...period.querySelectorAll('option')].map(o => o.textContent)).toEqual(['Últimos 30 dias', 'Setembro 2026', 'Agosto 2026']);
     const titles = screen.getAllByRole('heading', { level: 2 }).map(h => h.textContent);
     expect(titles).toEqual(['Fluxo de caixa', 'Importar extrato', 'Metas', 'Transações recentes', 'Para onde foi']);
   });
@@ -50,7 +58,7 @@ describe('OverviewPage', () => {
 
   it('shows the month picked in the header on the summary cards', () => {
     render(<OverviewPage />);
-    fireEvent.change(screen.getByRole('combobox', { name: 'Mês' }), { target: { value: '2026-08' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Período' }), { target: { value: '2026-08' } });
     const spending = screen.getByRole('heading', { level: 3, name: 'Saídas' }).closest('section')!;
     expect(spending.querySelector('.fr-sum-value')?.textContent?.replace(/\s/g, ' ')).toBe('R$ 500,00');
     expect(screen.getByText('Agosto saiu mais do que entrou. Hora de ajustar.')).toBeInTheDocument();

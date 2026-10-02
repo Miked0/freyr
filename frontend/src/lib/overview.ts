@@ -13,6 +13,20 @@ export interface OverviewSummary {
   expenseDelta?: number;
 }
 
+export interface Last30DaysSummary {
+  /** Last day of the window, "YYYY-MM-DD": today, or the latest entry when nothing happened in the last 30 days. */
+  end: string;
+  endsToday: boolean;
+  /** Balance of every entry up to the end of the window. */
+  balance: number;
+  /** Change of the balance against the day before the window. */
+  balanceDelta?: number;
+  income: number;
+  incomeDelta?: number;
+  expense: number;
+  expenseDelta?: number;
+}
+
 export interface CashFlowPoint {
   label: string;
   income: number;
@@ -39,6 +53,63 @@ export function summarizeOverview(expenses: Expense[], monthKey?: string): Overv
     incomeDelta: previous ? percentChange(current.income, previous.income) : undefined,
     expense: current.expense,
     expenseDelta: previous ? percentChange(current.expense, previous.expense) : undefined,
+  };
+}
+
+const WINDOW_DAYS = 30;
+
+const isoDay = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/** The day `days` before (or after, when negative) a "YYYY-MM-DD" day. */
+function shiftDay(day: string, days: number): string {
+  const d = new Date(`${day}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - days);
+  return d.toISOString().slice(0, 10);
+}
+
+function totalsBetween(expenses: Expense[], first: string, last: string) {
+  let income = 0;
+  let expense = 0;
+  for (const e of expenses) {
+    const day = e.date.slice(0, 10);
+    if (day < first || day > last) continue;
+    if (e.type === 'income') income += e.amount;
+    else expense += e.amount;
+  }
+  return { income, expense };
+}
+
+/**
+ * Income and spending of the 30 days ending today, across month boundaries, so an import that ends on the
+ * 1st does not show an empty month. With nothing in that window, it ends at the latest entry instead.
+ */
+export function summarizeLast30Days(expenses: Expense[], today: Date = new Date()): Last30DaysSummary | null {
+  if (expenses.length === 0) return null;
+  const todayKey = isoDay(today);
+  const latest = expenses.reduce((max, e) => (e.date.slice(0, 10) > max ? e.date.slice(0, 10) : max), '');
+  const recent = expenses.some(e => {
+    const day = e.date.slice(0, 10);
+    return day > shiftDay(todayKey, WINDOW_DAYS) && day <= todayKey;
+  });
+  const end = recent ? todayKey : latest;
+  const start = shiftDay(end, WINDOW_DAYS - 1);
+
+  const current = totalsBetween(expenses, start, end);
+  const previous = totalsBetween(expenses, shiftDay(start, WINDOW_DAYS), shiftDay(start, 1));
+  const before = totalsBetween(expenses, '', shiftDay(start, 1));
+  const balanceBefore = before.income - before.expense;
+  const balance = balanceBefore + current.income - current.expense;
+
+  return {
+    end,
+    endsToday: end === todayKey,
+    balance,
+    balanceDelta: percentChange(balance, balanceBefore),
+    income: current.income,
+    incomeDelta: percentChange(current.income, previous.income),
+    expense: current.expense,
+    expenseDelta: percentChange(current.expense, previous.expense),
   };
 }
 

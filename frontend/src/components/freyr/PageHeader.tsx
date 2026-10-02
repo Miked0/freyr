@@ -47,7 +47,7 @@ export function PageHeader({ page, title, phrase, periodLabel, period, periods, 
             {periodLabel && pickable ? (
               <label className="fr-btn fr-btn-outline fr-period-pick">
                 <Icon name="calendar" size={16} />{periodLabel}
-                <select aria-label="Mês" value={period} onChange={e => onPeriodChange(e.target.value)}>
+                <select aria-label="Período" value={period} onChange={e => onPeriodChange(e.target.value)}>
                   {periods.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
                 </select>
               </label>

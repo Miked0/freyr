@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cashFlowSeries, summarizeOverview } from './overview';
+import { cashFlowSeries, summarizeLast30Days, summarizeOverview } from './overview';
 import type { Expense } from './finance';
 
 let seq = 0;
@@ -99,5 +99,63 @@ describe('cashFlowSeries', () => {
   it('is empty without entries', () => {
     expect(cashFlowSeries([], 'monthly')).toEqual([]);
     expect(cashFlowSeries([], 'yearly')).toEqual([]);
+  });
+});
+
+describe('summarizeLast30Days', () => {
+  const today = new Date('2026-10-02T15:00:00');
+
+  it('returns null when there are no entries', () => {
+    expect(summarizeLast30Days([], today)).toBeNull();
+  });
+
+  it('adds up the income and spending of the 30 days ending today, whatever their month', () => {
+    const summary = summarizeLast30Days([
+      entry('2026-09-02', 999, 'income'), // 30 days back: just outside the window
+      entry('2026-09-03', 2925.28, 'income'), // first day of the window
+      entry('2026-09-20', 460),
+      entry('2026-10-01', 93),
+    ], today)!;
+
+    expect(summary).toMatchObject({ income: 2925.28, expense: 553, end: '2026-10-02', endsToday: true });
+  });
+
+  it('lets a card refund take spending back', () => {
+    const summary = summarizeLast30Days([entry('2026-09-20', 460), entry('2026-09-21', -60)], today)!;
+
+    expect(summary.expense).toBe(400);
+  });
+
+  it('compares against the 30 days before the window', () => {
+    const summary = summarizeLast30Days([
+      entry('2026-08-10', 5000, 'income'),
+      entry('2026-08-20', 3000),
+      entry('2026-09-10', 6000, 'income'),
+      entry('2026-09-20', 2700),
+    ], today)!;
+
+    expect(summary.incomeDelta).toBeCloseTo(20);
+    expect(summary.expenseDelta).toBeCloseTo(-10);
+  });
+
+  it('keeps the balance of every entry and compares it with the balance before the window', () => {
+    const summary = summarizeLast30Days([
+      entry('2026-08-10', 5000, 'income'),
+      entry('2026-08-20', 3000),
+      entry('2026-09-10', 6000, 'income'),
+      entry('2026-09-20', 2700),
+    ], today)!;
+
+    expect(summary.balance).toBe(5300);
+    expect(summary.balanceDelta).toBeCloseTo(165);
+  });
+
+  it('ends the window at the latest entry when nothing happened in the last 30 days', () => {
+    const summary = summarizeLast30Days([
+      entry('2026-06-10', 4000, 'income'),
+      entry('2026-07-15', 1200),
+    ], today)!;
+
+    expect(summary).toMatchObject({ income: 0, expense: 1200, end: '2026-07-15', endsToday: false });
   });
 });
