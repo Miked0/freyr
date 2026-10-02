@@ -41,7 +41,7 @@ describe('/api/expenses', () => {
 
     const list = await getExpenses();
     expect(list.body.map((e: any) => [e.date, e.amount, e.description, e.category])).toEqual([
-      ['2026-03-16', 120, 'Mercado Extra', 'Alimentação'],
+      ['2026-03-16', 120, 'Mercado Extra', 'Mercado'],
       ['2026-03-15', 42.5, 'UBER TRIP', 'Transporte'],
     ]);
   });

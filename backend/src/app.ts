@@ -3,6 +3,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import { createExpensesRouter } from './routes/expenses';
 import { createAuth } from './routes/auth';
+import { createGoalsRouter } from './routes/goals';
 import { DatabaseService } from './services/database.service';
 import { AIService } from './services/ai.service';
 import { FileProcessorService } from './services/file.processor.service';
@@ -33,6 +34,7 @@ export function createApp({ db, ai, secureCookies, sessionSecret, fileProcessor 
 
   app.use('/api/auth', auth.router);
   app.use('/api/expenses', auth.requireSession, createExpensesRouter({ db, ai, fileProcessor }));
+  app.use('/api/goals', auth.requireSession, createGoalsRouter({ goals: db.goals }));
 
   return app;
 }

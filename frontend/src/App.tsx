@@ -1,6 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { useExpenses } from './store/expenses';
-import { useHealth } from './lib/useHealth';
 import { useSession } from './lib/useSession';
 import Spinner from './components/ui/Spinner';
 
@@ -31,7 +30,6 @@ function OfflineScreen({ onRetry }: { onRetry: () => void }) {
 
 function App() {
   const { load } = useExpenses();
-  const health = useHealth();
   const session = useSession();
   const canSeeData = session.state === 'authenticated' || session.state === 'open';
 
@@ -57,7 +55,7 @@ function App() {
 
   return (
     <Suspense fallback={<LoadingFallback />}>
-      <Dashboard health={health} onLogout={session.canLogout ? session.logout : undefined} />
+      <Dashboard onLogout={session.canLogout ? session.logout : undefined} />
     </Suspense>
   );
 }

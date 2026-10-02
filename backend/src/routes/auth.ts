@@ -1,7 +1,8 @@
 import { createHash, createHmac, timingSafeEqual } from 'crypto';
 import { Router, type Request, type RequestHandler } from 'express';
 import bcrypt from 'bcryptjs';
-import { DatabaseService } from '../services/database.service';
+import { DatabaseService, type ProfileUpdate } from '../services/database.service';
+import { AVATAR_COLORS, type AvatarColor } from '../services/schema';
 
 const COOKIE = 'freyr_session';
 const SESSION_DAYS = 30;
@@ -11,6 +12,8 @@ const LOGIN_ATTEMPTS = 10;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const REGISTRATIONS = 5;
 const REGISTRATION_WINDOW_MS = 60 * 60 * 1000;
+const DISPLAY_NAME_MAX = 40;
+const MONTHLY_BUDGET_MAX = 1_000_000_000;
 
 interface AuthOptions {
   db: DatabaseService;
@@ -70,6 +73,42 @@ function createAttemptLimiter(max: number, windowMs: number) {
   };
 }
 
+/** Parses a PATCH /profile body; returns the update or the message to answer with 400. */
+export function parseProfileUpdate(body: unknown): { update: ProfileUpdate } | { error: string } {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return { error: 'Envie os campos do perfil.' };
+  const input = body as Record<string, unknown>;
+  const allowed = ['display_name', 'avatar_color', 'monthly_budget'];
+  const unknown = Object.keys(input).filter(key => !allowed.includes(key));
+  if (unknown.length > 0) return { error: `Campo desconhecido: ${unknown.join(', ')}.` };
+  if (Object.keys(input).length === 0) return { error: 'Nada para atualizar.' };
+
+  const update: ProfileUpdate = {};
+  if ('display_name' in input) {
+    const name = input.display_name;
+    if (name === null) update.display_name = null;
+    else if (typeof name !== 'string') return { error: 'O nome de exibição deve ser um texto.' };
+    else {
+      const trimmed = name.trim();
+      if (trimmed.length < 1 || trimmed.length > DISPLAY_NAME_MAX) {
+        return { error: `O nome de exibição deve ter de 1 a ${DISPLAY_NAME_MAX} caracteres.` };
+      }
+      update.display_name = trimmed;
+    }
+  }
+  if ('avatar_color' in input) {
+    if (!AVATAR_COLORS.includes(input.avatar_color as AvatarColor)) return { error: 'Cor do avatar inválida.' };
+    update.avatar_color = input.avatar_color as AvatarColor;
+  }
+  if ('monthly_budget' in input) {
+    const budget = input.monthly_budget;
+    if (budget === null) update.monthly_budget = null;
+    else if (typeof budget !== 'number' || !Number.isFinite(budget) || budget < 0 || budget > MONTHLY_BUDGET_MAX) {
+      return { error: 'A meta de gasto mensal deve ser um valor a partir de zero.' };
+    } else update.monthly_budget = Math.round(budget * 100) / 100;
+  }
+  return { update };
+}
+
 function createCookie(value: string, maxAgeSeconds: number, secureCookies: boolean): string {
   return `${COOKIE}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAgeSeconds}${secureCookies ? '; Secure' : ''}`;
 }
@@ -107,6 +146,30 @@ export function createAuth({ db, secureCookies = false, sessionSecret }: AuthOpt
   router.get('/session', async (req, res) => {
     const user = await isAuthenticated(req);
     res.json({ authenticated: !!user, user: user ? { id: user.id, username: user.username } : null });
+  });
+
+  router.get('/profile', requireSession, async (req, res) => {
+    try {
+      const profile = await db.getProfile(req.user!.id);
+      if (!profile) return res.status(401).json({ error: 'Faça login para continuar.' });
+      res.json(profile);
+    } catch (error) {
+      console.error('Profile error:', error);
+      res.status(500).json({ error: 'Erro ao carregar o perfil.' });
+    }
+  });
+
+  router.patch('/profile', requireSession, async (req, res) => {
+    const parsed = parseProfileUpdate(req.body);
+    if ('error' in parsed) return res.status(400).json({ error: parsed.error });
+    try {
+      const profile = await db.updateProfile(req.user!.id, parsed.update);
+      if (!profile) return res.status(401).json({ error: 'Faça login para continuar.' });
+      res.json(profile);
+    } catch (error) {
+      console.error('Profile update error:', error);
+      res.status(500).json({ error: 'Erro ao salvar o perfil.' });
+    }
   });
 
   router.post('/register', async (req, res) => {

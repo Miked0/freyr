@@ -30,6 +30,15 @@ export interface Session {
   user: User | null;
 }
 
+export interface Profile {
+  username: string;
+  display_name: string | null;
+  avatar_color: 'brand-primary' | 'frost' | 'brand-warm' | 'positive' | 'alert' | 'hero';
+  monthly_budget: number | null;
+}
+
+export type ProfilePatch = Partial<Pick<Profile, 'display_name' | 'avatar_color' | 'monthly_budget'>>;
+
 export type ExpensePatch = Partial<Pick<Expense, 'description' | 'amount' | 'category' | 'type'>>;
 
 export class UnauthorizedError extends Error {}
@@ -40,7 +49,7 @@ export function onUnauthorized(handler: () => void) {
   unauthorizedHandler = handler;
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`${API_URL}${path}`, { credentials: 'same-origin', ...init });
@@ -58,7 +67,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 
-const json = (method: string, data: unknown): RequestInit => ({
+export const json = (method: string, data: unknown): RequestInit => ({
   method,
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify(data),
@@ -69,6 +78,8 @@ export const api = {
   login: (username: string, password: string) => request<{ authenticated: boolean; user: User }>('/api/auth/login', json('POST', { username, password })),
   register: (username: string, password: string) => request<{ authenticated: boolean; user: User }>('/api/auth/register', json('POST', { username, password })),
   logout: () => request<{ authenticated: boolean }>('/api/auth/logout', { method: 'POST' }),
+  getProfile: () => request<Profile>('/api/auth/profile'),
+  updateProfile: (patch: ProfilePatch) => request<Profile>('/api/auth/profile', json('PATCH', patch)),
   listExpenses: () => request<Expense[]>('/api/expenses'),
   listCategories: () => request<Category[]>('/api/expenses/categories/all'),
   updateExpense: (id: string, patch: ExpensePatch) => request<void>(`/api/expenses/${id}`, json('PUT', patch)),

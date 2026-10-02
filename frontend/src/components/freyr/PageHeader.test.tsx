@@ -4,37 +4,40 @@ import { PageHeader } from './PageHeader';
 
 describe('PageHeader', () => {
   it('shows the crumb, title and phrase', () => {
-    render(<PageHeader phrase="Setembro rendeu mais do que saiu. Boa colheita." />);
+    render(<PageHeader page="Visão geral" title="Visão geral financeira" phrase="Setembro rendeu mais do que saiu. Boa colheita." />);
     expect(screen.getByText('Visão geral', { selector: 'b' }).parentElement).toHaveTextContent('Finanças / Visão geral');
     expect(screen.getByRole('heading', { level: 1, name: 'Visão geral financeira' })).toBeInTheDocument();
     expect(screen.getByText('Setembro rendeu mais do que saiu. Boa colheita.')).toBeInTheDocument();
   });
 
-  it('wires export and import, with import as the only primary action', () => {
+  it('names the crumb after the page and leaves the phrase out when there is none', () => {
+    const { container } = render(<PageHeader page="Categorias" title="Suas categorias" />);
+    expect(screen.getByText('Categorias', { selector: 'b' }).parentElement).toHaveTextContent('Finanças / Categorias');
+    expect(screen.getByRole('heading', { level: 1, name: 'Suas categorias' })).toBeInTheDocument();
+    expect(container.querySelector('.fr-head p')).toBeNull();
+  });
+
+  it('wires export as an outline action and offers no import button', () => {
     const onExport = vi.fn();
-    const onImport = vi.fn();
-    render(<PageHeader phrase="x" periodLabel="Setembro 2026" onExport={onExport} onImport={onImport} />);
+    render(<PageHeader page="Visão geral" title="t" phrase="x" periodLabel="Setembro 2026" onExport={onExport} />);
     const exportBtn = screen.getByRole('button', { name: 'Exportar' });
-    const importBtn = screen.getByRole('button', { name: 'Importar extrato' });
     expect(exportBtn).toHaveClass('fr-btn-outline');
-    expect(importBtn).toHaveClass('fr-btn-primary');
-    expect(document.querySelectorAll('.fr-btn-primary')).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: /importar/i })).not.toBeInTheDocument();
+    expect(document.querySelectorAll('.fr-btn-primary')).toHaveLength(0);
     fireEvent.click(exportBtn);
-    fireEvent.click(importBtn);
     expect(onExport).toHaveBeenCalledOnce();
-    expect(onImport).toHaveBeenCalledOnce();
   });
 
   it('shows the period as an outline label that is not a control', () => {
-    render(<PageHeader phrase="x" periodLabel="Setembro 2026" />);
+    render(<PageHeader page="Visão geral" title="t" phrase="x" periodLabel="Setembro 2026" />);
     const period = screen.getByText('Setembro 2026');
     expect(period).toHaveClass('fr-btn', 'fr-btn-outline');
     expect(screen.queryByRole('button', { name: /Setembro 2026/ })).not.toBeInTheDocument();
   });
 
-  it('hides the period when there is none', () => {
-    render(<PageHeader phrase="Envie um extrato para começar." onImport={() => {}} />);
-    expect(document.querySelector('.fr-btn-outline .fr-icon')).toBeNull();
+  it('hides the period and export when there are none', () => {
+    render(<PageHeader page="Visão geral" title="t" phrase="Envie um extrato para começar." />);
+    expect(document.querySelector('.fr-actions')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Exportar' })).not.toBeInTheDocument();
   });
 });

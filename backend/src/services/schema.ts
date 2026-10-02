@@ -1,9 +1,16 @@
+/** Design-system color tokens a user may pick for their avatar. */
+export const AVATAR_COLORS = ['brand-primary', 'frost', 'brand-warm', 'positive', 'alert', 'hero'] as const;
+export type AvatarColor = (typeof AVATAR_COLORS)[number];
+
 export const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   username TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
   session_version INTEGER NOT NULL DEFAULT 0,
+  display_name TEXT,
+  avatar_color TEXT NOT NULL DEFAULT 'brand-primary',
+  monthly_budget REAL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

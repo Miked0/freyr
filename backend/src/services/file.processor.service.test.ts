@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { FileProcessorService } from './file.processor.service';
+import { FileProcessorService, isInvoicePayment } from './file.processor.service';
 
 const processCsv = (content: string) =>
   new FileProcessorService().processFile(Buffer.from(content, 'utf8'), 'extrato.csv');
@@ -61,21 +61,72 @@ describe('FileProcessorService.processFile (PDF)', () => {
 });
 
 describe('FileProcessorService.processFile (PDF, fatura Inter)', () => {
-  it('reads dates written with month names and includes credits marked with +', async () => {
+  it('reads dates written with month names and includes refunds marked with +', async () => {
     const expenses = await processPdf([
       'Vencimento 15/10/2026 R$ 1.234,56',
       '05 de set. 2026 PADARIA REAL - R$ 27,90',
-      '06 de set. 2026 PAGAMENTO ON LINE - + R$ 500,00',
+      '06 de set. 2026 ESTORNO LOJA Y - + R$ 50,00',
       '12 de dez. 2025 LOJA X (Parcela 10 de 10) - R$ 89,90',
       '20 de ago. 2026 IFD*RESTAURANTE - R$ 1.045,00',
     ]);
 
     expect(expenses.map(e => [e.date, e.amount, e.description, e.sign])).toEqual([
       ['2026-09-05', 27.9, 'PADARIA REAL', 'negative'],
-      ['2026-09-06', 500, 'PAGAMENTO ON LINE', 'credit'],
+      ['2026-09-06', 50, 'ESTORNO LOJA Y', 'credit'],
       ['2025-12-12', 89.9, 'LOJA X (Parcela 10 de 10)', 'negative'],
       ['2026-08-20', 1045, 'IFD*RESTAURANTE', 'negative'],
     ]);
+  });
+
+  it('reads the Inter layout with tab-separated columns, installments and purchases from past years', async () => {
+    const expenses = await processPdf([
+      'Vencimento 20/10/2026',
+      '15 de jul. 2026 OTICA X (Parcela 03 de 06)\t-\tR$ 310,00',
+      '06 de dez. 2025 CURSO Y (Parcela 09 de 12)\t-\tR$ 64,50',
+      '10 de set. 2026 STREAMING Z\t-\tR$ 19,90',
+      'CURSO Y (Parcela 10 de 12) R$ 64,50',
+    ]);
+
+    expect(expenses.map(e => [e.date, e.amount, e.description])).toEqual([
+      ['2026-07-15', 310, 'OTICA X (Parcela 03 de 06)'],
+      ['2025-12-06', 64.5, 'CURSO Y (Parcela 09 de 12)'],
+      ['2026-09-10', 19.9, 'STREAMING Z'],
+    ]);
+  });
+
+  it('leaves out payments of the invoice itself, which are not income', async () => {
+    const expenses = await processPdf([
+      'Vencimento 15/10/2026',
+      '05 de set. 2026 PADARIA REAL - R$ 27,90',
+      '06 de set. 2026 PAGAMENTO ON LINE - + R$ 500,00',
+      '07 de set. 2026 PAGAMENTO EFETUADO - + R$ 100,00',
+      '08 de set. 2026 PAGTO DEBITO AUTOMATICO - + R$ 80,00',
+      '09 de set. 2026 PAGAMENTO FATURA - + R$ 70,00',
+      '10 de set. 2026 Pagamento recebido - + R$ 60,00',
+      '11 de set. 2026 REEMBOLSO COMPRA - + R$ 20,00',
+    ]);
+
+    expect(expenses.map(e => [e.description, e.sign])).toEqual([
+      ['PADARIA REAL', 'negative'],
+      ['REEMBOLSO COMPRA', 'credit'],
+    ]);
+  });
+});
+
+describe('isInvoicePayment', () => {
+  it.each([
+    ['PAGAMENTO ON LINE', true],
+    ['PAGAMENTO ONLINE', true],
+    ['PAGAMENTO EFETUADO', true],
+    ['PAGTO DEBITO AUTOMATICO', true],
+    ['PGTO FATURA CARTAO', true],
+    ['Pagamento recebido', true],
+    ['PAGAMENTO', true],
+    ['PAGAMENTO SALARIO EMPRESA', false],
+    ['ESTORNO PAGAMENTO DUPLICADO', false],
+    ['PIX RECEBIDO', false],
+  ])('%s -> %s', (description, expected) => {
+    expect(isInvoicePayment(description)).toBe(expected);
   });
 });
 
@@ -96,5 +147,11 @@ describe('FileProcessorService.processFile (CSV)', () => {
     expect(expenses).toEqual([
       expect.objectContaining({ date: '2026-02-28', amount: 89.9, description: 'Netflix' }),
     ]);
+  });
+
+  it('leaves out credits that pay the card invoice', async () => {
+    const expenses = await processCsv('date,amount,description\n2026-02-28,+500.00,PAGAMENTO EFETUADO\n2026-03-01,+40.00,ESTORNO LOJA\n');
+
+    expect(expenses.map(e => e.description)).toEqual(['ESTORNO LOJA']);
   });
 });

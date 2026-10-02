@@ -20,6 +20,16 @@ export interface ParsedTransaction {
   sign: Sign;
 }
 
+// "PAGAMENTO ON LINE", "PAGTO DEBITO AUTOMATICO", "Pagamento recebido"... The purchases it settles are already
+// on the invoice, so counting the payment as income would inflate it; a refund ("ESTORNO") is not matched.
+const INVOICE_PAYMENT = /^(pagamento|pagto|pgto)\.?(\s+(on\s?line|efetuado|recebido|(de |da )?fatura|cartao|deb(ito)?\.?\s*aut\w*|boleto|obrigado|em\b.*)|\s*$)/;
+
+/** Whether a credit line is the card holder paying the invoice itself rather than a refund or income. */
+export function isInvoicePayment(description: string): boolean {
+  const text = description.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  return INVOICE_PAYMENT.test(text);
+}
+
 export class FileProcessorService {
   /**
    * Process uploaded file based on its extension
@@ -51,7 +61,7 @@ export class FileProcessorService {
       delimiter: headerLine.includes(';') ? ';' : ','
     });
 
-    return records.map((record: any) => ({
+    const transactions: ParsedTransaction[] = records.map((record: any) => ({
       date: this.normalizeDate(record.date || record.Date || record.DATA),
       amount: Math.abs(this.parseAmount(record.amount || record.Amount || record.VALOR || '0')),
       description: this.cleanDescription(record.description || record.Description || record.HISTORICO || ''),
@@ -59,6 +69,7 @@ export class FileProcessorService {
       sourceFile: originalName,
       sign: this.detectSign(record) as Sign
     }));
+    return transactions.filter(t => !(t.sign === 'credit' && isInvoicePayment(t.description)));
   }
 
   /**
@@ -137,12 +148,14 @@ export class FileProcessorService {
     }
 
     // Bank statements list debits as negatives; card invoices list purchases unsigned
-    // and payments/refunds with a sign.
+    // and payments/refunds with a sign. Credits stay out of the vote: an invoice with
+    // several payments and few purchases must not lose its purchases.
     const negatives = transactions.filter(t => t.sign === 'negative').length;
-    const expenseSign: Sign = negatives > transactions.length / 2 ? 'negative' : 'none';
+    const unsigned = transactions.filter(t => t.sign === 'none').length;
+    const expenseSign: Sign = negatives > unsigned ? 'negative' : 'none';
 
     return transactions
-      .filter(t => t.sign === expenseSign || t.sign === 'credit')
+      .filter(t => t.sign === expenseSign || (t.sign === 'credit' && !isInvoicePayment(t.description)))
       .map(t => ({
         date: t.date,
         amount: t.amount,

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { DEFAULT_CATEGORIES } from './categories';
 
 const AI_TIMEOUT_MS = 8000;
 
@@ -86,48 +87,148 @@ export class AIService {
     }
   }
 
-  /**
-   * Create a prompt for expense categorization
-   */
   private createCategorizationPrompt(description: string, categories: string[]): string {
-    const categoriesList = categories.join(', ');
-    return `Categorize the following expense description into one of these categories: ${categoriesList}.
-    
-    Expense description: "${description}"
-    
-    Respond with only the category name, nothing else.`;
+    const descriptions = new Map(DEFAULT_CATEGORIES.map(c => [c.name, c.description]));
+    const categoriesList = categories
+      .map(name => (descriptions.has(name) ? `- ${name}: ${descriptions.get(name)}` : `- ${name}`))
+      .join('\n');
+    return `Categorize this Brazilian bank or credit card transaction into exactly one of the categories below.
+Descriptions are often abbreviated merchant names (e.g. "IFD*" is iFood, "DL*UberRides" is Uber, "MP *" is Mercado Pago) and may end with an installment marker like "(Parcela 02 de 10)".
+
+Categories:
+${categoriesList}
+
+Transaction description: "${description}"
+
+Respond with only the category name, exactly as written above, nothing else.`;
   }
 
-  /**
-   * Fallback categorization using simple keyword matching
-   */
   private fallbackCategorization(description: string, categories: string[]): string {
-    const fold = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
-    const normalizedDesc = fold(description);
-    
-    // Simple keyword mapping (can be expanded)
-    const keywordMap: Record<string, string[]> = {
-      'Alimentação': ['food', 'restaurant', 'cafe', 'bar', 'supermarket', 'grocery', 'mercado', 'padaria', 'lanche', 'jantar', 'almoco'],
-      'Transporte': ['uber', 'taxi', 'bus', 'metro', 'subway', 'fuel', 'gas', 'estacionamento', 'parking', 'transporte'],
-      'Moradia': ['rent', 'aluguel', 'mortgage', 'hipoteca', 'condo', 'condominio', 'agua', 'water', 'luz', 'electricity', 'gas', 'gás'],
-      'Saúde': ['pharmacy', 'farmacia', 'hospital', 'doctor', 'médico', 'dentist', 'dentista', 'health', 'saúde'],
-      'Lazer': ['movie', 'cinema', 'netflix', 'spotify', 'game', 'jogo', 'parque', 'park', 'viagem', 'travel'],
-      'Compras': ['amazon', 'magazine', 'loja', 'store', 'shopping', 'roupas', 'clothes', 'eletronico', 'electronics'],
-      'Contas': ['internet', 'phone', 'telefone', 'celular', 'tv', 'cable', 'assinatura', 'subscription'],
-      'Outros': [] // catch-all
-    };
-
-    // Check each category for keywords
-    for (const [category, keywords] of Object.entries(keywordMap)) {
-      if (!categories.includes(category)) continue;
-      
-      for (const keyword of keywords) {
-        if (normalizedDesc.includes(fold(keyword))) {
-          return category;
-        }
-      }
-    }
-
-    return categories.includes('Outros') ? 'Outros' : categories[0];
+    return matchKeywordCategory(description, categories) ?? (categories.includes('Outros') ? 'Outros' : categories[0]);
   }
+}
+
+const fold = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+const words = (text: string) => ` ${fold(text).replace(/[^a-z0-9]+/g, ' ').trim()} `;
+
+/**
+ * Ordered keyword rules; the first match wins, so specific merchants come before generic words.
+ * A keyword matches whole words; a trailing "*" makes it a word prefix ("farmacia*" matches "farmacias").
+ * Cooking gas (Ultragaz, Comgás) goes to Contas with the other household utilities, not to Combustível,
+ * which is only for vehicle fuel.
+ */
+const KEYWORD_RULES: [category: string, keywords: string[]][] = [
+  ['Assinaturas', [
+    'netflix*', 'spotify*', 'deezer*', 'google one', 'google storage', 'youtube premium', 'youtubepremium', 'icloud*',
+    'apple com bill', 'applecombill', 'amazon prime', 'amazonprime*', 'prime video', 'primevideo', 'disney*', 'hbo*',
+    'max com', 'globoplay*', 'paramount*', 'crunchyroll*', 'melimais', 'meli mais', 'chatgpt', 'openai*',
+    'microsoft 365', 'adobe*', 'canva*', 'dropbox*', 'assinatura*', 'subscription',
+  ]],
+  ['Alimentação', [
+    'ifood*', 'ifd', 'rappi*', 'uber eats', 'ubereats*', '99food*', 'ze delivery', 'zedelivery*', 'aiqfome*',
+    'restaurante*', 'restaurant*', 'lanchonete*', 'lanche*', 'padaria*', 'panificadora*', 'confeitaria*', 'doceria*',
+    'pizzaria*', 'pizza*', 'hamburgueria*', 'burger*', 'mcdonald*', 'mc donalds', 'subway', 'habibs', 'outback*',
+    'starbucks*', 'cafe', 'cafeteria*', 'acai*', 'sorvete*', 'sorveteria*', 'churrascaria*', 'sushi*', 'bar', 'boteco*',
+    'cantina*', 'bistro*', 'food', 'almoco', 'jantar',
+  ]],
+  ['Compras', [
+    'mercadolivre*', 'mercado livre', 'mercadol', 'amazon*', 'amzn*', 'aliexpress*', 'shopee*', 'magalu*',
+    'magazine luiza', 'magazineluiza*', 'americanas*', 'casas bahia', 'casasbahia*', 'ponto frio', 'kabum*',
+    'fast shop', 'submarino*', 'temu*', 'eletronico*', 'electronics',
+  ]],
+  ['Mercado', [
+    'supermercado*', 'mercado*', 'minimercado*', 'mercadinho*', 'mercearia*', 'hortifruti*',
+    'hortifrut*', 'sacolao*', 'quitanda*', 'acougue*', 'atacadao*', 'atacadista*', 'assai*', 'carrefour*',
+    'pao de acucar', 'extra', 'zaffari*', 'guanabara', 'condor', 'muffato*', 'savegnago*', 'sonda', 'hirota*',
+    'st marche', 'makro*', 'sams club', 'emporio*', 'grocery', 'supermarket',
+  ]],
+  ['Contas', [
+    'ultragaz*', 'ultra gas', 'liquigas*', 'supergasbras*', 'copagaz*', 'nacional gas', 'comgas*', 'naturgy*',
+    'gas de cozinha', 'botijao*', 'enel*', 'cemig*', 'copel*', 'celesc*', 'coelba*', 'energisa*', 'cpfl*',
+    'equatorial*', 'neoenergia*', 'eletropaulo', 'light', 'sabesp*', 'copasa*', 'cedae*', 'sanepar*', 'embasa*',
+    'compesa*', 'vivo', 'claro', 'tim', 'oi', 'net', 'sky', 'internet', 'telefone', 'telefonica*', 'celular',
+    'recarga*', 'agua', 'water', 'luz', 'energia eletrica', 'electricity', 'phone', 'tv', 'cable',
+  ]],
+  ['Combustível', [
+    'posto', 'postos', 'auto posto', 'shell', 'ipiranga', 'petrobras*', 'posto br', 'br mania', 'raizen*',
+    'combustive*', 'gasolina', 'etanol', 'diesel', 'gnv', 'fuel',
+  ]],
+  ['Transporte', [
+    'uber', 'uberrides*', 'ubertrip*', 'uber trip', 'uber br', '99app*', '99 app', '99pop*', '99 pop', '99 tecnologia',
+    '99taxi*', 'cabify*', 'taxi', 'metro', 'cptm', 'sptrans', 'bilhete unico', 'onibus', 'estacionamento*',
+    'estapar*', 'parking', 'sem parar', 'semparar*', 'conectcar*', 'veloe*', 'pedagio*', 'transporte',
+  ]],
+  ['Moradia', [
+    'aluguel*', 'condominio*', 'quintoandar*', 'quinto andar', 'leroy merlin', 'leroymerlin*', 'telhanorte*',
+    'tok stok', 'tokstok*', 'material de construcao', 'construcao', 'rent', 'mortgage', 'hipoteca',
+  ]],
+  ['Saúde', [
+    'farmacia*', 'drogaria*', 'drogasil*', 'droga raia', 'drogaraia*', 'raia', 'pague menos', 'paguemenos*',
+    'panvel*', 'ultrafarma*', 'pharmacy', 'otica*', 'oticas', 'hospital*', 'clinica*', 'laboratorio*',
+    'medico*', 'dentista*', 'odonto*', 'unimed*', 'amil', 'hapvida*', 'sulamerica*', 'psicolog*', 'fisioterap*',
+    'fleury', 'exame*', 'doctor', 'saude', 'health',
+  ]],
+  ['Academia e bem-estar', [
+    'wellhub*', 'gympass*', 'smart fit', 'smartfit*', 'bluefit*', 'selfit*', 'bodytech*', 'bio ritmo', 'totalpass*',
+    'total pass', 'academia*', 'crossfit*', 'pilates*', 'yoga*', 'natacao', 'spa', 'massagem*',
+  ]],
+  ['Educação', [
+    'alura*', 'udemy*', 'coursera*', 'rocketseat*', 'duolingo*', 'hotmart*', 'escola*', 'colegio*', 'faculdade*',
+    'universidade*', 'curso', 'cursos', 'livraria*', 'saraiva*', 'estante virtual', 'papelaria*', 'mensalidade*',
+  ]],
+  ['Vestuário', [
+    'renner*', 'riachuelo*', 'c a modas', 'cea', 'zara*', 'hering*', 'centauro*', 'netshoes*', 'dafiti*', 'shein*',
+    'marisa', 'youcom*', 'arezzo*', 'havaianas*', 'nike*', 'adidas*', 'calcado*', 'roupa*', 'vestuario*', 'clothes',
+  ]],
+  ['Pets', [
+    'petz*', 'cobasi*', 'petlove*', 'pet love', 'pet', 'pets', 'petshop*', 'pet shop', 'petstore*', 'petsupermark*',
+    'racao', 'racoes', 'veterinari*',
+  ]],
+  ['Cuidados pessoais', [
+    'barbearia*', 'barber*', 'salao*', 'cabeleireir*', 'manicure*', 'estetica*', 'boticario*', 'natura', 'sephora*',
+    'eudora*', 'avon', 'perfumaria*', 'cosmetico*', 'beleza*', 'beauty',
+  ]],
+  ['Lazer', [
+    'ingresso*', 'sympla*', 'eventim*', 'ticketmaster*', 'cinema*', 'cinemark*', 'kinoplex*', 'teatro*', 'show',
+    'steam*', 'playstation*', 'psn', 'xbox*', 'nintendo*', 'parque*', 'park', 'game*', 'jogo*', 'movie*',
+  ]],
+  ['Viagem', [
+    'latam*', 'gol linhas', 'voegol*', 'azul linhas', 'voeazul*', 'azul viagens', 'decolar*', '123milhas*',
+    '123 milhas', 'maxmilhas*', 'smiles*', 'airbnb*', 'booking*', 'hotel*', 'hoteis', 'pousada*', 'hostel*',
+    'expedia*', 'trivago*', 'hurb*', 'cvc', 'buser*', 'clickbus*', 'rodoviaria*', 'localiza*', 'movida*',
+    'passagem*', 'passagens', 'aeroporto*', 'viagem*', 'travel',
+  ]],
+  ['Impostos e taxas', [
+    'iof', 'anuidade*', 'juros', 'encargo*', 'tarifa*', 'multa', 'imposto*', 'iptu', 'ipva', 'darf', 'detran*',
+    'taxa', 'taxas', 'cesta de servicos',
+  ]],
+  ['Presentes e doações', [
+    'presente*', 'floricultura*', 'flores', 'doacao*', 'doacoes', 'vakinha*', 'vaquinha*', 'dizimo', 'catarse*',
+    'apoia se',
+  ]],
+  ['Compras', ['loja', 'lojas', 'shopping', 'store', 'magazine']],
+  ['Salário', ['salario*', 'pro labore', 'prolabore', 'holerite', 'proventos', 'folha de pagamento']],
+  ['Investimentos', [
+    'tesouro direto', 'aplicacao*', 'investimento*', 'cdb', 'corretora*', 'xp investimentos', 'nuinvest*',
+    'poupanca', 'bitcoin', 'binance*', 'cripto*',
+  ]],
+  ['Transferências', ['pix', 'ted', 'doc', 'transferencia*', 'transf']],
+];
+
+const COMPILED_RULES = KEYWORD_RULES.map(([category, keywords]) => ({
+  category,
+  patterns: keywords.map(keyword =>
+    keyword.endsWith('*') ? words(keyword.slice(0, -1)).trimEnd() : words(keyword)
+  ),
+}));
+
+/** Returns the first keyword rule's category that the user has, or undefined when nothing matches. */
+export function matchKeywordCategory(description: string, categories: string[]): string | undefined {
+  // "MERCADOPAGO*X" is a payment processor prefix, not a grocery store.
+  const text = words(description).replace(/ mercado ?pago /g, ' ');
+  for (const { category, patterns } of COMPILED_RULES) {
+    if (!categories.includes(category)) continue;
+    if (patterns.some(pattern => text.includes(pattern))) return category;
+  }
+  return undefined;
 }
