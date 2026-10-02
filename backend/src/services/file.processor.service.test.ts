@@ -113,6 +113,36 @@ describe('FileProcessorService.processFile (PDF, fatura Inter)', () => {
   });
 });
 
+describe('FileProcessorService.processFile (PDF, extrato de conta Inter)', () => {
+  // Days are headers ("3 de Setembro de 2026 Saldo do dia: ..."); each line below has the amount and the running balance.
+  const statement = [
+    'Período: 02/09/2026 a 02/10/2026',
+    'Saldo total',
+    'R$ 485,59',
+    'Valor \tSaldo por transação\t3 de Setembro de 2026 Saldo do dia: R$ 64,86',
+    'Estorno: "CDB Porq Obj FULANO" \tR$ 64,86 \tR$ 129,72',
+    'Pagamento efetuado: "Pagamento fatura cartao Inter" \t-R$ 545,75 \t-R$ 416,03',
+    'Pix enviado: "Cp :60701190-Fulano de Tal" \t-R$ 407,55 \t-R$ 823,58',
+    '4 de Setembro de 2026 Saldo do dia: R$ 64,86',
+    'Pix recebido: "Cp :60701190-CICLANA" \tR$ 1.124,00 \tR$ 93,86',
+    'Compra no debito: "No estabelecimento MP *ADEGAR7" \t-R$ 29,00 \tR$ 64,86',
+    'Fale com a gente',
+    'SAC: 0800 940 9999 (opção 09)',
+  ];
+
+  it('reads each transaction under its day header, taking the amount and not the running balance', async () => {
+    const expenses = await processPdf(statement);
+
+    expect(expenses.map(e => [e.date, e.amount, e.sign, e.description])).toEqual([
+      ['2026-09-03', 64.86, 'credit', 'Estorno - CDB Porq Obj FULANO'],
+      ['2026-09-03', 545.75, 'negative', 'Pagamento efetuado - Pagamento fatura cartao Inter'],
+      ['2026-09-03', 407.55, 'negative', 'Pix enviado - Fulano de Tal'],
+      ['2026-09-04', 1124, 'credit', 'Pix recebido - CICLANA'],
+      ['2026-09-04', 29, 'negative', 'Compra no debito - MP *ADEGAR7'],
+    ]);
+  });
+});
+
 describe('isInvoicePayment', () => {
   it.each([
     ['PAGAMENTO ON LINE', true],
@@ -153,5 +183,28 @@ describe('FileProcessorService.processFile (CSV)', () => {
     const expenses = await processCsv('date,amount,description\n2026-02-28,+500.00,PAGAMENTO EFETUADO\n2026-03-01,+40.00,ESTORNO LOJA\n');
 
     expect(expenses.map(e => e.description)).toEqual(['ESTORNO LOJA']);
+  });
+  it('reads the Inter account export, skipping the summary lines above the table', async () => {
+    const expenses = await processCsv(
+      'Extrato Conta Corrente \n' +
+      'Conta ;313652376\n' +
+      'Período ;02/09/2026 a 02/10/2026\n' +
+      'Saldo ;485,59\n' +
+      '\n' +
+      'Data Lançamento;Histórico;Descrição;Valor;Saldo\n' +
+      '01/10/2026;Compra no débito;Mercadoimperio        Sao Paulo    Bra;-1,00;485,59\n' +
+      '30/09/2026;Pix recebido;Fulano de Tal;1.528,00;578,59\n' +
+      '28/09/2026;Pix enviado ;Ciclana;-82,00;0,59\n'
+    );
+
+    expect(expenses.map(e => [e.date, e.amount, e.sign, e.description])).toEqual([
+      ['2026-10-01', 1, 'negative', 'Compra no débito - Mercadoimperio Sao Paulo Bra'],
+      ['2026-09-30', 1528, 'credit', 'Pix recebido - Fulano de Tal'],
+      ['2026-09-28', 82, 'negative', 'Pix enviado - Ciclana'],
+    ]);
+  });
+
+  it('says which columns it needs when it cannot find the table header', async () => {
+    await expect(processCsv('foo;bar\n1;2\n')).rejects.toThrow(/data.*descrição.*valor/i);
   });
 });
