@@ -46,6 +46,18 @@ describe('/api/expenses', () => {
     ]);
   });
 
+  it('stores a refund on a card invoice as spending taken back, not as income', async () => {
+    const res = await upload(['15/03/2026,120.00,LOJA X', '16/03/2026,+120.00,ESTORNO LOJA X', '17/03/2026,30.00,PADARIA']);
+
+    expect(res.status).toBe(200);
+    const list = await getExpenses();
+    expect(list.body.map((e: any) => [e.description, e.amount, e.type])).toEqual([
+      ['PADARIA', 30, 'expense'],
+      ['ESTORNO LOJA X', -120, 'expense'],
+      ['LOJA X', 120, 'expense'],
+    ]);
+  });
+
   it('applies a user correction to future uploads of the same description', async () => {
     const first = await upload(['15/03/2026,-42.50,UBER TRIP']);
     const put = await request(app)
@@ -96,10 +108,18 @@ describe('/api/expenses', () => {
   it('rejects an edit with an invalid amount', async () => {
     const { body } = await upload(['15/03/2026,-10.00,UBER TRIP']);
 
-    const put = await request(app).put(`/api/expenses/${body.expenses[0].id}`).set('Cookie', cookie).send({ amount: -5 });
+    const put = await request(app).put(`/api/expenses/${body.expenses[0].id}`).set('Cookie', cookie).send({ amount: 0 });
 
     expect(put.status).toBe(400);
     expect(put.body.error).toMatch(/valor/i);
+  });
+
+  it('accepts a negative amount on spending, which is a refund, but not on income', async () => {
+    const { body } = await upload(['15/03/2026,-10.00,UBER TRIP']);
+    const id = body.expenses[0].id;
+
+    expect((await request(app).put(`/api/expenses/${id}`).set('Cookie', cookie).send({ amount: -10 })).status).toBe(200);
+    expect((await request(app).put(`/api/expenses/${id}`).set('Cookie', cookie).send({ type: 'income' })).status).toBe(400);
   });
 
   it('reports whether AI categorization is enabled', async () => {

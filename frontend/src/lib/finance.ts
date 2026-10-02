@@ -32,8 +32,10 @@ export function formatCurrency(amount: number): string {
   return currencyFormatter.format(amount);
 }
 
+/** With a type, the sign is the effect on the balance: income and refunds (negative spending) show "+". */
 export function formatBRL(amount: number, type?: 'income' | 'expense'): string {
-  const sign = type === 'income' ? '+' : type === 'expense' ? '−' : '';
+  const effect = type === 'income' ? amount : -amount;
+  const sign = !type ? '' : effect >= 0 ? '+' : '−';
   return `${sign}${currencyFormatter.format(Math.abs(amount))}`;
 }
 

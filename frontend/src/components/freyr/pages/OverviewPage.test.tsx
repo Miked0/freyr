@@ -23,7 +23,7 @@ describe('OverviewPage', () => {
     expect(screen.getByText('Visão geral', { selector: 'b' }).parentElement).toHaveTextContent('Finanças / Visão geral');
     expect(screen.getByRole('heading', { level: 1, name: 'Visão geral financeira' })).toBeInTheDocument();
     expect(screen.getByText('Setembro rendeu mais do que saiu. Boa colheita.')).toBeInTheDocument();
-    expect(screen.getByText('Setembro 2026')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Mês' })).toHaveValue('2026-09');
     const titles = screen.getAllByRole('heading', { level: 2 }).map(h => h.textContent);
     expect(titles).toEqual(['Fluxo de caixa', 'Importar extrato', 'Metas', 'Transações recentes', 'Para onde foi']);
   });
@@ -46,5 +46,13 @@ describe('OverviewPage', () => {
     render(<OverviewPage />);
     fireEvent.click(screen.getByRole('button', { name: /^exportar$/i }));
     expect(spy).toHaveBeenCalledWith(expect.stringMatching(/^freyr-.*\.csv$/), expect.stringContaining('Aluguel'), 'text/csv;charset=utf-8');
+  });
+
+  it('shows the month picked in the header on the summary cards', () => {
+    render(<OverviewPage />);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Mês' }), { target: { value: '2026-08' } });
+    const spending = screen.getByRole('heading', { level: 3, name: 'Saídas' }).closest('section')!;
+    expect(spending.querySelector('.fr-sum-value')?.textContent?.replace(/\s/g, ' ')).toBe('R$ 500,00');
+    expect(screen.getByText('Agosto saiu mais do que entrou. Hora de ajustar.')).toBeInTheDocument();
   });
 });

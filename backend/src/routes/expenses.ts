@@ -120,7 +120,8 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
         return {
           id: randomUUID(),
           date: rawExpense.date,
-          amount: rawExpense.amount,
+          // A refund on a card invoice takes spending back, so it is stored as negative spending.
+          amount: rawExpense.sign === 'refund' ? -rawExpense.amount : rawExpense.amount,
           description: rawExpense.description,
           category,
           type: rawExpense.type,
@@ -164,8 +165,9 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
         updates.description = description.trim();
       }
       if (amount !== undefined) {
-        if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) {
-          return res.status(400).json({ error: 'Informe um valor maior que zero.' });
+        // Negative spending is a refund from a card invoice; income must stay positive (checked below).
+        if (typeof amount !== 'number' || !Number.isFinite(amount) || amount === 0) {
+          return res.status(400).json({ error: 'Informe um valor diferente de zero.' });
         }
         updates.amount = amount;
       }
@@ -182,6 +184,9 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
       const currentExpense = await db.getExpenseByIdForUser(userId, req.params.id);
       if (!currentExpense) {
         return res.status(404).json({ error: 'Transação não encontrada.' });
+      }
+      if ((updates.type ?? currentExpense.type) === 'income' && (updates.amount ?? currentExpense.amount) < 0) {
+        return res.status(400).json({ error: 'Uma entrada precisa ter valor maior que zero.' });
       }
 
       const success = await db.updateExpenseForUser(userId, req.params.id, updates);

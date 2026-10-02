@@ -21,8 +21,11 @@ export interface CashFlowPoint {
 
 const MONTH_LABELS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
-export function summarizeOverview(expenses: Expense[]): OverviewSummary | null {
-  const months = totalsByMonth(expenses);
+/** Summary of `monthKey` ("YYYY-MM"), or of the latest month with entries when it is omitted or has none. */
+export function summarizeOverview(expenses: Expense[], monthKey?: string): OverviewSummary | null {
+  const all = totalsByMonth(expenses);
+  const index = all.findIndex(m => m.key === monthKey);
+  const months = index === -1 ? all : all.slice(0, index + 1);
   const current = months.at(-1);
   if (!current) return null;
   const previous = months.at(-2);
