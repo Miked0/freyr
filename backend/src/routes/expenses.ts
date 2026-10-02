@@ -129,7 +129,6 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
           description: rawExpense.description,
           category,
           type: rawExpense.type,
-          rawDescription: rawExpense.rawDescription,
           sourceFile: file.originalname
         };
       });

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { legalDocFromHash } from '../legal/content';
 
 export type Route = 'overview' | 'transactions' | 'categories' | 'goals' | 'profile';
 
@@ -26,6 +27,8 @@ export function useRoute() {
 
   useEffect(() => {
     const sync = () => {
+      // Legal pages are drawn by App over the dashboard; their address must stay as is.
+      if (legalDocFromHash(window.location.hash)) return;
       const current = routeFromHash(window.location.hash);
       // Older "#transacoes" anchors and unknown paths settle on the canonical link without a new history entry.
       if (window.location.hash && window.location.hash !== routeHref(current)) {

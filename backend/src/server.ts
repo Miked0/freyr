@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 5000;
 
 (async () => {
   const app = createApp({
-    db: await DatabaseService.connect(databaseConfigFromEnv()),
+    db: await DatabaseService.connect(databaseConfigFromEnv(), { masterKey: process.env.DATA_ENCRYPTION_KEY }),
     ai: new AIService(),
     secureCookies: false,
     sessionSecret: process.env.SESSION_SECRET,

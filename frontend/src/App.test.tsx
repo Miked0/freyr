@@ -24,6 +24,28 @@ describe('App', () => {
     '/api/expenses/categories/all': [],
   };
 
+  it('opens the privacy policy without signing in', async () => {
+    stubApi({ '/api/auth/session': { authenticated: false, user: null } });
+    window.location.hash = '#/privacidade';
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Política de Privacidade' }, { timeout: 3000 })).toBeInTheDocument();
+  });
+
+  it('opens a legal page from inside the app without falling back to the overview', async () => {
+    stubApi(loggedIn);
+    vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    render(<App />);
+    await screen.findByRole('heading', { level: 1, name: 'Visão geral financeira' }, { timeout: 3000 });
+
+    window.location.hash = '#/termos';
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Termos de Uso' })).toBeInTheDocument();
+    expect(window.location.hash).toBe('#/termos');
+  });
+
   it('shows the dashboard to a user whose session is already open', async () => {
     stubApi(loggedIn);
 
