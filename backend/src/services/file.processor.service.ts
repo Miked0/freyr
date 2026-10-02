@@ -30,6 +30,30 @@ export function isInvoicePayment(description: string): boolean {
   return INVOICE_PAYMENT.test(text);
 }
 
+const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+const INTER_DAY_HEADER = /(\d{1,2}) de ([a-zç]+) de (\d{4})\s+Saldo do dia/i;
+
+const CSV_DATE = ['date', 'data', 'data lancamento', 'data da transacao', 'data movimento'];
+const CSV_AMOUNT = ['amount', 'valor', 'valor (r$)'];
+// Inter splits the label in two: "Histórico" (Pix enviado) and "Descrição" (who); both are kept, in this order.
+const CSV_DESCRIPTION = ['historico', 'description', 'descricao', 'lancamento'];
+
+const normalizeHeader = (cell: string) =>
+  cell.normalize('NFD').replace(/\p{M}/gu, '').replace(/^"|"$/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+function splitCsvHeader(line: string): string[] {
+  return line.split(line.includes(';') ? ';' : ',').map(normalizeHeader);
+}
+
+/** Positions of the date, amount and description columns, or null when the line is not the table header. */
+function findCsvColumns(header: string[]) {
+  const date = header.findIndex(h => CSV_DATE.includes(h));
+  const amount = header.findIndex(h => CSV_AMOUNT.includes(h));
+  const description = CSV_DESCRIPTION.map(name => header.indexOf(name)).filter(i => i !== -1);
+  if (date === -1 || amount === -1 || description.length === 0) return null;
+  return { date, amount, description, hasBalance: header.includes('saldo') };
+}
+
 export class FileProcessorService {
   /**
    * Process uploaded file based on its extension
@@ -51,25 +75,44 @@ export class FileProcessorService {
    * Process CSV file
    */
   private async processCsv(content: Buffer, originalName: string): Promise<ParsedTransaction[]> {
-    const fileContent = content.toString('utf8');
-    const headerLine = fileContent.split(/\r?\n/, 1)[0];
-    const records = parse(fileContent, {
-      columns: true,
+    // Bank exports (Inter) put account, period and balance lines above the table; the table starts at its header.
+    const lines = content.toString('utf8').replace(/^\uFEFF/, '').split(/\r?\n/);
+    const headerIndex = lines.findIndex(line => findCsvColumns(splitCsvHeader(line)) !== null);
+    if (headerIndex === -1) {
+      throw new StatementError('Não encontramos a tabela de lançamentos no CSV. Ele precisa ter colunas de data, descrição e valor.');
+    }
+    const headerLine = lines[headerIndex];
+    const header = splitCsvHeader(headerLine);
+    const columns = findCsvColumns(header)!;
+    const rows: string[][] = parse(lines.slice(headerIndex + 1).join('\n'), {
       skip_empty_lines: true,
+      relax_column_count: true,
       trim: true,
-      bom: true,
       delimiter: headerLine.includes(';') ? ';' : ','
     });
 
-    const transactions: ParsedTransaction[] = records.map((record: any) => ({
-      date: this.normalizeDate(record.date || record.Date || record.DATA),
-      amount: Math.abs(this.parseAmount(record.amount || record.Amount || record.VALOR || '0')),
-      description: this.cleanDescription(record.description || record.Description || record.HISTORICO || ''),
-      rawDescription: record.description || record.Description || record.HISTORICO || '',
-      sourceFile: originalName,
-      sign: this.detectSign(record) as Sign
-    }));
-    return transactions.filter(t => !(t.sign === 'credit' && isInvoicePayment(t.description)));
+    const parsed = rows
+      .filter(row => row[columns.date] && row[columns.amount])
+      .map(row => {
+        const raw = columns.description.map(i => row[i]).filter(Boolean).join(' - ');
+        return {
+          date: this.normalizeDate(row[columns.date]),
+          amount: Math.abs(this.parseAmount(row[columns.amount])),
+          description: this.cleanDescription(raw),
+          rawDescription: raw,
+          sourceFile: originalName,
+          sign: this.detectSign(row[columns.amount])
+        };
+      });
+
+    // A running balance column, or mostly negative values, means an account statement: what is not negative came in.
+    const negatives = parsed.filter(t => t.sign === 'negative').length;
+    const unsigned = parsed.filter(t => t.sign === 'none').length;
+    const unsignedIsCredit = columns.hasBalance || negatives > unsigned;
+
+    return parsed
+      .map(t => (unsignedIsCredit && t.sign === 'none' ? { ...t, sign: 'credit' as Sign } : t))
+      .filter(t => t.amount > 0 && !(t.sign === 'credit' && isInvoicePayment(t.description)));
   }
 
   /**
@@ -86,10 +129,11 @@ export class FileProcessorService {
       await parser.destroy();
     }
 
+    if (INTER_DAY_HEADER.test(text)) return this.parseInterAccountPdf(text, originalName);
+
     // Heuristic parsing; bank-specific layouts may need dedicated parsers.
     const lines = text.split('\n');
 
-    const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
     const anyFullDate = /(\d{2})[\/\-](\d{2})[\/\-](\d{4})/g;
     const fullDatePattern = /^(\d{2})[\/\-](\d{2})[\/\-](\d{4})/;
     const dayMonthPattern = /^(\d{2})[\/\-](\d{2})(?![\/\-]\d)/;
@@ -167,21 +211,48 @@ export class FileProcessorService {
   }
 
   /**
-   * Detect sign from CSV record
+   * Inter account statement: each day is a header ("3 de Setembro de 2026 Saldo do dia: R$ 64,86") and each
+   * transaction below it reads 'Pix enviado: "Fulano" \t-R$ 10,00 \tR$ 54,86', the last value being the balance.
    */
-  private detectSign(record: any): Sign {
-    // Check for explicit sign in amount or other fields
-    const amountStr = String(record.amount || record.Amount || record.VALOR || '');
-    const val = this.parseAmount(amountStr);
-    
-    // If amount is negative, it's an expense
-    if (amountStr.trim().startsWith('-') || val < 0) {
-      return 'negative';
+  private parseInterAccountPdf(text: string, originalName: string): ParsedTransaction[] {
+    const transactions: ParsedTransaction[] = [];
+    let date: string | null = null;
+
+    for (const line of text.split('\n')) {
+      const day = line.match(INTER_DAY_HEADER);
+      if (day) {
+        const month = MONTHS.indexOf(day[2].slice(0, 3).toLowerCase()) + 1;
+        date = month ? `${day[3]}-${String(month).padStart(2, '0')}-${day[1].padStart(2, '0')}` : null;
+        continue;
+      }
+      if (!date) continue;
+
+      const values = [...line.matchAll(/(-)?\s*R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2})/g)];
+      if (values.length < 2) continue;
+      const value = values[values.length - 2];
+      const amount = this.parseAmount(value[2]);
+
+      const label = line.slice(0, value.index).trim();
+      const parts = label.match(/^([^:"]+):\s*"(.*)"$/);
+      const raw = parts
+        ? `${parts[1].trim()} - ${parts[2].replace(/^No estabelecimento\s+/i, '').replace(/^Cp\s*:\s*\d+-/i, '')}`
+        : label;
+      const description = this.cleanDescription(raw);
+      const sign: Sign = value[1] ? 'negative' : 'credit';
+      if (amount <= 0 || !description || (sign === 'credit' && isInvoicePayment(description))) continue;
+
+      transactions.push({ date, amount, description, rawDescription: line.trim(), sourceFile: originalName, sign });
     }
-    // Check for credit indicators
-    if (amountStr.trim().startsWith('+') || amountStr.includes('credit') || amountStr.includes('crédito')) {
-      return 'credit';
-    }
+    return transactions;
+  }
+
+  /**
+   * Detect the sign of a CSV amount
+   */
+  private detectSign(amountStr: string): Sign {
+    const trimmed = amountStr.trim();
+    if (trimmed.startsWith('-') || this.parseAmount(trimmed) < 0) return 'negative';
+    if (trimmed.startsWith('+')) return 'credit';
     return 'none';
   }
 
