@@ -247,6 +247,16 @@ describe('/api/expenses', () => {
       expect(res.body.duplicates).toBe(0);
     });
 
+    it('recognizes a card refund that was already imported', async () => {
+      const invoice = ['15/03/2026,120.00,LOJA X', '16/03/2026,+120.00,ESTORNO LOJA X'];
+      await upload(invoice);
+
+      const again = await upload(invoice);
+
+      expect(again.body.duplicates).toBe(2);
+      expect((await getExpenses()).body).toHaveLength(2);
+    });
+
     it('does not count another user\'s transactions as duplicates', async () => {
       await upload(rows);
       await request(app).post('/api/auth/register').send({ username: 'other', password: 'otherpass123' });

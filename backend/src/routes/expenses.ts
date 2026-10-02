@@ -106,7 +106,12 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
       if (rawExpenses.length > MAX_TRANSACTIONS_PER_UPLOAD) {
         return res.status(422).json({ error: `O extrato tem ${rawExpenses.length} transações; o máximo por envio é ${MAX_TRANSACTIONS_PER_UPLOAD}.` });
       }
-      const candidates = rawExpenses.map(rawExpense => ({ ...rawExpense, type: signToType(rawExpense.sign) }));
+      const candidates = rawExpenses.map(rawExpense => ({
+        ...rawExpense,
+        // A refund on a card invoice takes spending back, so it is stored as negative spending.
+        amount: rawExpense.sign === 'refund' ? -rawExpense.amount : rawExpense.amount,
+        type: signToType(rawExpense.sign),
+      }));
       const { fresh, duplicates } = splitAlreadyImported(
         candidates,
         await db.countImportKeysForUser(userId, candidates.map(importKey))
@@ -120,8 +125,7 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
         return {
           id: randomUUID(),
           date: rawExpense.date,
-          // A refund on a card invoice takes spending back, so it is stored as negative spending.
-          amount: rawExpense.sign === 'refund' ? -rawExpense.amount : rawExpense.amount,
+          amount: rawExpense.amount,
           description: rawExpense.description,
           category,
           type: rawExpense.type,
