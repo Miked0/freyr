@@ -25,6 +25,7 @@ export interface UploadResponse {
 export interface Health {
   status: string;
   ai: 'nvidia' | 'keywords';
+  googleLogin?: boolean;
 }
 
 export interface Session {
@@ -40,6 +41,10 @@ export interface Profile {
   /** How much the user said they had invested, and on which day ("YYYY-MM-DD"). */
   invested_balance: number | null;
   invested_balance_on: string | null;
+  /** Whether the account can be opened with "Entrar com Google". */
+  google_linked?: boolean;
+  /** False for accounts created through Google, which only open with Google. */
+  has_password?: boolean;
 }
 
 export interface ImportedFile {
@@ -97,7 +102,9 @@ export const api = {
   login: (username: string, password: string) => request<{ authenticated: boolean; user: User }>('/api/auth/login', json('POST', { username, password })),
   register: (username: string, password: string) => request<{ authenticated: boolean; user: User }>('/api/auth/register', json('POST', { username, password })),
   logout: () => request<{ authenticated: boolean }>('/api/auth/logout', { method: 'POST' }),
-  deleteAccount: (password: string) => request<{ deleted: boolean }>('/api/auth/account', json('DELETE', { password })),
+  /** Confirmed with the password, or with the username for accounts created through Google. */
+  deleteAccount: (confirmation: { password: string } | { username: string }) =>
+    request<{ deleted: boolean }>('/api/auth/account', json('DELETE', confirmation)),
   getProfile: () => request<Profile>('/api/auth/profile'),
   updateProfile: (patch: ProfilePatch) => request<Profile>('/api/auth/profile', json('PATCH', patch)),
   listExpenses: () => request<Expense[]>('/api/expenses'),

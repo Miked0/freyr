@@ -3,6 +3,7 @@ import { createApp } from '../backend/src/app';
 import { databaseConfigFromEnv } from '../backend/src/config';
 import { DatabaseService } from '../backend/src/services/database.service';
 import { AIService } from '../backend/src/services/ai.service';
+import { googleConfigFromEnv } from '../backend/src/services/google';
 
 const ready = (async () => {
   // Fail closed: without a secret the session cookies would be signed with a publicly known key.
@@ -15,6 +16,7 @@ const ready = (async () => {
     ai: new AIService(),
     secureCookies: true,
     sessionSecret: process.env.SESSION_SECRET,
+    google: googleConfigFromEnv(),
     logRequests: false,
     trustProxy: true,
   });
