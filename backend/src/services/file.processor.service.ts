@@ -2,6 +2,7 @@ import { parse } from 'csv-parse/sync';
 import { PDFParse } from 'pdf-parse';
 import { getPath } from 'pdf-parse/worker';
 import path from 'path';
+import { isBalanceLine } from './balance-line';
 
 // Explicit worker path so serverless bundlers (Vercel) ship the pdf.js worker file.
 PDFParse.setWorker(getPath());
@@ -82,7 +83,7 @@ export class FileProcessorService {
       default:
         throw new StatementError(`Unsupported file format: ${ext}`);
     }
-    return transactions.filter(t => !isOwnMoneyMove(t.description));
+    return transactions.filter(t => !isOwnMoneyMove(t.description) && !isBalanceLine(t.description));
   }
 
   /**
@@ -107,6 +108,7 @@ export class FileProcessorService {
 
     const parsed = rows
       .filter(row => row[columns.date] && row[columns.amount])
+      .filter(row => !isBalanceLine(columns.description.map(i => row[i]).filter(Boolean).join(' - ')))
       .map(row => {
         const raw = columns.description.map(i => row[i]).filter(Boolean).join(' - ');
         return {
@@ -169,6 +171,13 @@ export class FileProcessorService {
       .sort((a, b) => a.year - b.year || a.month - b.month || a.day - b.day);
     const reference = fullDates[fullDates.length - 1] ?? { year: new Date().getFullYear(), month: 12 };
 
+    // A table header with a balance column ("Data Histórico Valor Saldo") means the last value on a line may be the
+    // running balance; the amount is then the one before it.
+    const hasBalanceColumn = lines.some(line => {
+      const header = line.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+      return !/\d/.test(header) && /\bvalor\b/.test(header) && /\bsaldo\b/.test(header);
+    });
+
     const transactions: { date: string; amount: number; sign: Sign; description: string; raw: string }[] = [];
     const pad = (n: number | string) => String(n).padStart(2, '0');
 
@@ -199,14 +208,15 @@ export class FileProcessorService {
       }
 
       const amounts = [...rest.matchAll(amountPattern)];
-      const last = amounts[amounts.length - 1];
+      const last = amounts[amounts.length - (hasBalanceColumn && amounts.length >= 2 ? 2 : 1)];
       if (!last || last.index === undefined) continue;
 
       const amount = this.parseAmount(last[3]);
       const beforeAmount = rest.slice(0, last.index);
       const columns = beforeAmount.split('\t').map(c => c.trim()).filter(Boolean);
       const description = this.cleanDescription(columns.length > 1 ? columns[0] : beforeAmount);
-      if (amount <= 0 || !description) continue;
+      // Left out before the sign vote below: unsigned daily balances would outvote the real debits.
+      if (amount <= 0 || !description || isBalanceLine(description)) continue;
 
       const sign: Sign = last[1] ? 'negative' : last[2] ? 'credit' : 'none';
       transactions.push({ date, amount, sign, description, raw: trimmed });
@@ -263,7 +273,7 @@ export class FileProcessorService {
         : label;
       const description = this.cleanDescription(raw);
       const sign: Sign = value[1] ? 'negative' : 'credit';
-      if (amount <= 0 || !description || (sign === 'credit' && isInvoicePayment(description))) continue;
+      if (amount <= 0 || !description || isBalanceLine(description) || (sign === 'credit' && isInvoicePayment(description))) continue;
 
       transactions.push({ date, amount, description, rawDescription: line.trim(), sourceFile: originalName, sign });
     }

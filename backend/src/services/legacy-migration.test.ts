@@ -8,6 +8,7 @@ import { createApp } from '../app';
 import { DatabaseService } from './database.service';
 import { AIService } from './ai.service';
 import { DEFAULT_CATEGORY_NAMES } from './categories';
+import { SCHEMA } from './schema';
 
 // Schema as shipped before multi-user support: no users, no user_id columns.
 const LEGACY_SCHEMA = `
@@ -155,4 +156,38 @@ describe('import key backfill', () => {
 
     expect(res.body.duplicates).toBe(1);
   }, 15_000);
+});
+
+describe('limpeza de linhas de saldo já importadas', () => {
+  it('apaga uma vez as linhas de saldo que versões antigas gravaram como transação, e só elas', async () => {
+    const dbUrl = url();
+    const old = createClient({ url: dbUrl });
+    await old.executeMultiple(SCHEMA);
+    await old.execute("INSERT INTO users (id, username, password_hash) VALUES ('u1', 'dono', 'x')");
+    // Rows an older parser saved from statements, balances included; a row that came from no file stays.
+    const rows: [string, number, string, 'income' | 'expense', string | null][] = [
+      ['s1', 200, 'SALDO ANTERIOR', 'income', 'extrato.pdf'],
+      ['s2', 150, 'SALDO DO DIA', 'income', 'extrato.pdf'],
+      ['s3', 150, 'S A L D O', 'expense', 'extrato.csv'],
+      ['t1', 50, 'PIX ENVIADO FULANO', 'expense', 'extrato.pdf'],
+      ['t2', 300, 'Pix recebido - Saldanha', 'income', 'extrato.pdf'],
+      ['m1', 80, 'Saldo', 'expense', null],
+    ];
+    const insert = (id: string, amount: number, description: string, type: string, sourceFile: string | null) =>
+      old.execute({
+        sql: "INSERT INTO expenses (id, user_id, date, amount, description, category, type, source_file) VALUES (?, 'u1', '2026-09-01', ?, ?, 'Outros', ?, ?)",
+        args: [id, amount, description, type, sourceFile],
+      });
+    for (const row of rows) await insert(...row);
+
+    await DatabaseService.connect({ url: dbUrl });
+    const ids = async () => (await old.execute('SELECT id FROM expenses ORDER BY id')).rows.map(r => r.id);
+    expect(await ids()).toEqual(['m1', 't1', 't2']);
+
+    // Once done, a later start leaves the data alone: from here on the parser never saves a balance.
+    await insert('s4', 10, 'SALDO FINAL', 'income', 'extrato.pdf');
+    await DatabaseService.connect({ url: dbUrl });
+    expect(await ids()).toEqual(['m1', 's4', 't1', 't2']);
+    old.close();
+  });
 });
