@@ -12,6 +12,8 @@ const css = `
 .fr-actions { display: flex; gap: var(--space-3); flex-wrap: wrap; }
 .fr-actions .fr-btn { display: inline-flex; align-items: center; gap: var(--space-2); height: 40px; padding: 0 var(--space-4); }
 .fr-actions .fr-period { cursor: default; }
+.fr-actions .fr-period-pick { position: relative; cursor: pointer; }
+.fr-actions .fr-period-pick select { position: absolute; inset: 0; opacity: 0; cursor: pointer; font: inherit; }
 `;
 
 export interface PageHeaderProps {
@@ -22,10 +24,15 @@ export interface PageHeaderProps {
   phrase?: string;
   /** Period shown as a static label, e.g. "Setembro 2026". Hidden when undefined. */
   periodLabel?: string;
+  /** With `periods` and `onPeriodChange`, the label becomes a month picker showing `period`. */
+  period?: string;
+  periods?: { key: string; label: string }[];
+  onPeriodChange?: (key: string) => void;
   onExport?: () => void;
 }
 
-export function PageHeader({ page, title, phrase, periodLabel, onExport }: PageHeaderProps) {
+export function PageHeader({ page, title, phrase, periodLabel, period, periods, onPeriodChange, onExport }: PageHeaderProps) {
+  const pickable = periods && periods.length > 0 && onPeriodChange;
   return (
     <header className="fr-page-head">
       <style href="freyr-page-head" precedence="default">{css}</style>
@@ -37,7 +44,14 @@ export function PageHeader({ page, title, phrase, periodLabel, onExport }: PageH
         </div>
         {periodLabel || onExport ? (
           <div className="fr-actions">
-            {periodLabel ? (
+            {periodLabel && pickable ? (
+              <label className="fr-btn fr-btn-outline fr-period-pick">
+                <Icon name="calendar" size={16} />{periodLabel}
+                <select aria-label="Mês" value={period} onChange={e => onPeriodChange(e.target.value)}>
+                  {periods.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+                </select>
+              </label>
+            ) : periodLabel ? (
               <span className="fr-btn fr-btn-outline fr-period">
                 <Icon name="calendar" size={16} />{periodLabel}
               </span>

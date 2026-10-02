@@ -2,10 +2,10 @@ import { summarizeOverview } from '@/lib/overview';
 import { useExpenses } from '@/store/expenses';
 import { SummaryCard } from './SummaryCard';
 
-/** The three summary cards, as a fragment so they sit directly in the dashboard's `.fr-bento` grid. */
-export function OverviewCards() {
+/** The three summary cards for `monthKey` (the latest month by default), as a fragment so they sit directly in the dashboard's `.fr-bento` grid. */
+export function OverviewCards({ monthKey }: { monthKey?: string }) {
   const expenses = useExpenses(s => s.expenses);
-  const summary = summarizeOverview(expenses);
+  const summary = summarizeOverview(expenses, monthKey);
 
   return (
     <>

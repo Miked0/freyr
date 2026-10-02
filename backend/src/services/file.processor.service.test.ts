@@ -61,7 +61,7 @@ describe('FileProcessorService.processFile (PDF)', () => {
 });
 
 describe('FileProcessorService.processFile (PDF, fatura Inter)', () => {
-  it('reads dates written with month names and includes refunds marked with +', async () => {
+  it('reads dates written with month names and keeps refunds marked with + as refunds, not income', async () => {
     const expenses = await processPdf([
       'Vencimento 15/10/2026 R$ 1.234,56',
       '05 de set. 2026 PADARIA REAL - R$ 27,90',
@@ -72,7 +72,7 @@ describe('FileProcessorService.processFile (PDF, fatura Inter)', () => {
 
     expect(expenses.map(e => [e.date, e.amount, e.description, e.sign])).toEqual([
       ['2026-09-05', 27.9, 'PADARIA REAL', 'negative'],
-      ['2026-09-06', 50, 'ESTORNO LOJA Y', 'credit'],
+      ['2026-09-06', 50, 'ESTORNO LOJA Y', 'refund'],
       ['2025-12-12', 89.9, 'LOJA X (Parcela 10 de 10)', 'negative'],
       ['2026-08-20', 1045, 'IFD*RESTAURANTE', 'negative'],
     ]);
@@ -108,7 +108,7 @@ describe('FileProcessorService.processFile (PDF, fatura Inter)', () => {
 
     expect(expenses.map(e => [e.description, e.sign])).toEqual([
       ['PADARIA REAL', 'negative'],
-      ['REEMBOLSO COMPRA', 'credit'],
+      ['REEMBOLSO COMPRA', 'refund'],
     ]);
   });
 });
@@ -216,6 +216,22 @@ describe('FileProcessorService.processFile (CSV)', () => {
     );
 
     expect(expenses.map(e => e.description)).toEqual(['Compra no débito - Padaria Real', 'Estorno - Loja X']);
+  });
+
+  it('reads card invoices with unsigned purchases, keeping negative lines as refunds', async () => {
+    const expenses = await processCsv(
+      'date,description,amount\n' +
+      '2026-09-01,Padaria Real,27.90\n' +
+      '2026-09-02,Loja X,120.00\n' +
+      '2026-09-03,Estorno Loja X,-120.00\n' +
+      '2026-09-04,Pagamento recebido,-500.00\n'
+    );
+
+    expect(expenses.map(e => [e.description, e.amount, e.sign])).toEqual([
+      ['Padaria Real', 27.9, 'none'],
+      ['Loja X', 120, 'none'],
+      ['Estorno Loja X', 120, 'refund'],
+    ]);
   });
 
   it('says which columns it needs when it cannot find the table header', async () => {

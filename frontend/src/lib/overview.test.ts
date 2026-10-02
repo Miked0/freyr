@@ -23,6 +23,18 @@ describe('summarizeOverview', () => {
     expect(summary).toMatchObject({ monthKey: '2026-09', balance: 3500, income: 6000, expense: 4500 });
   });
 
+  it('reports a chosen month, with the balance up to its end and the month before it', () => {
+    const summary = summarizeOverview([
+      entry('2026-07-01', 1000, 'income'),
+      entry('2026-08-01', 5000, 'income'),
+      entry('2026-08-10', 3000),
+      entry('2026-09-01', 6000, 'income'),
+    ], '2026-08')!;
+
+    expect(summary).toMatchObject({ monthKey: '2026-08', balance: 3000, income: 5000, expense: 3000 });
+    expect(summary.incomeDelta).toBeCloseTo(400);
+  });
+
   it('compares the latest month against the previous month with entries', () => {
     const summary = summarizeOverview([
       entry('2026-06-01', 4000, 'income'),

@@ -6,7 +6,8 @@ import path from 'path';
 // Explicit worker path so serverless bundlers (Vercel) ship the pdf.js worker file.
 PDFParse.setWorker(getPath());
 
-export type Sign = 'negative' | 'credit' | 'none';
+/** 'refund' is money a card invoice gives back (estorno, cashback, cancelled purchase): less spending, not income. */
+export type Sign = 'negative' | 'credit' | 'none' | 'refund';
 
 /** A problem with the uploaded statement itself; its message is safe to show the user. */
 export class StatementError extends Error {}
@@ -123,9 +124,16 @@ export class FileProcessorService {
     const unsigned = parsed.filter(t => t.sign === 'none').length;
     const unsignedIsCredit = columns.hasBalance || negatives > unsigned;
 
+    // Unsigned purchases without that are a card invoice, where anything signed gives money back.
+    const resign = (sign: Sign): Sign => {
+      if (unsignedIsCredit) return sign === 'none' ? 'credit' : sign;
+      if (unsigned > 0) return sign === 'none' ? 'none' : 'refund';
+      return sign;
+    };
+
     return parsed
-      .map(t => (unsignedIsCredit && t.sign === 'none' ? { ...t, sign: 'credit' as Sign } : t))
-      .filter(t => t.amount > 0 && !(t.sign === 'credit' && isInvoicePayment(t.description)));
+      .map(t => ({ ...t, sign: resign(t.sign) }))
+      .filter(t => t.amount > 0 && !(t.sign !== 'negative' && t.sign !== 'none' && isInvoicePayment(t.description)));
   }
 
   /**
@@ -211,6 +219,9 @@ export class FileProcessorService {
     const unsigned = transactions.filter(t => t.sign === 'none').length;
     const expenseSign: Sign = negatives > unsigned ? 'negative' : 'none';
 
+    // On a card invoice, credits that are not the invoice payment are refunds, never income.
+    const isInvoice = /\b(vencimento|fatura)\b/i.test(text);
+
     return transactions
       .filter(t => t.sign === expenseSign || (t.sign === 'credit' && !isInvoicePayment(t.description)))
       .map(t => ({
@@ -219,7 +230,7 @@ export class FileProcessorService {
         description: t.description,
         rawDescription: t.raw,
         sourceFile: originalName,
-        sign: t.sign
+        sign: isInvoice && t.sign === 'credit' ? 'refund' : t.sign
       }));
   }
 
