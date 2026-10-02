@@ -54,6 +54,15 @@ function findCsvColumns(header: string[]) {
   return { date, amount, description, hasBalance: header.includes('saldo') };
 }
 
+// Account statement lines that only move money between the holder's own pockets: paying the card invoice (the
+// purchases come in with the invoice itself) and applying or redeeming investments (CDB, Tesouro Direto).
+const OWN_MONEY_MOVE = /pagamento.*\bfatura\b|(^|- )(aplicacao|resgate)\b|tesouro direto|\bcdb\b/;
+
+/** Whether an account statement line moves the holder's own money instead of spending or receiving it. */
+export function isOwnMoneyMove(description: string): boolean {
+  return OWN_MONEY_MOVE.test(description.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase());
+}
+
 export class FileProcessorService {
   /**
    * Process uploaded file based on its extension
@@ -61,14 +70,18 @@ export class FileProcessorService {
   async processFile(content: Buffer, originalName: string): Promise<ParsedTransaction[]> {
     const ext = path.extname(originalName).toLowerCase();
     
+    let transactions: ParsedTransaction[];
     switch (ext) {
       case '.csv':
-        return this.processCsv(content, originalName);
+        transactions = await this.processCsv(content, originalName);
+        break;
       case '.pdf':
-        return this.processPdf(content, originalName);
+        transactions = await this.processPdf(content, originalName);
+        break;
       default:
         throw new StatementError(`Unsupported file format: ${ext}`);
     }
+    return transactions.filter(t => !isOwnMoneyMove(t.description));
   }
 
   /**
