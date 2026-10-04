@@ -92,6 +92,8 @@ export const api = {
   listCategories: () => request<Category[]>('/api/expenses/categories/all'),
   updateExpense: (id: string, patch: ExpensePatch) => request<void>(`/api/expenses/${id}`, json('PUT', patch)),
   deleteExpense: (id: string) => request<void>(`/api/expenses/${id}`, { method: 'DELETE' }),
+  listRepeatedImports: () => request<{ expenses: Expense[] }>('/api/expenses/repeated'),
+  removeRepeatedImports: (ids: string[]) => request<{ removed: number }>('/api/expenses/repeated/remove', json('POST', { ids })),
   uploadStatement: (file: File) => {
     const form = new FormData();
     form.append('statement', file);

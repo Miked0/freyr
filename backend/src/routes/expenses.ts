@@ -71,6 +71,26 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
     }
   });
 
+  router.get('/repeated', async (req, res) => {
+    try {
+      res.json({ expenses: await db.getRepeatedImportsForUser(req.user!.id) });
+    } catch (error) {
+      res.status(500).json({ error: 'Não foi possível procurar transações repetidas.' });
+    }
+  });
+
+  router.post('/repeated/remove', async (req, res) => {
+    const ids = req.body?.ids;
+    if (!Array.isArray(ids) || !ids.every(id => typeof id === 'string')) {
+      return res.status(400).json({ error: 'Informe as transações a remover.' });
+    }
+    try {
+      res.json({ removed: await db.deleteRepeatedImportsForUser(req.user!.id, ids) });
+    } catch (error) {
+      res.status(500).json({ error: 'Não foi possível remover as transações repetidas.' });
+    }
+  });
+
   router.get('/:id', async (req, res) => {
     try {
       const userId = req.user!.id;

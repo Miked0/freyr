@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto';
 import { DEFAULT_CATEGORY_NAMES } from './categories';
 import { importKey } from './import-key';
 import { createKeyring, type Keyring, type UserKey } from './data-crypto';
+import { findRepeatedImports } from './repeated-imports';
 import { GOALS_SCHEMA, createGoalsStore, type GoalsStore } from './goals';
 
 export interface DatabaseConfig {
@@ -394,6 +395,31 @@ export class DatabaseService {
       for (const row of rows) counts.set(plainByToken.get(row.import_key)!, Number(row.n));
     }
     return counts;
+  }
+
+  /** The copies of already imported transactions that uploads saved again before they skipped them. */
+  async getRepeatedImportsForUser(userId: string): Promise<ExpenseRow[]> {
+    const rows = await this.all<ExpenseRow>(
+      'SELECT * FROM expenses WHERE user_id = ? AND source_file IS NOT NULL AND import_key IS NOT NULL ORDER BY date DESC',
+      [userId]
+    );
+    const key = await this.userKey(userId);
+    // Each file name is sealed with its own nonce, so they are compared opened.
+    const opened = rows.map(row => ({ row, source_file: this.openExpense(key, row).source_file }));
+    const repeated = new Set(findRepeatedImports(opened.map(({ row, source_file }) => ({ ...row, source_file }))));
+    return rows.filter(row => repeated.has(row.id)).map(row => this.openExpense(key, row));
+  }
+
+  /** Deletes those of the ids that are still repeated copies; returns how many went. */
+  async deleteRepeatedImportsForUser(userId: string, ids: string[]): Promise<number> {
+    const requested = new Set(ids);
+    const doomed = (await this.getRepeatedImportsForUser(userId)).filter(row => requested.has(row.id));
+    if (doomed.length === 0) return 0;
+    await this.client.batch(
+      doomed.map(row => ({ sql: 'DELETE FROM expenses WHERE user_id = ? AND id = ?', args: [userId, row.id] })),
+      'write'
+    );
+    return doomed.length;
   }
 
   async deleteExpenseForUser(userId: string, id: string): Promise<boolean> {

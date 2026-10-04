@@ -95,6 +95,26 @@ describe('sensitive data at rest', () => {
   });
 });
 
+describe('repeated imports with encrypted data', () => {
+  it('finds the copies of an earlier upload, keeping identical purchases of one statement', async () => {
+    const dbUrl = url();
+    const db = await DatabaseService.connect({ url: dbUrl }, { masterKey: MASTER });
+    const user = { id: await db.createUser('ana', 'hash') };
+    const coffee = { date: '2026-03-15', amount: -8, description: 'CAFE DA ESQUINA', category: 'Alimentação', type: 'expense' as const };
+    // One statement listing the same coffee twice, saved by an older version, then the same file sent again.
+    for (const id of ['a1', 'a2', 'b1', 'b2']) await db.createExpenseForUser(user.id, { ...coffee, id, sourceFile: 'fatura-marco.csv' });
+    await rawRows(dbUrl, "UPDATE expenses SET created_at = '2026-03-20 10:00:00' WHERE id IN ('a1', 'a2')");
+    await rawRows(dbUrl, "UPDATE expenses SET created_at = '2026-03-25 10:00:00' WHERE id IN ('b1', 'b2')");
+
+    const repeated = await db.getRepeatedImportsForUser(user.id);
+
+    expect(repeated.map(e => e.id).sort()).toEqual(['b1', 'b2']);
+    expect(repeated[0]).toMatchObject({ description: 'CAFE DA ESQUINA', source_file: 'fatura-marco.csv' });
+    expect(repeated[0]).not.toHaveProperty('import_key');
+    expect(await db.deleteRepeatedImportsForUser(user.id, ['b1', 'b2', 'a1'])).toBe(2);
+  });
+});
+
 describe('deleting the account', () => {
   it('erases the user and every row of theirs after the password is confirmed', async () => {
     const { app, dbUrl, cookie } = await setup();
