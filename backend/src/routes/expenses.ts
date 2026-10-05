@@ -82,6 +82,26 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
     }
   });
 
+  router.get('/recategorize', async (req, res) => {
+    try {
+      res.json({ suggestions: await db.getRecategorizationsForUser(req.user!.id) });
+    } catch (error) {
+      res.status(500).json({ error: 'Não foi possível revisar as categorias.' });
+    }
+  });
+
+  router.post('/recategorize', async (req, res) => {
+    const ids = req.body?.ids;
+    if (!Array.isArray(ids) || !ids.every(id => typeof id === 'string')) {
+      return res.status(400).json({ error: 'Informe as transações a recategorizar.' });
+    }
+    try {
+      res.json({ updated: await db.applyRecategorizationsForUser(req.user!.id, ids) });
+    } catch (error) {
+      res.status(500).json({ error: 'Não foi possível recategorizar as transações.' });
+    }
+  });
+
   router.post('/repeated/remove', async (req, res) => {
     const ids = req.body?.ids;
     if (!Array.isArray(ids) || !ids.every(id => typeof id === 'string')) {

@@ -4,6 +4,7 @@ import { PageHeader } from '../PageHeader';
 import { BentoCard } from '../BentoCard';
 import { csvExporter } from './exportCsv';
 import { RepeatedImportsCard } from './RepeatedImportsCard';
+import { RecategorizeCard } from './RecategorizeCard';
 import { ImportHistoryCard } from './ImportHistoryCard';
 
 export function TransactionsPage() {
@@ -13,6 +14,7 @@ export function TransactionsPage() {
       <PageHeader page="Transações" title="Todas as transações" phrase="Cada lançamento, do jeito que entrou." onExport={csvExporter(expenses)} />
       <div className="fr-bento">
         <RepeatedImportsCard />
+        <RecategorizeCard />
         <ImportHistoryCard />
         <BentoCard span={12}>
           <TransactionList />

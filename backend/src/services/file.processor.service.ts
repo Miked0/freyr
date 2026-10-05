@@ -61,7 +61,7 @@ const INVOICE_PAYMENT_MOVE = /pagamento.*\bfatura\b/;
 
 // Applying or redeeming investments (CDB, caixinha, Tesouro Direto, ações): the money stays the holder's.
 const INVESTMENT_MOVE =
-  /(^|- )(aplicacao|resgate)\b|tesouro direto|\b(cdb|lci|lca|caixinha|porquinho|acoes|corretora)\b|\bcompra td\b/;
+  /(^|- )(aplicacao|resgate)\b|tesouro (direto|prefixado|ipca|selic)|\b(cdb|lci|lca|caixinha|porquinho|acoes|corretora)\b|\b(compra|debito online) td\b/;
 
 const foldText = (description: string) => description.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 

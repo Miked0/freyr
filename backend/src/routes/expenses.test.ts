@@ -111,6 +111,28 @@ describe('/api/expenses', () => {
     ]);
   });
 
+  it('suggests and applies new categories for entries saved in Outros before the rules knew them', async () => {
+    const db = await DatabaseService.connect({ url: ':memory:' });
+    app = createApp({ db, ai: offlineAI(), secureCookies: false, logRequests: false });
+    await request(app).post('/api/auth/register').send({ username: 'old', password: 'testpass123' });
+    cookie = (await request(app).post('/api/auth/login').send({ username: 'old', password: 'testpass123' })).headers['set-cookie'] as string;
+    const userId = (await db.getUserByUsername('old'))!.id;
+    await db.createExpenseForUser(userId, { id: 'adega', date: '2026-09-05', amount: 53, description: 'Compra no débito - Mp *adegar7 Sao Paulo Bra', category: 'Outros', type: 'expense' });
+    await db.createExpenseForUser(userId, { id: 'saque', date: '2026-08-16', amount: 50, description: 'SAQUE BANCO 24H - SAQUE BANCO 24H', category: 'Outros', type: 'expense' });
+    await db.createExpenseForUser(userId, { id: 'nada', date: '2026-08-21', amount: 2, description: 'Compra no débito', category: 'Outros', type: 'expense' });
+
+    const listed = await request(app).get('/api/expenses/recategorize').set('Cookie', cookie);
+    expect(listed.body.suggestions.map((s: any) => [s.id, s.description, s.from, s.to])).toEqual([
+      ['adega', 'Compra no débito - Mp *adegar7 Sao Paulo Bra', 'Outros', 'Alimentação'],
+      ['saque', 'SAQUE BANCO 24H - SAQUE BANCO 24H', 'Outros', 'Saques'],
+    ]);
+
+    const applied = await request(app).post('/api/expenses/recategorize').set('Cookie', cookie).send({ ids: ['adega', 'saque', 'nada'] });
+    expect(applied.body).toEqual({ updated: 2 });
+    const { body } = await getExpenses();
+    expect(Object.fromEntries(body.map((e: any) => [e.id, e.category]))).toEqual({ adega: 'Alimentação', saque: 'Saques', nada: 'Outros' });
+  });
+
   it('edits the description and amount of an expense', async () => {
     const { body } = await upload(['15/03/2026,-10.00,UBER TRIP']);
     const id = body.expenses[0].id;
