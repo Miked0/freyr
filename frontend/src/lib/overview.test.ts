@@ -200,3 +200,16 @@ describe('investments', () => {
     ]);
   });
 });
+
+describe('fixed bills', () => {
+  const bill = (date: string, amount: number, category: string): Expense => ({
+    id: `f${++seq}`, date, amount, description: category, category, type: 'expense',
+  });
+
+  it('reports how much of the spending went to fixed bills, in a month and in the last 30 days', () => {
+    const rows = [bill('2026-09-05', 1500, 'Moradia'), bill('2026-09-06', 120, 'Contas'), bill('2026-09-07', 300, 'Mercado')];
+
+    expect(summarizeOverview(rows)).toMatchObject({ expense: 1920, fixedExpense: 1620 });
+    expect(summarizeLast30Days(rows, new Date('2026-09-20T12:00:00'))).toMatchObject({ expense: 1920, fixedExpense: 1620 });
+  });
+});

@@ -258,8 +258,6 @@
 .fr-sum-body { display: grid; gap: 2px; align-content: end; }
 .fr-sum-label { margin: 0; font-size: 15px; line-height: 20px; font-weight: 700; }
 .fr-sum-sub { margin: 0; font-size: 13px; line-height: 18px; color: var(--ink-muted); }
-.fr-sum-note { margin: 4px 0 0; font-size: 13px; line-height: 18px; color: var(--ink-muted); }
-.fr-sum.is-hero .fr-sum-note { color: var(--hero-muted); }
 .fr-sum-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-3); }
 .fr-sum-value { margin: 0; font-size: 32px; line-height: 36px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .fr-sum-action { display: flex; justify-content: space-between; align-items: center; padding-top: var(--space-4); border-top: var(--border-width) solid var(--line); color: inherit; text-decoration: none; font-size: 14px; font-weight: 700; border-radius: 2px; }
@@ -308,3 +306,22 @@
   .fr-skel span, .fr-bar-fill { animation: none; }
   .fr-btn, .fr-drop, .fr-progress-fill { transition: none; }
 }
+
+/* SummaryCard meter: a stacked bar with its parts listed below */
+.fr-meter { display: grid; gap: var(--space-2); margin-top: var(--space-4); }
+.fr-meter-bar { display: flex; gap: 2px; height: 8px; border-radius: 999px; overflow: hidden; background: var(--line); }
+.fr-meter-seg { display: block; min-width: 0; height: 100%; }
+.fr-meter-legend { display: grid; gap: var(--space-1); margin: 0; padding: 0; list-style: none; font-size: 13px; line-height: 18px; color: var(--ink-muted); }
+.fr-meter-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.fr-meter-legend b { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+.fr-meter-dot { width: 8px; height: 8px; border-radius: 2px; }
+.fr-meter-seg.is-a, .fr-meter-dot.is-a { background: var(--brand-primary); }
+.fr-meter-seg.is-b, .fr-meter-dot.is-b { background: var(--frost); }
+.fr-meter-seg.is-alert, .fr-meter-dot.is-alert { background: var(--alert); }
+.fr-sum.is-hero .fr-meter-bar { background: rgba(247, 246, 243, 0.14); }
+.fr-sum.is-hero .fr-meter-legend { color: var(--hero-muted); }
+.fr-sum.is-hero .fr-meter-legend b { color: var(--on-hero); }
+.fr-sum.is-hero .fr-meter-seg.is-a, .fr-sum.is-hero .fr-meter-dot.is-a { background: var(--on-hero); }
+.fr-sum.is-hero .fr-meter-seg.is-b, .fr-sum.is-hero .fr-meter-dot.is-b { background: var(--frost); }
+.fr-meter-dot.is-none { background: var(--line); }
+.fr-sum.is-hero .fr-meter-dot.is-none { background: rgba(247, 246, 243, 0.24); }

@@ -25,6 +25,13 @@ export function investedTotal(expenses: Expense[], lastDay?: string): number {
   return Math.max(0, net);
 }
 
+/** Bills that come back every month, whatever the user does; the rest of the spending is day-to-day. */
+export const FIXED_CATEGORIES: readonly string[] = [
+  'Moradia', 'Contas', 'Assinaturas', 'Educação', 'Academia e bem-estar', 'Impostos e taxas',
+];
+
+export const isFixedBill = (e: Pick<Expense, 'category'>) => FIXED_CATEGORIES.includes(e.category);
+
 export interface MonthTotal {
   key: string;
   label: string;
