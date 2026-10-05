@@ -1,8 +1,8 @@
 // Textos legais do Freyr. Revise com um advogado antes de publicar e preencha RESPONSAVEL e CONTATO.
 
 /** Who answers for the data (controlador e encarregado, LGPD arts. 5º VI e 41). */
-export const RESPONSAVEL = '[nome completo ou razão social do responsável]';
-export const CONTATO = '[e-mail de contato para privacidade]';
+export const RESPONSAVEL = 'Michael Douglas Bessa Alves';
+export const CONTATO = 'dev.miked0@gmail.com';
 export const ATUALIZADO_EM = '02/10/2026';
 
 export type LegalDocKey = 'privacidade' | 'termos' | 'lgpd';
