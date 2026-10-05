@@ -39,6 +39,12 @@ export interface Profile {
   monthly_budget: number | null;
 }
 
+export interface ImportedFile {
+  name: string;
+  /** How many of the file's transactions are still saved. */
+  transactions: number;
+}
+
 export type ProfilePatch = Partial<Pick<Profile, 'display_name' | 'avatar_color' | 'monthly_budget'>>;
 
 export type ExpensePatch = Partial<Pick<Expense, 'description' | 'amount' | 'category' | 'type'>>;
@@ -94,6 +100,8 @@ export const api = {
   deleteExpense: (id: string) => request<void>(`/api/expenses/${id}`, { method: 'DELETE' }),
   listRepeatedImports: () => request<{ expenses: Expense[] }>('/api/expenses/repeated'),
   removeRepeatedImports: (ids: string[]) => request<{ removed: number }>('/api/expenses/repeated/remove', json('POST', { ids })),
+  listImportedFiles: () => request<{ files: ImportedFile[] }>('/api/expenses/imports'),
+  clearImportHistory: () => request<{ removed: number }>('/api/expenses/imports', { method: 'DELETE' }),
   uploadStatement: (file: File) => {
     const form = new FormData();
     form.append('statement', file);

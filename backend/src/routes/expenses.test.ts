@@ -391,3 +391,86 @@ describe('/api/expenses/repeated', () => {
     expect((await request(app).post('/api/expenses/repeated/remove').set('Cookie', cookie).send({})).status).toBe(400);
   });
 });
+
+describe('/api/expenses/imports', () => {
+  let db: DatabaseService;
+  let app: ReturnType<typeof createApp>;
+
+  const login = async (username: string) => {
+    await request(app).post('/api/auth/register').send({ username, password: 'testpass123' });
+    const res = await request(app).post('/api/auth/login').send({ username, password: 'testpass123' });
+    return res.headers['set-cookie'] as unknown as string;
+  };
+
+  beforeEach(async () => {
+    db = await DatabaseService.connect({ url: ':memory:' });
+    app = createApp({ db, ai: offlineAI(), secureCookies: false, logRequests: false });
+  });
+
+  const save = async (username: string, description: string, sourceFile?: string) => {
+    const id = randomUUID();
+    await db.createExpenseForUser((await db.getUserByUsername(username))!.id, {
+      id, date: '2026-09-10', amount: 50, description, category: 'Outros', type: 'expense', sourceFile,
+    });
+    return id;
+  };
+
+  const history = (cookie: string) => request(app).get('/api/expenses/imports').set('Cookie', cookie);
+  const clear = (cookie: string) => request(app).delete('/api/expenses/imports').set('Cookie', cookie);
+
+  it('lists the imported files with how many transactions came from each', async () => {
+    const mike = await login('Mike');
+    await save('Mike', 'MERCADO', 'extrato-set.csv');
+    await save('Mike', 'PADARIA', 'extrato-set.csv');
+    await save('Mike', 'UBER', 'fatura.pdf');
+    await save('Mike', 'ALUGUEL');
+
+    const res = await history(mike);
+
+    expect(res.status).toBe(200);
+    expect(res.body.files).toEqual([
+      { name: 'extrato-set.csv', transactions: 2 },
+      { name: 'fatura.pdf', transactions: 1 },
+    ]);
+  });
+
+  it('deletes every imported transaction and keeps the ones typed by hand', async () => {
+    const mike = await login('Mike');
+    await save('Mike', 'MERCADO', 'extrato-set.csv');
+    await save('Mike', 'UBER', 'fatura.pdf');
+    const manual = await save('Mike', 'ALUGUEL');
+
+    const res = await clear(mike);
+
+    expect(res.status).toBe(200);
+    expect(res.body.removed).toBe(2);
+    const left = await request(app).get('/api/expenses').set('Cookie', mike);
+    expect(left.body.map((e: any) => e.id)).toEqual([manual]);
+    expect((await history(mike)).body.files).toEqual([]);
+  });
+
+  it("never touches another user's imports", async () => {
+    const mike = await login('Mike');
+    await login('other');
+    const theirs = await save('other', 'MERCADO', 'extrato.csv');
+
+    await clear(mike);
+
+    const stillThere = await db.getExpenseByIdForUser((await db.getUserByUsername('other'))!.id, theirs);
+    expect(stillThere).toBeDefined();
+  });
+
+  it('is refused on the server for users outside the allowlist', async () => {
+    const other = await login('other');
+    const kept = await save('other', 'MERCADO', 'extrato.csv');
+
+    expect((await history(other)).status).toBe(403);
+    expect((await clear(other)).status).toBe(403);
+    const left = await request(app).get('/api/expenses').set('Cookie', other);
+    expect(left.body.map((e: any) => e.id)).toEqual([kept]);
+  });
+
+  it('requires a session', async () => {
+    expect((await request(app).delete('/api/expenses/imports')).status).toBe(401);
+  });
+});

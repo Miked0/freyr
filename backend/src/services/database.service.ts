@@ -446,6 +446,24 @@ export class DatabaseService {
     return doomed.length;
   }
 
+  /** The files the user imported, with how many of their transactions are still saved. */
+  async getImportedFilesForUser(userId: string): Promise<{ name: string; transactions: number }[]> {
+    const rows = await this.all<ExpenseRow>('SELECT * FROM expenses WHERE user_id = ? AND source_file IS NOT NULL', [userId]);
+    const key = await this.userKey(userId);
+    // Each file name is sealed with its own nonce, so they are counted opened.
+    const counts = new Map<string, number>();
+    for (const row of rows) {
+      const name = this.openExpense(key, row).source_file!;
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+    }
+    return [...counts].map(([name, transactions]) => ({ name, transactions })).sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  /** Deletes every transaction that came from an imported file; returns how many went. */
+  async deleteImportedExpensesForUser(userId: string): Promise<number> {
+    return this.run('DELETE FROM expenses WHERE user_id = ? AND source_file IS NOT NULL', [userId]);
+  }
+
   async deleteExpenseForUser(userId: string, id: string): Promise<boolean> {
     return (await this.run('DELETE FROM expenses WHERE user_id = ? AND id = ?', [userId, id])) > 0;
   }

@@ -21,6 +21,8 @@ const AI_CONCURRENCY = 10;
 // Caps paid AI calls per upload and keeps the import inside the 60 s function limit
 // (~1 s per AI call at AI_CONCURRENCY); a month of statements fits well under it.
 const MAX_TRANSACTIONS_PER_UPLOAD = 300;
+// Clearing the import history is released only to these usernames for now (compared ignoring case).
+export const IMPORT_HISTORY_CLEARERS = ['mike'];
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -89,6 +91,29 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
       res.json({ removed: await db.deleteRepeatedImportsForUser(req.user!.id, ids) });
     } catch (error) {
       res.status(500).json({ error: 'Não foi possível remover as transações repetidas.' });
+    }
+  });
+
+  const canClearImports: RequestHandler = (req, res, next) => {
+    if (!IMPORT_HISTORY_CLEARERS.includes(req.user!.username.toLowerCase())) {
+      return res.status(403).json({ error: 'Esta função ainda não está liberada para a sua conta.' });
+    }
+    next();
+  };
+
+  router.get('/imports', canClearImports, async (req, res) => {
+    try {
+      res.json({ files: await db.getImportedFilesForUser(req.user!.id) });
+    } catch (error) {
+      res.status(500).json({ error: 'Não foi possível carregar o histórico de arquivos.' });
+    }
+  });
+
+  router.delete('/imports', canClearImports, async (req, res) => {
+    try {
+      res.json({ removed: await db.deleteImportedExpensesForUser(req.user!.id) });
+    } catch (error) {
+      res.status(500).json({ error: 'Não foi possível apagar o histórico de arquivos.' });
     }
   });
 
