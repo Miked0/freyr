@@ -243,6 +243,27 @@ export function createAuth({ db, secureCookies = false, sessionSecret }: AuthOpt
     }
   });
 
+  router.delete('/account', requireSession, async (req, res) => {
+    const password = typeof req.body?.password === 'string' ? req.body.password : '';
+    const client = req.ip ?? 'unknown';
+    if (!loginAttempts.take(client)) {
+      return res.status(429).json({ error: 'Muitas tentativas. Tente novamente em 15 minutos.' });
+    }
+    try {
+      const user = await db.getUserById(req.user!.id);
+      if (!user || !password || !(await bcrypt.compare(password, user.password_hash))) {
+        await new Promise(resolve => setTimeout(resolve, FAILED_LOGIN_DELAY_MS));
+        return res.status(401).json({ error: 'Senha incorreta.' });
+      }
+      await db.deleteUser(user.id);
+      res.setHeader('Set-Cookie', createCookie('', 0, secureCookies));
+      res.json({ deleted: true });
+    } catch (error) {
+      console.error('Account deletion error:', error);
+      res.status(500).json({ error: 'Não foi possível excluir a conta.' });
+    }
+  });
+
   router.post('/logout', async (req, res) => {
     const user = await isAuthenticated(req);
     if (user) await db.endAllSessions(user.id);

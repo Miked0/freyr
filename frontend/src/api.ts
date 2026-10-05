@@ -51,6 +51,11 @@ export function onUnauthorized(handler: () => void) {
   unauthorizedHandler = handler;
 }
 
+/** Sends the app back to the sign-in screen, e.g. after the account is deleted. */
+export function endSession() {
+  unauthorizedHandler?.();
+}
+
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try {
@@ -80,6 +85,7 @@ export const api = {
   login: (username: string, password: string) => request<{ authenticated: boolean; user: User }>('/api/auth/login', json('POST', { username, password })),
   register: (username: string, password: string) => request<{ authenticated: boolean; user: User }>('/api/auth/register', json('POST', { username, password })),
   logout: () => request<{ authenticated: boolean }>('/api/auth/logout', { method: 'POST' }),
+  deleteAccount: (password: string) => request<{ deleted: boolean }>('/api/auth/account', json('DELETE', { password })),
   getProfile: () => request<Profile>('/api/auth/profile'),
   updateProfile: (patch: ProfilePatch) => request<Profile>('/api/auth/profile', json('PATCH', patch)),
   listExpenses: () => request<Expense[]>('/api/expenses'),

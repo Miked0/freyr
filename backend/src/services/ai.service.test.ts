@@ -105,3 +105,18 @@ describe('AIService prompt', () => {
     expect(prompt).toContain('- Minha categoria');
   });
 });
+
+describe('AIService privacy', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('never sends the name on a Pix or a CPF to the model', async () => {
+    const post = vi.spyOn(axios, 'post').mockResolvedValue({ data: { choices: [{ message: { content: 'Transferências' } }] } });
+    const online = new AIService({ apiKey: 'k', apiUrl: 'http://ai', model: 'm' });
+
+    await online.categorizeExpense('Pix enviado: "Cp :60701190-Fulano de Tal"', DEFAULT_CATEGORY_NAMES);
+    await online.categorizeExpense('PAGTO BOLETO CPF 123.456.789-09', DEFAULT_CATEGORY_NAMES);
+
+    const sent = JSON.stringify(post.mock.calls.map(call => call[1]));
+    expect(sent).not.toMatch(/Fulano|60701190|123\.456\.789-09/);
+  });
+});

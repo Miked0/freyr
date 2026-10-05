@@ -3,6 +3,7 @@ import { SCHEMA, INDEXES, type AvatarColor } from './schema';
 import { randomUUID } from 'crypto';
 import { DEFAULT_CATEGORY_NAMES } from './categories';
 import { importKey } from './import-key';
+import { createKeyring, type Keyring, type UserKey } from './data-crypto';
 import { isBalanceLine } from './balance-line';
 import { findRepeatedImports } from './repeated-imports';
 import { GOALS_SCHEMA, createGoalsStore, type GoalsStore } from './goals';
@@ -12,6 +13,13 @@ export interface DatabaseConfig {
   authToken?: string;
 }
 
+export interface DataProtectionOptions {
+  /** Seals each user's data key (DATA_ENCRYPTION_KEY); the fallback is for local development and tests only. */
+  masterKey?: string;
+}
+
+const DEV_MASTER_KEY = 'freyr-dev-master-key';
+
 interface UserRow {
   id: string;
   username: string;
@@ -20,6 +28,7 @@ interface UserRow {
   display_name: string | null;
   avatar_color: AvatarColor;
   monthly_budget: number | null;
+  data_key: string | null;
   created_at: string;
 }
 
@@ -69,13 +78,15 @@ function toObjects<T>(rs: ResultSet): T[] {
 }
 
 export class DatabaseService {
-  private constructor(private client: Client) {}
+  private keys = new Map<string, UserKey>();
+
+  private constructor(private client: Client, private keyring: Keyring) {}
 
   get goals(): GoalsStore {
     return createGoalsStore(this.client);
   }
 
-  static async connect(config: DatabaseConfig): Promise<DatabaseService> {
+  static async connect(config: DatabaseConfig, { masterKey = DEV_MASTER_KEY }: DataProtectionOptions = {}): Promise<DatabaseService> {
     const client = createClient({ url: config.url, authToken: config.authToken });
     await client.execute('PRAGMA foreign_keys = ON');
     await client.executeMultiple(SCHEMA);
@@ -89,7 +100,8 @@ export class DatabaseService {
     await DatabaseService.migrateLegacyCorrections(client);
     await DatabaseService.backfillDefaultCategories(client);
     await DatabaseService.backfillImportKeys(client);
-    const db = new DatabaseService(client);
+    const db = new DatabaseService(client, createKeyring(masterKey));
+    await db.protectPlainRows();
     await db.removeImportedBalancesOnce();
     return db;
   }
@@ -165,6 +177,7 @@ export class DatabaseService {
       ['display_name', 'TEXT'],
       ['avatar_color', "TEXT NOT NULL DEFAULT 'brand-primary'"],
       ['monthly_budget', 'REAL'],
+      ['data_key', 'TEXT'],
     ];
     for (const [name, definition] of added) {
       if (!existing.has(name)) await client.execute(`ALTER TABLE users ADD COLUMN ${name} ${definition}`);
@@ -196,6 +209,56 @@ export class DatabaseService {
     ], 'write');
   }
 
+  /** The user's data key, created on first use for accounts that predate encryption. */
+  private async userKey(userId: string): Promise<UserKey> {
+    const cached = this.keys.get(userId);
+    if (cached) return cached;
+    // Only fills an empty slot, so two requests racing on a legacy account settle on the same key.
+    await this.run('UPDATE users SET data_key = ? WHERE id = ? AND data_key IS NULL', [this.keyring.newWrappedKey(), userId]);
+    const rows = await this.all<{ data_key: string | null }>('SELECT data_key FROM users WHERE id = ?', [userId]);
+    if (!rows[0]?.data_key) throw new Error('Usuário sem chave de dados.');
+    const key = this.keyring.unwrap(rows[0].data_key);
+    this.keys.set(userId, key);
+    return key;
+  }
+
+  private openExpense(key: UserKey, row: ExpenseRow): ExpenseRow {
+    const { import_key: _key, raw_description: _raw, ...rest } = row;
+    const open = (value: string | null) => (value && this.keyring.isSealed(value) ? key.decrypt(value) : value);
+    return { ...rest, description: open(row.description)!, source_file: open(row.source_file) } as ExpenseRow;
+  }
+
+  /**
+   * Seals what older versions saved in plain text: descriptions and file names are encrypted, lookup keys
+   * and corrections become tokens, and the raw statement line is dropped. Ownerless legacy rows stay as
+   * they are, since no account can read them.
+   */
+  private async protectPlainRows() {
+    const expenses = await this.all<ExpenseRow>(
+      `SELECT id, user_id, description, source_file, import_key, raw_description FROM expenses
+       WHERE user_id IS NOT NULL AND (description NOT LIKE 'v1:%' OR raw_description IS NOT NULL
+         OR (source_file IS NOT NULL AND source_file NOT LIKE 'v1:%') OR (import_key IS NOT NULL AND import_key NOT LIKE 't1:%'))`
+    );
+    const corrections = await this.all<CorrectionRow>(
+      "SELECT id, user_id, description FROM category_corrections WHERE user_id IS NOT NULL AND description NOT LIKE 't1:%'"
+    );
+    const updates: { sql: string; args: InArgs }[] = [];
+    for (const row of expenses) {
+      const key = await this.userKey(row.user_id);
+      const seal = (value: string | null) => (value === null || this.keyring.isSealed(value) ? value : key.encrypt(value));
+      const tokenize = (value: string | null) => (value === null || this.keyring.isToken(value) ? value : key.token(value));
+      updates.push({
+        sql: 'UPDATE expenses SET description = ?, source_file = ?, import_key = ?, raw_description = NULL WHERE id = ?',
+        args: [seal(row.description), seal(row.source_file), tokenize(row.import_key), row.id],
+      });
+    }
+    for (const row of corrections) {
+      const key = await this.userKey(row.user_id);
+      updates.push({ sql: 'UPDATE category_corrections SET description = ? WHERE id = ?', args: [key.token(row.description), row.id] });
+    }
+    for (let i = 0; i < updates.length; i += 200) await this.client.batch(updates.slice(i, i + 200), 'write');
+  }
+
   private async all<T>(sql: string, args: InArgs = []): Promise<T[]> {
     return toObjects<T>(await this.client.execute({ sql, args }));
   }
@@ -208,8 +271,8 @@ export class DatabaseService {
   async createUser(username: string, passwordHash: string): Promise<string> {
     const id = randomUUID();
     await this.run(
-      `INSERT INTO users (id, username, password_hash) VALUES (@id, @username, @password_hash)`,
-      { id, username, password_hash: passwordHash }
+      `INSERT INTO users (id, username, password_hash, data_key) VALUES (@id, @username, @password_hash, @data_key)`,
+      { id, username, password_hash: passwordHash, data_key: this.keyring.newWrappedKey() }
     );
     return id;
   }
@@ -222,6 +285,19 @@ export class DatabaseService {
   async getUserById(id: string): Promise<UserRow | undefined> {
     const rows = await this.all<UserRow>('SELECT * FROM users WHERE id = ?', [id]);
     return rows[0];
+  }
+
+  /** Erases the account and everything it owns; its data key goes with it. */
+  async deleteUser(userId: string): Promise<void> {
+    // Explicit deletes: the foreign-key cascade depends on a per-connection pragma.
+    await this.client.batch(
+      ['goals', 'category_corrections', 'categories', 'expenses'].map(table => ({
+        sql: `DELETE FROM ${table} WHERE user_id = ?`,
+        args: [userId],
+      })).concat([{ sql: 'DELETE FROM users WHERE id = ?', args: [userId] }]),
+      'write'
+    );
+    this.keys.delete(userId);
   }
 
   /** Invalidates every session cookie issued to the user so far. */
@@ -278,12 +354,15 @@ export class DatabaseService {
 
   // Expense methods with user_id
   async getAllExpensesForUser(userId: string): Promise<ExpenseRow[]> {
-    return this.all<ExpenseRow>('SELECT * FROM expenses WHERE user_id = ? ORDER BY date DESC', [userId]);
+    const rows = await this.all<ExpenseRow>('SELECT * FROM expenses WHERE user_id = ? ORDER BY date DESC', [userId]);
+    if (rows.length === 0) return rows;
+    const key = await this.userKey(userId);
+    return rows.map(row => this.openExpense(key, row));
   }
 
   async getExpenseByIdForUser(userId: string, id: string): Promise<ExpenseRow | undefined> {
     const rows = await this.all<ExpenseRow>('SELECT * FROM expenses WHERE user_id = ? AND id = ?', [userId, id]);
-    return rows[0];
+    return rows[0] && this.openExpense(await this.userKey(userId), rows[0]);
   }
 
   async createExpenseForUser(userId: string, expense: {
@@ -293,23 +372,22 @@ export class DatabaseService {
       description: string;
       category: string;
       type: 'income' | 'expense';
-      rawDescription?: string;
       sourceFile?: string;
     }): Promise<string> {
+      const key = await this.userKey(userId);
       await this.run(
-        `INSERT INTO expenses (id, user_id, date, amount, description, category, type, raw_description, source_file, import_key)
-         VALUES (@id, @user_id, @date, @amount, @description, @category, @type, @raw_description, @source_file, @import_key)`,
+        `INSERT INTO expenses (id, user_id, date, amount, description, category, type, source_file, import_key)
+         VALUES (@id, @user_id, @date, @amount, @description, @category, @type, @source_file, @import_key)`,
         {
           id: expense.id,
           user_id: userId,
           date: expense.date,
           amount: expense.amount,
-          description: expense.description,
+          description: key.encrypt(expense.description),
           category: expense.category,
           type: expense.type,
-          raw_description: expense.rawDescription ?? null,
-          source_file: expense.sourceFile ?? null,
-          import_key: importKey(expense),
+          source_file: expense.sourceFile ? key.encrypt(expense.sourceFile) : null,
+          import_key: key.token(importKey(expense)),
         }
       );
       return expense.id;
@@ -318,14 +396,18 @@ export class DatabaseService {
   async updateExpenseForUser(userId: string, id: string, updates: Record<string, string | number>): Promise<boolean> {
     const keys = Object.keys(updates);
     if (keys.length === 0) return false;
+    const values = { ...updates };
+    if (typeof values.description === 'string') values.description = (await this.userKey(userId)).encrypt(values.description);
     const setClause = keys.map(key => `${key} = @${key}`).join(', ');
-    return (await this.run(`UPDATE expenses SET ${setClause} WHERE user_id = @user_id AND id = @id`, { ...updates, user_id: userId, id })) > 0;
+    return (await this.run(`UPDATE expenses SET ${setClause} WHERE user_id = @user_id AND id = @id`, { ...values, user_id: userId, id })) > 0;
   }
 
   /** How many of the user's saved expenses carry each of these import keys. */
   async countImportKeysForUser(userId: string, keys: string[]): Promise<Map<string, number>> {
     const counts = new Map<string, number>();
-    const unique = [...new Set(keys)];
+    const key = await this.userKey(userId);
+    const plainByToken = new Map([...new Set(keys)].map(k => [key.token(k), k]));
+    const unique = [...plainByToken.keys()];
     // Chunked to stay under SQLite's bound-parameter limit.
     for (let i = 0; i < unique.length; i += 500) {
       const chunk = unique.slice(i, i + 500);
@@ -334,7 +416,7 @@ export class DatabaseService {
          GROUP BY import_key`,
         [userId, ...chunk]
       );
-      for (const row of rows) counts.set(row.import_key, Number(row.n));
+      for (const row of rows) counts.set(plainByToken.get(row.import_key)!, Number(row.n));
     }
     return counts;
   }
@@ -345,8 +427,11 @@ export class DatabaseService {
       'SELECT * FROM expenses WHERE user_id = ? AND source_file IS NOT NULL AND import_key IS NOT NULL ORDER BY date DESC',
       [userId]
     );
-    const repeated = new Set(findRepeatedImports(rows));
-    return rows.filter(row => repeated.has(row.id));
+    const key = await this.userKey(userId);
+    // Each file name is sealed with its own nonce, so they are compared opened.
+    const opened = rows.map(row => ({ row, source_file: this.openExpense(key, row).source_file }));
+    const repeated = new Set(findRepeatedImports(opened.map(({ row, source_file }) => ({ ...row, source_file }))));
+    return rows.filter(row => repeated.has(row.id)).map(row => this.openExpense(key, row));
   }
 
   /** Deletes those of the ids that are still repeated copies; returns how many went. */
@@ -370,7 +455,7 @@ export class DatabaseService {
     await this.run(
       `INSERT INTO category_corrections (id, user_id, description, original_category, corrected_category)
        VALUES (@id, @user_id, @description, @original_category, @corrected_category)`,
-      { ...correction, user_id: userId }
+      { ...correction, description: (await this.userKey(userId)).token(correction.description), user_id: userId }
     );
   }
 
@@ -380,7 +465,7 @@ export class DatabaseService {
        WHERE user_id = ? AND description = ?
        ORDER BY corrected_at DESC, rowid DESC
        LIMIT 1`,
-      [userId, description]
+      [userId, (await this.userKey(userId)).token(description)]
     );
     return rows[0]?.corrected_category;
   }

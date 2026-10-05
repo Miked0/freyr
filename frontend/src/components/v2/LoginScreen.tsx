@@ -4,6 +4,7 @@ import PillButton from '@/components/ui/PillButton';
 import Spinner from '@/components/ui/Spinner';
 import { Logo } from '@/components/Hero';
 import { api } from '@/api';
+import { legalHref } from '@/legal/content';
 
 interface TextInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
@@ -194,11 +195,29 @@ export default function LoginScreenV2({ onSuccess }: { onSuccess: () => void }) 
               />
             )}
 
+            {isRegister && (
+              <p className="mb-4 text-sm text-on-text-muted">
+                Ao criar a conta, você concorda com os{' '}
+                <a className="underline hover:text-surface" href={legalHref('termos')}>Termos de Uso</a> e a{' '}
+                <a className="underline hover:text-surface" href={legalHref('privacidade')}>Política de Privacidade</a>.
+              </p>
+            )}
+
             {error && <Alert>{error}</Alert>}
 
             <PillButton type="submit" tone="light" disabled={!username || !password || (isRegister && !confirmPassword) || submitting} icon={submitting ? <Spinner size="sm" /> : undefined}>
               {isRegister ? 'Criar conta' : 'Entrar'}
             </PillButton>
+
+            {!isRegister && (
+              <p className="mt-4 text-sm text-on-text-muted">
+                <a className="underline hover:text-surface" href={legalHref('privacidade')}>Privacidade</a>
+                {' · '}
+                <a className="underline hover:text-surface" href={legalHref('termos')}>Termos</a>
+                {' · '}
+                <a className="underline hover:text-surface" href={legalHref('lgpd')}>LGPD</a>
+              </p>
+            )}
           </form>
         </div>
       </div>
