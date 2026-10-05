@@ -18,7 +18,7 @@ const ICONS = {
   arrow: 'M5 12h14M13 6l6 6-6 6',
   calendar: 'M4 5h16v15H4zM4 10h16M8 3v4M16 3v4',
   accounts: 'M3 9l9-6 9 6M5 9v9M10 9v9M14 9v9M19 9v9M3 21h18',
-  sun: 'M8 8h8v8H8zM12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1',
+  sun: 'M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8zM12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1',
   moon: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
 } as const;
 

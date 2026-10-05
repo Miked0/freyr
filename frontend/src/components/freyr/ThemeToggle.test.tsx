@@ -94,4 +94,19 @@ describe('ThemeToggle', () => {
     expect(screen.getByTestId('card')).not.toHaveAttribute('style');
     expect(screen.getByTestId('card')).not.toHaveAttribute('data-theme');
   });
+
+  it('draws the sun and moon on the track and the morphing orb, all hidden from screen readers', () => {
+    render(<ThemeToggle />);
+    const toggle = screen.getByRole('switch');
+    expect(toggle.querySelectorAll('svg')).toHaveLength(3);
+    toggle.querySelectorAll('svg').forEach(svg => expect(svg).toHaveAttribute('aria-hidden', 'true'));
+  });
+
+  it('gives each orb its own crescent mask', () => {
+    render(<><ThemeToggle /><ThemeToggle /></>);
+    const ids = [...document.querySelectorAll('mask')].map(m => m.id);
+    expect(ids).toHaveLength(2);
+    expect(new Set(ids).size).toBe(2);
+    document.querySelectorAll('.fr-theme-core').forEach((core, i) => expect(core).toHaveAttribute('mask', `url(#${ids[i]})`));
+  });
 });
