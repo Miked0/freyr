@@ -8,6 +8,8 @@ export interface SummaryCardProps {
   sublabel?: string;
   value: number | string;
   delta?: number;
+  /** A short line under the value, e.g. how much of the balance is invested. */
+  note?: string;
   invert?: boolean;
   icon?: IconName;
   period?: string;
@@ -35,6 +37,7 @@ export function SummaryCard(p: SummaryCardProps) {
           <p className="fr-sum-value">{typeof p.value === 'number' ? money(p.value) : p.value}</p>
           {p.delta != null ? <DeltaChip value={p.delta} invert={p.invert} onHero={hero} /> : null}
         </div>
+        {p.note ? <p className="fr-sum-note">{p.note}</p> : null}
       </div>
       {p.actionLabel ? (
         <a className="fr-sum-action" href={p.href || '#'} onClick={p.onAction}>

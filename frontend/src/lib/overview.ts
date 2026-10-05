@@ -1,10 +1,12 @@
-import { percentChange, totalsByMonth, type Expense } from './finance';
+import { investedTotal, isInvestment, percentChange, totalsByMonth, type Expense } from './finance';
 
 export interface OverviewSummary {
   /** The latest month with entries, as "YYYY-MM". */
   monthKey: string;
-  /** Running balance of every entry (income minus spending). */
+  /** Running balance of every entry (income minus spending); money invested is still part of it. */
   balance: number;
+  /** How much of the balance sits in investments at the end of the month. */
+  invested: number;
   /** Change of the running balance against the end of the previous month with entries. */
   balanceDelta?: number;
   income: number;
@@ -19,6 +21,8 @@ export interface Last30DaysSummary {
   endsToday: boolean;
   /** Balance of every entry up to the end of the window. */
   balance: number;
+  /** How much of the balance sits in investments at the end of the window. */
+  invested: number;
   /** Change of the balance against the day before the window. */
   balanceDelta?: number;
   income: number;
@@ -48,6 +52,7 @@ export function summarizeOverview(expenses: Expense[], monthKey?: string): Overv
   return {
     monthKey: current.key,
     balance,
+    invested: investedTotal(expenses, `${current.key}-31`),
     balanceDelta: previous ? percentChange(balance, balance - current.balance) : undefined,
     income: current.income,
     incomeDelta: previous ? percentChange(current.income, previous.income) : undefined,
@@ -73,7 +78,7 @@ function totalsBetween(expenses: Expense[], first: string, last: string) {
   let expense = 0;
   for (const e of expenses) {
     const day = e.date.slice(0, 10);
-    if (day < first || day > last) continue;
+    if (day < first || day > last || isInvestment(e)) continue;
     if (e.type === 'income') income += e.amount;
     else expense += e.amount;
   }
@@ -105,6 +110,7 @@ export function summarizeLast30Days(expenses: Expense[], today: Date = new Date(
     end,
     endsToday: end === todayKey,
     balance,
+    invested: investedTotal(expenses, end),
     balanceDelta: percentChange(balance, balanceBefore),
     income: current.income,
     incomeDelta: percentChange(current.income, previous.income),

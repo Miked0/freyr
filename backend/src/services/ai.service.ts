@@ -96,6 +96,8 @@ export class AIService {
       .join('\n');
     return `Categorize this Brazilian bank or credit card transaction into exactly one of the categories below.
 Descriptions are often abbreviated merchant names (e.g. "IFD*" is iFood, "DL*UberRides" is Uber, "MP *" is Mercado Pago) and may end with an installment marker like "(Parcela 02 de 10)".
+They may start with the kind of transaction ("Compra no debito - ", "Pix enviado - "): categorize by the merchant after it, using what you know about Brazilian chains (e.g. Oxxo is a convenience store, so Mercado).
+Use "Outros" only when no other category fits.
 
 Categories:
 ${categoriesList}
@@ -142,7 +144,8 @@ const KEYWORD_RULES: [category: string, keywords: string[]][] = [
     'supermercado*', 'mercado*', 'minimercado*', 'mercadinho*', 'mercearia*', 'hortifruti*',
     'hortifrut*', 'sacolao*', 'quitanda*', 'acougue*', 'atacadao*', 'atacadista*', 'assai*', 'carrefour*',
     'pao de acucar', 'extra', 'zaffari*', 'guanabara', 'condor', 'muffato*', 'savegnago*', 'sonda', 'hirota*',
-    'st marche', 'makro*', 'sams club', 'emporio*', 'grocery', 'supermarket',
+    'st marche', 'makro*', 'sams club', 'emporio*', 'grocery', 'supermarket', 'oxxo*', 'am pm', 'ampm*',
+    'conveniencia*',
   ]],
   ['Contas', [
     'ultragaz*', 'ultra gas', 'liquigas*', 'supergasbras*', 'copagaz*', 'nacional gas', 'comgas*', 'naturgy*',
@@ -211,8 +214,8 @@ const KEYWORD_RULES: [category: string, keywords: string[]][] = [
   ['Compras', ['loja', 'lojas', 'shopping', 'store', 'magazine']],
   ['Salário', ['salario*', 'pro labore', 'prolabore', 'holerite', 'proventos', 'folha de pagamento']],
   ['Investimentos', [
-    'tesouro direto', 'aplicacao*', 'investimento*', 'cdb', 'corretora*', 'xp investimentos', 'nuinvest*',
-    'poupanca', 'bitcoin', 'binance*', 'cripto*',
+    'tesouro direto', 'aplicacao*', 'resgate*', 'investimento*', 'cdb', 'lci', 'lca', 'caixinha*', 'porquinho*',
+    'acoes', 'corretora*', 'xp investimentos', 'nuinvest*', 'poupanca', 'bitcoin', 'binance*', 'cripto*',
   ]],
   ['Transferências', ['pix', 'ted', 'doc', 'transferencia*', 'transf']],
 ];

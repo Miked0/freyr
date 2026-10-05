@@ -96,6 +96,21 @@ describe('/api/expenses', () => {
     expect(res.body.expenses[0].category).toBe('Outros');
   });
 
+  it('files investment moves under Investimentos whatever the AI answers', async () => {
+    const wrongAI = { mode: 'nvidia', categorizeExpense: async () => 'Compras' } as unknown as AIService;
+    app = createApp({ db: await DatabaseService.connect({ url: ':memory:' }), ai: wrongAI, secureCookies: false, logRequests: false });
+    await request(app).post('/api/auth/register').send({ username: 'investor', password: 'testpass123' });
+    cookie = (await request(app).post('/api/auth/login').send({ username: 'investor', password: 'testpass123' })).headers['set-cookie'] as string;
+
+    const res = await upload(['15/03/2026,-500.00,Aplicação na caixinha', '16/03/2026,+60.19,Resgate - CDB Porq Obj BANCO INTER', '17/03/2026,-3.99,OXXO']);
+
+    expect(res.body.expenses.map((e: any) => [e.category, e.type])).toEqual([
+      ['Investimentos', 'expense'],
+      ['Investimentos', 'income'],
+      ['Compras', 'expense'],
+    ]);
+  });
+
   it('edits the description and amount of an expense', async () => {
     const { body } = await upload(['15/03/2026,-10.00,UBER TRIP']);
     const id = body.expenses[0].id;

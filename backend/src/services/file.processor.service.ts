@@ -56,13 +56,18 @@ function findCsvColumns(header: string[]) {
   return { date, amount, description, hasBalance: header.includes('saldo') };
 }
 
-// Account statement lines that only move money between the holder's own pockets: paying the card invoice (the
-// purchases come in with the invoice itself) and applying or redeeming investments (CDB, Tesouro Direto).
-const OWN_MONEY_MOVE = /pagamento.*\bfatura\b|(^|- )(aplicacao|resgate)\b|tesouro direto|\bcdb\b/;
+// Paying the card invoice from the account: the purchases it settles come in with the invoice itself.
+const INVOICE_PAYMENT_MOVE = /pagamento.*\bfatura\b/;
 
-/** Whether an account statement line moves the holder's own money instead of spending or receiving it. */
-export function isOwnMoneyMove(description: string): boolean {
-  return OWN_MONEY_MOVE.test(description.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase());
+// Applying or redeeming investments (CDB, caixinha, Tesouro Direto, ações): the money stays the holder's.
+const INVESTMENT_MOVE =
+  /(^|- )(aplicacao|resgate)\b|tesouro direto|\b(cdb|lci|lca|caixinha|porquinho|acoes|corretora)\b|\bcompra td\b/;
+
+const foldText = (description: string) => description.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+
+/** Whether an account statement line applies or redeems an investment instead of spending or receiving money. */
+export function isInvestmentMove(description: string): boolean {
+  return INVESTMENT_MOVE.test(foldText(description));
 }
 
 export class FileProcessorService {
@@ -83,7 +88,7 @@ export class FileProcessorService {
       default:
         throw new StatementError(`Unsupported file format: ${ext}`);
     }
-    return transactions.filter(t => !isOwnMoneyMove(t.description) && !isBalanceLine(t.description));
+    return transactions.filter(t => !INVOICE_PAYMENT_MOVE.test(foldText(t.description)) && !isBalanceLine(t.description));
   }
 
   /**

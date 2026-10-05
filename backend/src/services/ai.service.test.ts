@@ -18,6 +18,11 @@ describe('AIService keyword categorization', () => {
     ['MERCADO CENTRAL', 'Mercado'],
     ['MercadoBairro', 'Mercado'],
     ['ATACADAO 123', 'Mercado'],
+    ['Compra no debito - OXXO RIBEIRO DO VALE', 'Mercado'],
+    ['AM PM CONVENIENCIA', 'Mercado'],
+    ['Aplicação na caixinha', 'Investimentos'],
+    ['Resgate - CDB Porq Obj BANCO INTER S A', 'Investimentos'],
+    ['Compra de ações PETR4', 'Investimentos'],
     ['DL*UberRides', 'Transporte'],
     ['UBER TRIP', 'Transporte'],
     ['99APP *99APP', 'Transporte'],
@@ -103,6 +108,8 @@ describe('AIService prompt', () => {
     expect(prompt).toMatch(/- Pets: .*ração/);
     expect(prompt).toMatch(/- Contas: .*gás de cozinha/);
     expect(prompt).toContain('- Minha categoria');
+    expect(prompt).toMatch(/- Mercado: .*Oxxo/);
+    expect(prompt).toMatch(/- Investimentos: .*caixinha/);
   });
 });
 

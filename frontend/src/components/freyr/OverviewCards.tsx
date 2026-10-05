@@ -2,6 +2,7 @@ import { summarizeLast30Days, summarizeOverview } from '@/lib/overview';
 import { monthLongLabel } from '@/lib/overviewPhrase';
 import { useExpenses } from '@/store/expenses';
 import { SummaryCard } from './SummaryCard';
+import { money } from './format';
 
 /** Period key of the default view: the 30 days ending today. */
 export const LAST_30_DAYS = '30d';
@@ -27,7 +28,9 @@ export function OverviewCards({ period }: { period?: string }) {
   return (
     <>
       <SummaryCard span={4} variant="hero" icon="balance" label="Saldo total" sublabel="Desde o primeiro extrato"
-        value={summary?.balance ?? 0} delta={summary?.balanceDelta} actionLabel="Ver transações" href="#transacoes" />
+        value={summary?.balance ?? 0} delta={summary?.balanceDelta}
+        note={summary?.invested ? `${money(summary.invested)} investidos` : undefined}
+        actionLabel="Ver transações" href="#transacoes" />
       <SummaryCard span={4} icon="income" label="Entradas" sublabel={sublabel}
         value={summary?.income ?? 0} delta={summary?.incomeDelta} actionLabel="Ver entradas" href="#transacoes" />
       <SummaryCard span={4} icon="expense" label="Saídas" sublabel={sublabel} invert

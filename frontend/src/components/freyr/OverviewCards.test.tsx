@@ -98,3 +98,28 @@ describe('OverviewCards', () => {
     expect(container.querySelector('.fr-chip')).toBeNull();
   });
 });
+
+describe('OverviewCards with investments', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-15T12:00:00'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('counts invested money in the balance and says how much of it is invested', () => {
+    useExpenses.setState({
+      expenses: [
+        ...rows,
+        { id: 'e', date: '2026-09-12', amount: 750, description: 'Aplicação CDB', category: 'Investimentos', type: 'expense' },
+      ],
+    });
+    render(<OverviewCards />);
+
+    expect(text(card('Saldo total'))).toContain('5.300,00');
+    expect(text(card('Saldo total'))).toMatch(/R\$ 750,00 investidos/);
+    expect(text(card('Saídas'))).not.toContain('750');
+  });
+});

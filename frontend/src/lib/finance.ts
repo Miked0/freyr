@@ -7,6 +7,24 @@ export interface Expense {
   type: 'income' | 'expense';
 }
 
+/** Applying or redeeming investments moves the user's own money: it is neither spending nor income. */
+export const INVESTMENT_CATEGORY = 'Investimentos';
+
+export const isInvestment = (e: Pick<Expense, 'category'>) => e.category === INVESTMENT_CATEGORY;
+
+/**
+ * Money applied in investments minus what was redeemed, up to `lastDay` ("YYYY-MM-DD") when given. Never below
+ * zero: redemptions of money applied before the first statement do not make the invested amount negative.
+ */
+export function investedTotal(expenses: Expense[], lastDay?: string): number {
+  let net = 0;
+  for (const e of expenses) {
+    if (!isInvestment(e) || (lastDay && e.date.slice(0, 10) > lastDay)) continue;
+    net += e.type === 'income' ? -e.amount : e.amount;
+  }
+  return Math.max(0, net);
+}
+
 export interface MonthTotal {
   key: string;
   label: string;
@@ -84,9 +102,9 @@ export interface CategoryTotal {
   share: number;
 }
 
-/** How spending splits across categories; income entries are left out. */
+/** How spending splits across categories; income and investments are left out. */
 export function totalsByCategory(expenses: Expense[]): CategoryTotal[] {
-  const spending = expenses.filter(e => e.type !== 'income');
+  const spending = expenses.filter(e => e.type !== 'income' && !isInvestment(e));
   const grandTotal = spending.reduce((sum, e) => sum + e.amount, 0);
   const byCategory = new Map<string, CategoryTotal>();
   for (const { category, amount } of spending) {
@@ -100,9 +118,12 @@ export function totalsByCategory(expenses: Expense[]): CategoryTotal[] {
     .sort((a, b) => b.total - a.total || a.category.localeCompare(b.category));
 }
 
+/** Income and spending per month; investments are left out, so the balance keeps the money invested. */
 export function totalsByMonth(expenses: Expense[]): MonthTotal[] {
   const byMonth = new Map<string, MonthTotal>();
-  for (const { date, amount, type } of expenses) {
+  for (const e of expenses) {
+    if (isInvestment(e)) continue;
+    const { date, amount, type } = e;
     const key = date.slice(0, 7);
     const month = byMonth.get(key) ?? { key, label: monthLabel(key), total: 0, count: 0, income: 0, expense: 0, balance: 0 };
     if (type === 'income') {

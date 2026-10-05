@@ -14,9 +14,9 @@ export const DEFAULT_CATEGORIES: readonly DefaultCategory[] = [
   { name: 'Contas', description: 'luz, água, gás de cozinha ou encanado, internet, celular e TV' },
   { name: 'Educação', description: 'cursos, escolas, faculdades, livros e plataformas de ensino' },
   { name: 'Salário', description: 'salário, pró-labore, férias e 13º recebidos' },
-  { name: 'Investimentos', description: 'aplicações, corretoras, Tesouro Direto, poupança e cripto' },
+  { name: 'Investimentos', description: 'aplicações e resgates: CDB, LCI/LCA, caixinhas e porquinhos, Tesouro Direto, ações, fundos, corretoras, poupança e cripto' },
   { name: 'Transferências', description: 'Pix, TED e transferências entre pessoas ou contas' },
-  { name: 'Mercado', description: 'supermercados, atacados, hortifrútis, açougues e mercearias' },
+  { name: 'Mercado', description: 'supermercados, atacados, hortifrútis, açougues, mercearias e lojas de conveniência (Oxxo, AmPm)' },
   { name: 'Combustível', description: 'postos de combustível (gasolina, etanol, diesel, GNV)' },
   { name: 'Academia e bem-estar', description: 'academias, Wellhub/Gympass, pilates, yoga, esportes' },
   { name: 'Assinaturas', description: 'serviços recorrentes: streaming, música, armazenamento em nuvem, apps' },
@@ -28,5 +28,8 @@ export const DEFAULT_CATEGORIES: readonly DefaultCategory[] = [
   { name: 'Impostos e taxas', description: 'IOF, anuidade, juros, multas, tarifas bancárias, IPVA, IPTU' },
   { name: 'Outros', description: 'o que não se encaixa nas demais categorias' },
 ];
+
+/** Money applied here is kept, not spent: it never counts as spending or income. */
+export const INVESTMENT_CATEGORY = 'Investimentos';
 
 export const DEFAULT_CATEGORY_NAMES: string[] = DEFAULT_CATEGORIES.map(category => category.name);

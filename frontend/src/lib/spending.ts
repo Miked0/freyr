@@ -1,4 +1,4 @@
-import type { Expense } from './finance';
+import { isInvestment, type Expense } from './finance';
 
 export interface CategorySlice {
   label: string;
@@ -21,7 +21,7 @@ const MAX_SLICES = 5;
 function latestSpendingMonth(expenses: Expense[]): string | undefined {
   let latest: string | undefined;
   for (const e of expenses) {
-    if (e.type === 'income') continue;
+    if (e.type === 'income' || isInvestment(e)) continue;
     const key = e.date.slice(0, 7);
     if (!latest || key > latest) latest = key;
   }
@@ -34,7 +34,7 @@ export function topCategories(expenses: Expense[], monthKey?: string): CategoryS
   if (!month) return [];
   const totals = new Map<string, number>();
   for (const e of expenses) {
-    if (e.type === 'income' || !e.date.startsWith(month)) continue;
+    if (e.type === 'income' || isInvestment(e) || !e.date.startsWith(month)) continue;
     totals.set(e.category, (totals.get(e.category) ?? 0) + e.amount);
   }
   return [...totals]
@@ -42,13 +42,20 @@ export function topCategories(expenses: Expense[], monthKey?: string): CategoryS
     .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label));
 }
 
-/** The month's spending for a donut: at most five slices, the smallest folded into "Outros". */
+const OTHERS = 'Outros';
+
+/**
+ * The month's spending for a donut: at most five slices, the smallest folded into "Outros". A real "Outros"
+ * category takes the folded rest, so it never shows twice.
+ */
 export function spendingBreakdown(expenses: Expense[], monthKey?: string): CategorySlice[] {
   const all = topCategories(expenses, monthKey);
   if (all.length <= MAX_SLICES) return all;
-  const kept = all.slice(0, MAX_SLICES - 1);
-  const rest = all.slice(MAX_SLICES - 1).reduce((sum, d) => sum + d.value, 0);
-  return [...kept, { label: 'Outros', value: rest }];
+  const others = all.find(d => d.label === OTHERS);
+  const named = all.filter(d => d !== others);
+  const kept = named.slice(0, MAX_SLICES - 1);
+  const rest = named.slice(MAX_SLICES - 1).reduce((sum, d) => sum + d.value, others?.value ?? 0);
+  return [...kept, { label: OTHERS, value: rest }].sort((a, b) => b.value - a.value);
 }
 
 function shortDate(isoDate: string): string {
