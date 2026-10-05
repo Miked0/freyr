@@ -159,3 +159,44 @@ describe('summarizeLast30Days', () => {
     expect(summary).toMatchObject({ income: 0, expense: 1200, end: '2026-07-15', endsToday: false });
   });
 });
+
+describe('investments', () => {
+  const invest = (date: string, amount: number, type: Expense['type'] = 'expense'): Expense => ({
+    id: `i${++seq}`, date, amount, description: 'Aplicação CDB', category: 'Investimentos', type,
+  });
+
+  it('keeps applications and redemptions out of income and spending, so the balance still holds the invested money', () => {
+    const summary = summarizeOverview([
+      entry('2026-09-01', 5000, 'income'),
+      entry('2026-09-10', 1000),
+      invest('2026-09-12', 750),
+      invest('2026-09-20', 50, 'income'),
+    ])!;
+
+    expect(summary).toMatchObject({ income: 5000, expense: 1000, balance: 4000, invested: 700 });
+  });
+
+  it('does the same over the last 30 days', () => {
+    const summary = summarizeLast30Days([
+      entry('2026-09-01', 5000, 'income'),
+      entry('2026-09-10', 1000),
+      invest('2026-09-12', 750),
+      invest('2026-09-20', 50, 'income'),
+    ], new Date('2026-09-25T12:00:00'))!;
+
+    expect(summary).toMatchObject({ income: 5000, expense: 1000, balance: 4000, invested: 700 });
+  });
+
+  it('never reports a negative invested amount when redemptions predate the first statement', () => {
+    const summary = summarizeOverview([entry('2026-09-01', 100, 'income'), invest('2026-09-02', 180, 'income')])!;
+
+    expect(summary.invested).toBe(0);
+    expect(summary.income).toBe(100);
+  });
+
+  it('leaves investments out of the cash flow bars', () => {
+    expect(cashFlowSeries([entry('2026-09-01', 100), invest('2026-09-02', 750)], 'monthly')).toEqual([
+      { label: 'Set', income: 0, expense: 100 },
+    ]);
+  });
+});

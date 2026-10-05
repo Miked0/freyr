@@ -96,3 +96,30 @@ describe('topCategories', () => {
     expect(topCategories(rows, '2026-08')).toEqual([{ label: 'Antigo', value: 500 }]);
   });
 });
+
+describe('spendingBreakdown with a real Outros', () => {
+  it('folds the smallest categories into the existing Outros instead of listing Outros twice', () => {
+    const rows = [
+      entry('2026-09-01', 2235.42, 'Outros'),
+      entry('2026-09-02', 644.89, 'Transferências'),
+      entry('2026-09-03', 87.2, 'Mercado'),
+      entry('2026-09-04', 77.89, 'Contas'),
+      entry('2026-09-05', 50, 'Lazer'),
+      entry('2026-09-06', 46.51, 'Saúde'),
+    ];
+
+    const slices = spendingBreakdown(rows);
+
+    expect(slices.map(s => s.label)).toEqual(['Outros', 'Transferências', 'Mercado', 'Contas', 'Lazer']);
+    expect(slices[0].value).toBeCloseTo(2235.42 + 46.51);
+  });
+});
+
+describe('investments are not spending', () => {
+  it('leaves money applied in investments out of the spending categories', () => {
+    const rows = [entry('2026-09-01', 300, 'Lazer'), entry('2026-09-02', 750, 'Investimentos')];
+
+    expect(spendingBreakdown(rows)).toEqual([{ label: 'Lazer', value: 300 }]);
+    expect(topCategories(rows)).toEqual([{ label: 'Lazer', value: 300 }]);
+  });
+});

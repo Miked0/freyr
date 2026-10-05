@@ -20,6 +20,12 @@ describe('totalsByCategory', () => {
     ]);
   });
 
+  it('leaves money applied in investments out of the split', () => {
+    const categories = totalsByCategory([entry('2026-09-06', 1500, 'Moradia'), entry('2026-09-07', 750, 'Investimentos')]);
+
+    expect(categories.map(c => [c.category, c.share])).toEqual([['Moradia', 1]]);
+  });
+
   it('returns nothing when there is only income', () => {
     expect(totalsByCategory([entry('2026-09-05', 5000, 'Salário', 'income')])).toEqual([]);
   });

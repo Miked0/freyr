@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { FileProcessorService, isInvoicePayment } from './file.processor.service';
+import { FileProcessorService, isInvestmentMove, isInvoicePayment } from './file.processor.service';
 import { isBalanceLine } from './balance-line';
 
 const processCsv = (content: string) =>
@@ -131,14 +131,33 @@ describe('FileProcessorService.processFile (PDF, extrato de conta Inter)', () =>
     'SAC: 0800 940 9999 (opção 09)',
   ];
 
-  it('reads each transaction under its day header, taking the amount and not the running balance, without invoice payments or CDB', async () => {
+  it('reads each transaction under its day header, taking the amount and not the running balance, without invoice payments', async () => {
     const expenses = await processPdf(statement);
 
     expect(expenses.map(e => [e.date, e.amount, e.sign, e.description])).toEqual([
+      ['2026-09-03', 64.86, 'credit', 'Estorno - CDB Porq Obj FULANO'],
       ['2026-09-03', 407.55, 'negative', 'Pix enviado - Fulano de Tal'],
       ['2026-09-04', 1124, 'credit', 'Pix recebido - CICLANA'],
       ['2026-09-04', 29, 'negative', 'Compra no debito - MP *ADEGAR7'],
     ]);
+  });
+});
+
+describe('isInvestmentMove', () => {
+  it.each([
+    ['Aplicação - Cdb Porquinho Banco Inter S A', true],
+    ['Resgate - CDB Porq Obj BANCO INTER S A', true],
+    ['Debito Tesouro Direto - COMPRA TD 107026970', true],
+    ['Estorno - Cdb Porq Obj Fulano', true],
+    ['Aplicação na caixinha', true],
+    ['Resgate caixinha Reserva', true],
+    ['Compra de ações - PETR4', true],
+    ['Aplicação LCI', true],
+    ['Pix enviado - Fulano', false],
+    ['Compra no debito - OXXO RIBEIRO DO VALE', false],
+    ['Pagamento efetuado - Pagamento fatura cartao Inter', false],
+  ])('%s → %s', (description, expected) => {
+    expect(isInvestmentMove(description)).toBe(expected);
   });
 });
 
@@ -203,7 +222,7 @@ describe('FileProcessorService.processFile (CSV)', () => {
     ]);
   });
 
-  it('leaves out invoice payments and investment moves, which are not spending or income', async () => {
+  it('leaves out invoice payments but keeps investment moves, which the app counts as invested money', async () => {
     const expenses = await processCsv(
       'Data Lançamento;Histórico;Descrição;Valor;Saldo\n' +
       '26/09/2026;Pagamento efetuado;Pagamento Fatura;-81,90;10,00\n' +
@@ -216,7 +235,15 @@ describe('FileProcessorService.processFile (CSV)', () => {
       '20/09/2026;Estorno;Loja X;12,00;796,17\n'
     );
 
-    expect(expenses.map(e => e.description)).toEqual(['Compra no débito - Padaria Real', 'Estorno - Loja X']);
+    expect(expenses.map(e => [e.description, e.sign])).toEqual([
+      ['Aplicação - Cdb Porquinho Banco Inter S A', 'negative'],
+      ['Resgate - Cdb Porq Obj Banco Inter S A', 'credit'],
+      ['Débito Tesouro Direto - Compra Td 107026970', 'negative'],
+      ['Estorno - Cdb Porq Obj Fulano', 'credit'],
+      ['Estorno - Aplicação', 'credit'],
+      ['Compra no débito - Padaria Real', 'negative'],
+      ['Estorno - Loja X', 'credit'],
+    ]);
   });
 
   it('reads card invoices with unsigned purchases, keeping negative lines as refunds', async () => {

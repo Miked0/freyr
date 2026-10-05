@@ -1,6 +1,7 @@
 import { RequestHandler, Router } from 'express';
 import { DatabaseService } from '../services/database.service';
-import { FileProcessorService, StatementError, type ParsedTransaction } from '../services/file.processor.service';
+import { FileProcessorService, StatementError, isInvestmentMove, type ParsedTransaction } from '../services/file.processor.service';
+import { INVESTMENT_CATEGORY } from '../services/categories';
 import { AIService } from '../services/ai.service';
 import { randomUUID } from 'crypto';
 import multer from 'multer';
@@ -141,7 +142,10 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
       const expenses = await mapWithConcurrency(fresh, AI_CONCURRENCY, async rawExpense => {
         const category =
           (await db.findCorrectedCategoryForUser(userId, rawExpense.description)) ??
-          (await ai.categorizeExpense(rawExpense.description, categoryNames));
+          // Applying or redeeming is money kept, not spent: the app counts this category as invested.
+          (isInvestmentMove(rawExpense.description) && categoryNames.includes(INVESTMENT_CATEGORY)
+            ? INVESTMENT_CATEGORY
+            : await ai.categorizeExpense(rawExpense.description, categoryNames));
         return {
           id: randomUUID(),
           date: rawExpense.date,
