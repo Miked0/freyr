@@ -36,33 +36,49 @@ describe('OverviewCards', () => {
     sections.forEach(s => expect(s).toHaveClass('fr-sum', 'fr-span-4'));
   });
 
-  it('shows the running balance on the hero card with its change since last month', () => {
+  it('leads with what was left of the period, comparing spending with income', () => {
     useExpenses.setState({ expenses: rows });
     render(<OverviewCards />);
-    const hero = card('Saldo total');
+    const hero = card('Sobrou');
     expect(hero).toHaveClass('is-hero');
-    expect(hero).toHaveTextContent('Desde o primeiro extrato');
-    expect(text(hero.querySelector('.fr-sum-value'))).toBe('R$ 5.300,00');
-    // 2000 at the end of August, 5300 now.
-    expect(text(hero.querySelector('.fr-chip'))).toBe('↑ +165%');
-    expect(within(hero).getByRole('link', { name: 'Ver transações' })).toHaveAttribute('href', '#transacoes');
+    expect(hero).toHaveTextContent('Últimos 30 dias');
+    expect(text(hero.querySelector('.fr-sum-value'))).toBe('R$ 3.300,00');
+    expect(within(hero).getByRole('img', { name: 'Saiu 45% do que entrou' })).toBeInTheDocument();
+    expect(text(hero)).toContain('Entrou R$ 6.000,00');
+    expect(text(hero)).toContain('Saiu R$ 2.700,00');
+    expect(within(hero).getByRole('link', { name: 'Ver entradas' })).toHaveAttribute('href', '#transacoes');
   });
 
-  it('shows the income and spending of the last 30 days, treating less spending as good news', () => {
+  it('says what was missing when spending passed income', () => {
+    useExpenses.setState({ expenses: [...rows, { id: 'e', date: '2026-09-12', amount: 4000, description: 'Notebook', category: 'Compras', type: 'expense' }] });
+    render(<OverviewCards />);
+    const hero = card('Faltou');
+    expect(text(hero.querySelector('.fr-sum-value'))).toBe('R$ 700,00');
+    expect(within(hero).getByRole('img', { name: 'Saiu 112% do que entrou' })).toBeInTheDocument();
+  });
+
+  it('shows the running balance split into available and invested money', () => {
     useExpenses.setState({ expenses: rows });
     render(<OverviewCards />);
-    const income = card('Entradas');
-    expect(income).toHaveTextContent('Últimos 30 dias');
-    expect(card('Saídas')).toHaveTextContent('Últimos 30 dias');
-    expect(text(income.querySelector('.fr-sum-value'))).toBe('R$ 6.000,00');
-    expect(income.querySelector('.fr-chip')).toHaveClass('is-good');
-    expect(text(income.querySelector('.fr-chip'))).toBe('↑ +20%');
-    expect(within(income).getByRole('link', { name: 'Ver entradas' })).toHaveAttribute('href', '#transacoes');
+    const balance = card('Saldo total');
+    expect(balance).toHaveTextContent('Desde o primeiro extrato');
+    expect(text(balance.querySelector('.fr-sum-value'))).toBe('R$ 5.300,00');
+    // 2000 at the end of August, 5300 now.
+    expect(text(balance.querySelector('.fr-chip'))).toBe('↑ +165%');
+    expect(text(balance)).toContain('Disponível R$ 5.300,00');
+    expect(text(balance)).toContain('Investido R$ 0,00');
+    expect(within(balance).getByRole('link', { name: 'Ver transações' })).toHaveAttribute('href', '#transacoes');
+  });
 
+  it('splits the spending of the period into fixed bills and day-to-day, treating less spending as good news', () => {
+    useExpenses.setState({ expenses: [...rows, { id: 'e', date: '2026-09-12', amount: 300, description: 'Mercado', category: 'Mercado', type: 'expense' }] });
+    render(<OverviewCards />);
     const spending = card('Saídas');
-    expect(text(spending.querySelector('.fr-sum-value'))).toBe('R$ 2.700,00');
+    expect(spending).toHaveTextContent('Últimos 30 dias');
+    expect(text(spending.querySelector('.fr-sum-value'))).toBe('R$ 3.000,00');
     expect(spending.querySelector('.fr-chip')).toHaveClass('is-good');
-    expect(text(spending.querySelector('.fr-chip'))).toBe('↓ −10%');
+    expect(text(spending)).toContain('Fixas R$ 2.700,00');
+    expect(text(spending)).toContain('Dia a dia R$ 300,00');
     expect(within(spending).getByRole('link', { name: 'Ver saídas' })).toHaveAttribute('href', '#transacoes');
   });
 
@@ -71,7 +87,7 @@ describe('OverviewCards', () => {
     useExpenses.setState({ expenses: [...rows, { id: 'e', date: '2026-10-01', amount: 93, description: 'Padaria', category: 'Alimentação', type: 'expense' }] });
     render(<OverviewCards />);
 
-    expect(text(card('Entradas').querySelector('.fr-sum-value'))).toBe('R$ 6.000,00');
+    expect(text(card('Sobrou'))).toContain('Entrou R$ 6.000,00');
     expect(text(card('Saídas').querySelector('.fr-sum-value'))).toBe('R$ 2.793,00');
   });
 
@@ -79,8 +95,8 @@ describe('OverviewCards', () => {
     useExpenses.setState({ expenses: rows });
     render(<OverviewCards period="2026-08" />);
 
-    expect(card('Entradas')).toHaveTextContent('Agosto 2026');
-    expect(text(card('Entradas').querySelector('.fr-sum-value'))).toBe('R$ 5.000,00');
+    expect(card('Sobrou')).toHaveTextContent('Agosto 2026');
+    expect(text(card('Sobrou').querySelector('.fr-sum-value'))).toBe('R$ 2.000,00');
   });
 
   it('says where the window ends when nothing happened in the last 30 days', () => {
@@ -88,7 +104,7 @@ describe('OverviewCards', () => {
     useExpenses.setState({ expenses: rows });
     render(<OverviewCards />);
 
-    expect(card('Entradas')).toHaveTextContent('30 dias até 10/09');
+    expect(card('Saídas')).toHaveTextContent('30 dias até 10/09');
   });
 
   it('shows zeroed cards without deltas when there is no data', () => {
@@ -109,7 +125,7 @@ describe('OverviewCards with investments', () => {
     vi.useRealTimers();
   });
 
-  it('counts invested money in the balance and says how much of it is invested', () => {
+  it('keeps invested money in the balance, as its own part, and out of spending', () => {
     useExpenses.setState({
       expenses: [
         ...rows,
@@ -118,8 +134,9 @@ describe('OverviewCards with investments', () => {
     });
     render(<OverviewCards />);
 
-    expect(text(card('Saldo total'))).toContain('5.300,00');
-    expect(text(card('Saldo total'))).toMatch(/R\$ 750,00 investidos/);
+    expect(text(card('Saldo total').querySelector('.fr-sum-value'))).toBe('R$ 5.300,00');
+    expect(text(card('Saldo total'))).toContain('Disponível R$ 4.550,00');
+    expect(text(card('Saldo total'))).toContain('Investido R$ 750,00');
     expect(text(card('Saídas'))).not.toContain('750');
   });
 });

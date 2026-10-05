@@ -1,4 +1,4 @@
-import { investedTotal, isInvestment, percentChange, totalsByMonth, type Expense } from './finance';
+import { investedTotal, isFixedBill, isInvestment, percentChange, totalsByMonth, type Expense } from './finance';
 
 export interface OverviewSummary {
   /** The latest month with entries, as "YYYY-MM". */
@@ -13,6 +13,8 @@ export interface OverviewSummary {
   incomeDelta?: number;
   expense: number;
   expenseDelta?: number;
+  /** The part of `expense` that went to fixed bills (rent, utilities, subscriptions...). */
+  fixedExpense: number;
 }
 
 export interface Last30DaysSummary {
@@ -29,6 +31,8 @@ export interface Last30DaysSummary {
   incomeDelta?: number;
   expense: number;
   expenseDelta?: number;
+  /** The part of `expense` that went to fixed bills (rent, utilities, subscriptions...). */
+  fixedExpense: number;
 }
 
 export interface CashFlowPoint {
@@ -58,6 +62,7 @@ export function summarizeOverview(expenses: Expense[], monthKey?: string): Overv
     incomeDelta: previous ? percentChange(current.income, previous.income) : undefined,
     expense: current.expense,
     expenseDelta: previous ? percentChange(current.expense, previous.expense) : undefined,
+    fixedExpense: totalsBetween(expenses, `${current.key}-01`, `${current.key}-31`).fixed,
   };
 }
 
@@ -76,13 +81,17 @@ function shiftDay(day: string, days: number): string {
 function totalsBetween(expenses: Expense[], first: string, last: string) {
   let income = 0;
   let expense = 0;
+  let fixed = 0;
   for (const e of expenses) {
     const day = e.date.slice(0, 10);
     if (day < first || day > last || isInvestment(e)) continue;
     if (e.type === 'income') income += e.amount;
-    else expense += e.amount;
+    else {
+      expense += e.amount;
+      if (isFixedBill(e)) fixed += e.amount;
+    }
   }
-  return { income, expense };
+  return { income, expense, fixed };
 }
 
 /**
@@ -116,6 +125,7 @@ export function summarizeLast30Days(expenses: Expense[], today: Date = new Date(
     incomeDelta: percentChange(current.income, previous.income),
     expense: current.expense,
     expenseDelta: percentChange(current.expense, previous.expense),
+    fixedExpense: current.fixed,
   };
 }
 

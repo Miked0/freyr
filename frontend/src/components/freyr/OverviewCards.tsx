@@ -24,17 +24,47 @@ export function OverviewCards({ period }: { period?: string }) {
   const expenses = useExpenses(s => s.expenses);
   const summary = periodSummary(expenses, period);
   const sublabel = summary?.sublabel ?? 'Últimos 30 dias';
+  const income = summary?.income ?? 0;
+  const expense = summary?.expense ?? 0;
+  const left = income - expense;
+  const balance = summary?.balance ?? 0;
+  const invested = summary?.invested ?? 0;
+  const fixed = summary?.fixedExpense ?? 0;
+  const spentShare = income > 0 ? Math.round((expense / income) * 100) : undefined;
 
   return (
     <>
-      <SummaryCard span={4} variant="hero" icon="balance" label="Saldo total" sublabel="Desde o primeiro extrato"
-        value={summary?.balance ?? 0} delta={summary?.balanceDelta}
-        note={summary?.invested ? `${money(summary.invested)} investidos` : undefined}
+      <SummaryCard span={4} variant="hero" icon="budget" label={left < 0 ? 'Faltou' : 'Sobrou'} sublabel={sublabel}
+        value={Math.abs(left)}
+        meter={{
+          label: spentShare === undefined ? 'Nada entrou no período' : `Saiu ${spentShare}% do que entrou`,
+          // The bar is what came in; the filled part is what went out of it.
+          parts: left < 0
+            ? [{ label: 'Saiu', value: expense, tone: 'alert' }]
+            : [{ label: 'Saiu', value: expense, tone: 'a' }, { label: 'Sobrou', value: left, tone: 'none' }],
+          legend: [{ label: 'Entrou', value: income, tone: 'none' }, { label: 'Saiu', value: expense, tone: left < 0 ? 'alert' : 'a' }],
+        }}
+        actionLabel="Ver entradas" href="#transacoes" />
+      <SummaryCard span={4} icon="balance" label="Saldo total" sublabel="Desde o primeiro extrato"
+        value={balance} delta={summary?.balanceDelta}
+        meter={{
+          label: `Disponível ${money(balance - invested)}, investido ${money(invested)}`,
+          parts: [
+            { label: 'Disponível', value: balance - invested, tone: 'a' },
+            { label: 'Investido', value: invested, tone: 'b' },
+          ],
+        }}
         actionLabel="Ver transações" href="#transacoes" />
-      <SummaryCard span={4} icon="income" label="Entradas" sublabel={sublabel}
-        value={summary?.income ?? 0} delta={summary?.incomeDelta} actionLabel="Ver entradas" href="#transacoes" />
       <SummaryCard span={4} icon="expense" label="Saídas" sublabel={sublabel} invert
-        value={summary?.expense ?? 0} delta={summary?.expenseDelta} actionLabel="Ver saídas" href="#transacoes" />
+        value={expense} delta={summary?.expenseDelta}
+        meter={{
+          label: `Fixas ${money(fixed)}, dia a dia ${money(expense - fixed)}`,
+          parts: [
+            { label: 'Fixas', value: fixed, tone: 'a' },
+            { label: 'Dia a dia', value: expense - fixed, tone: 'b' },
+          ],
+        }}
+        actionLabel="Ver saídas" href="#transacoes" />
     </>
   );
 }
