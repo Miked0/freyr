@@ -5,6 +5,24 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#F7F6F3" />
+    <!-- Theme before the first paint: saved choice, else the system, else light. Mirrors src/lib/theme.ts. -->
+    <script>
+      (function () {
+        var theme;
+        try { theme = localStorage.getItem('freyr:theme'); } catch (e) {}
+        if (theme !== 'light' && theme !== 'dark') {
+          theme = typeof matchMedia === 'function' && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        var root = document.documentElement;
+        root.setAttribute('data-theme', theme);
+        root.style.colorScheme = theme;
+        if (theme === 'dark') {
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute('content', '#0F0F13');
+        }
+      })();
+    </script>
+    <style>:root[data-theme="dark"] { background: #0F0F13; }</style>
     <title>Freyr — Controle de gastos</title>
     <meta name="description" content="Freyr organiza seus gastos automaticamente por categoria e mostra para onde o dinheiro está indo, sem planilhas." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />

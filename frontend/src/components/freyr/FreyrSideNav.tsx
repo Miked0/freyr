@@ -1,6 +1,7 @@
 import { routeHref, type Route } from '@/lib/useRoute';
 import { SideNav } from './SideNav';
 import { ProfileCard } from './ProfileCard';
+import { ThemeToggle } from './ThemeToggle';
 
 export interface FreyrSideNavProps {
   transactionCount: number;
@@ -27,6 +28,7 @@ export function FreyrSideNav({ transactionCount, route, onLogout }: FreyrSideNav
       footer={
         <div className="fr-side-foot mt-auto">
           <ProfileCard onLogout={onLogout} />
+          <ThemeToggle />
         </div>
       }
     />

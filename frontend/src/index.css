@@ -34,30 +34,6 @@
   --animate-fade-in: fade-in 200ms ease-out;
 }
 
-/* Dark theme (Noite polar) — ready via data-theme="dark" */
-@media (prefers-color-scheme: dark) {
-  :root[data-theme="dark"] {
-    --color-surface: #1A1917;
-    --color-text: #F7F6F3;
-    --color-on-text-muted: rgb(247 246 243 / 0.58);
-    --color-on-text-line: rgb(247 246 243 / 0.12);
-    --color-brand-primary-light: #B9B8E6;
-    --color-ink-muted: rgb(247 246 243 / 0.52);
-    --color-line: rgb(247 246 243 / 0.1);
-    --color-line-strong: rgb(247 246 243 / 0.5);
-    --color-surface-wash: rgb(247 246 243 / 0.03);
-
-    --color-brand-primary: #7A79B8;
-    --color-brand-primary-soft: rgb(122 121 184 / 0.15);
-    --color-brand-warm: #D9955F;
-    --color-brand-warm-soft: rgb(217 149 95 / 0.15);
-    --color-positive: #5BB88A;
-    --color-positive-soft: rgb(91 184 138 / 0.15);
-    --color-alert: #D47A66;
-    --color-alert-soft: rgb(212 122 102 / 0.15);
-  }
-}
-
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: none; }

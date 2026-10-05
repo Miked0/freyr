@@ -1,4 +1,4 @@
-/* Freyr design system v2 (artifact "Freyr 2.0"): tokens for the light "Papel" theme + component styles (.fr-*). */
+/* Freyr design system v2 (artifact "Freyr 2.0"): tokens for the light "Papel" and dark "Noite polar" themes + component styles (.fr-*). */
 :root {
   --background: #F7F6F3;
   --ink: #1E1C1A;
@@ -45,6 +45,41 @@
   --font-sans: 'Manrope', ui-sans-serif, system-ui, sans-serif;
   --font-accent: 'Petrona', Georgia, serif;
 }
+
+/* Dark "Noite polar" theme, switched by ThemeToggle through data-theme on <html>. */
+:root[data-theme="dark"] {
+  --background: #0F0F13;
+  --ink: #F1EFEA;
+  --ink-muted: #A6A3AE;
+  --surface: #17171D;
+  --hero: #2A2950;
+  --on-hero: #F1EFEA;
+  --hero-muted: #B5B3CC;
+  --frost: #8FD3F5;
+  --series-a-dim: rgba(160, 159, 219, 0.22);
+  --series-b-dim: rgba(143, 211, 245, 0.2);
+  --bar-neutral: #6E6B78;
+  --grid: rgba(241, 239, 234, 0.08);
+  --line: rgba(241, 239, 234, 0.10);
+  --line-strong: rgba(241, 239, 234, 0.45);
+  --brand-primary: #A09FDB;
+  --brand-primary-hover: #B6B5E6;
+  --on-brand: #0F0F13;
+  --brand-warm: #E3A26D;
+  --brand-warm-deep: #E3A26D;
+  --positive: #7DC4A1;
+  --positive-soft: #1A2E25;
+  --positive-deep: #7DC4A1;
+  --alert: #EE917A;
+  --alert-soft: #3A211B;
+  --alert-deep: #EE917A;
+  --skeleton: rgba(241, 239, 234, 0.08);
+  --focus-ring: 0 0 0 2px #17171D, 0 0 0 4px #A09FDB;
+  --glow-aurora: 0 0 28px rgba(160, 159, 219, 0.45);
+  --glow-frost: 0 0 28px rgba(143, 211, 245, 0.4);
+  color-scheme: dark;
+}
+:root[data-theme="dark"] body { background: var(--background); color: var(--ink); }
 
 .fr-num { font-variant-numeric: tabular-nums; }
 .fr-stage { padding: var(--space-6); display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; }
