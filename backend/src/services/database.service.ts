@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto';
 import { DEFAULT_CATEGORY_NAMES } from './categories';
 import { importKey } from './import-key';
 import { createKeyring, type Keyring, type UserKey } from './data-crypto';
+import { isBalanceLine } from './balance-line';
 import { findRepeatedImports } from './repeated-imports';
 import { GOALS_SCHEMA, createGoalsStore, type GoalsStore } from './goals';
 
@@ -101,7 +102,30 @@ export class DatabaseService {
     await DatabaseService.backfillImportKeys(client);
     const db = new DatabaseService(client, createKeyring(masterKey));
     await db.protectPlainRows();
+    await db.removeImportedBalancesOnce();
     return db;
+  }
+
+  /**
+   * Older parsers saved statement balance lines ("SALDO DO DIA", "Saldo anterior") as transactions, inflating income
+   * and spending. Deletes those rows once; only rows that came from a file, matched by the same rule the parser
+   * now uses to skip them. Reads through getAllExpensesForUser so it sees descriptions as the user does.
+   */
+  private async removeImportedBalancesOnce() {
+    const task = 'remove-imported-balances-v1';
+    await this.run('CREATE TABLE IF NOT EXISTS maintenance (name TEXT PRIMARY KEY, done_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
+    if ((await this.all('SELECT 1 FROM maintenance WHERE name = ?', [task])).length > 0) return;
+    const users = await this.all<{ user_id: string }>('SELECT DISTINCT user_id FROM expenses WHERE user_id IS NOT NULL');
+    const deletes: { sql: string; args: InArgs }[] = [];
+    for (const { user_id } of users) {
+      for (const row of await this.getAllExpensesForUser(user_id)) {
+        if (row.source_file && isBalanceLine(row.description)) {
+          deletes.push({ sql: 'DELETE FROM expenses WHERE user_id = ? AND id = ?', args: [user_id, row.id] });
+        }
+      }
+    }
+    for (let i = 0; i < deletes.length; i += 200) await this.client.batch(deletes.slice(i, i + 200), 'write');
+    await this.run('INSERT OR IGNORE INTO maintenance (name) VALUES (?)', [task]);
   }
 
   // Databases created before multi-user support have no user_id. Their rows stay ownerless

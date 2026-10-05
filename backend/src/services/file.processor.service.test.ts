@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { FileProcessorService, isInvoicePayment } from './file.processor.service';
+import { isBalanceLine } from './balance-line';
 
 const processCsv = (content: string) =>
   new FileProcessorService().processFile(Buffer.from(content, 'utf8'), 'extrato.csv');
@@ -236,5 +237,151 @@ describe('FileProcessorService.processFile (CSV)', () => {
 
   it('says which columns it needs when it cannot find the table header', async () => {
     await expect(processCsv('foo;bar\n1;2\n')).rejects.toThrow(/data.*descrição.*valor/i);
+  });
+});
+
+describe('isBalanceLine', () => {
+  it.each([
+    'SALDO DO DIA',
+    'Saldo do dia',
+    'SALDO ANTERIOR',
+    'Saldo Anterior',
+    'SALDO FINAL',
+    'SALDO INICIAL',
+    'SALDO DISPONÍVEL',
+    'Saldo disponivel',
+    'SALDO ATUAL',
+    'SALDO TOTAL',
+    'SALDO EM C/C',
+    'SALDO EM CONTA CORRENTE',
+    'SALDO BLOQUEADO',
+    'SALDO PARCIAL',
+    'SALDO LIQUIDO',
+    'SALDO DIA',
+    'SALDO',
+    'Saldo',
+    'S A L D O',
+    'S A L D O ANTERIOR',
+    'SDO CTA/APL AUTOMATICAS',
+    'SDO CTA ANT',
+    'SALDO APLIC AUT MAIS',
+    '000000 SALDO DIA',
+    'Pix enviado - Saldo do dia',
+    'LIMITE DISPONIVEL',
+    'Opening balance',
+    'Closing balance',
+  ])('%s é linha de saldo', description => {
+    expect(isBalanceLine(description)).toBe(true);
+  });
+
+  it.each([
+    'PADARIA REAL',
+    'Pix enviado - Fulano de Tal',
+    'Pix recebido - Saldanha Marinho',
+    'SALDANHA MOVEIS',
+    'TOTAL PASS',
+    'PAGAMENTO EFETUADO',
+    'Compra no débito - Posto Saldo Bom',
+    'TRANSFERENCIA DE SALDO PARA POUPANCA',
+    'ASSINATURA SPOTIFY',
+  ])('%s não é linha de saldo', description => {
+    expect(isBalanceLine(description)).toBe(false);
+  });
+});
+
+describe('FileProcessorService.processFile ignora linhas de saldo', () => {
+  it('não importa saldo do dia, anterior ou final de um extrato em PDF, nem deixa eles virarem o sinal das despesas', async () => {
+    // Daily balances are unsigned; counted as transactions they would outvote the negative debits.
+    const expenses = await processPdf([
+      'Extrato de conta corrente',
+      '01/09/2026 SALDO ANTERIOR 200,00',
+      '02/09/2026 PIX ENVIADO FULANO -50,00',
+      '02/09/2026 SALDO DO DIA 150,00',
+      '03/09/2026 PIX RECEBIDO CICLANA +300,00',
+      '03/09/2026 SALDO DO DIA 450,00',
+      '04/09/2026 S A L D O 450,00',
+      '05/09/2026 SALDO DISPONIVEL 450,00',
+      '06/09/2026 COMPRA CARTAO PADARIA -20,00',
+      '06/09/2026 SALDO FINAL 430,00',
+    ]);
+
+    expect(expenses.map(e => [e.date, e.amount, e.sign, e.description])).toEqual([
+      ['2026-09-02', 50, 'negative', 'PIX ENVIADO FULANO'],
+      ['2026-09-03', 300, 'credit', 'PIX RECEBIDO CICLANA'],
+      ['2026-09-06', 20, 'negative', 'COMPRA CARTAO PADARIA'],
+    ]);
+  });
+
+  it('não importa a linha de saldo com data por extenso nem com número de documento antes', async () => {
+    const expenses = await processPdf([
+      'Extrato',
+      '02 de set. 2026 PIX ENVIADO FULANO -R$ 50,00',
+      '02 de set. 2026 SALDO DO DIA R$ 150,00',
+      '03/09/2026 000000 SALDO DIA 150,00',
+      '04/09/2026 123456 SDO CTA/APL AUTOMATICAS 150,00',
+    ]);
+
+    expect(expenses.map(e => e.description)).toEqual(['PIX ENVIADO FULANO']);
+  });
+
+  it('usa o valor do lançamento, e não o saldo, quando o PDF tem uma coluna de saldo', async () => {
+    const expenses = await processPdf([
+      'Extrato de conta corrente',
+      'Data Histórico Valor Saldo',
+      '01/09/2026 Saldo Anterior 1.234,56',
+      '02/09/2026 Pix - Enviado Fulano -50,00 1.184,56',
+      '02/09/2026 Compra com Cartão Padaria -34,56 1.150,00',
+      '03/09/2026 Pix - Recebido Ciclana +100,00',
+      '03/09/2026 Tarifa pacote -10,00 1.240,00',
+      '03/09/2026 S A L D O 1.240,00',
+    ]);
+
+    expect(expenses.map(e => [e.date, e.amount, e.sign, e.description])).toEqual([
+      ['2026-09-02', 50, 'negative', 'Pix - Enviado Fulano'],
+      ['2026-09-02', 34.56, 'negative', 'Compra com Cartão Padaria'],
+      ['2026-09-03', 100, 'credit', 'Pix - Recebido Ciclana'],
+      ['2026-09-03', 10, 'negative', 'Tarifa pacote'],
+    ]);
+  });
+
+  it('não importa uma linha de saldo dentro de um dia do extrato Inter em PDF', async () => {
+    const expenses = await processPdf([
+      '3 de Setembro de 2026 Saldo do dia: R$ 64,86',
+      'Pix enviado: "Cp :60701190-Fulano de Tal" \t-R$ 10,00 \tR$ 54,86',
+      'Saldo do dia: \tR$ 54,86 \tR$ 54,86',
+      'Saldo anterior \tR$ 64,86 \tR$ 64,86',
+    ]);
+
+    expect(expenses.map(e => e.description)).toEqual(['Pix enviado - Fulano de Tal']);
+  });
+
+  it('não importa linhas de saldo de um CSV, nem deixa elas virarem o sinal das despesas', async () => {
+    // Banco do Brasil style: balance rows sit in the same column as transactions, unsigned.
+    const expenses = await processCsv(
+      '"Data","Lançamento","Detalhes","N° documento","Valor","Tipo Lançamento"\n' +
+      '"31/08/2026","Saldo Anterior","","","200,00",""\n' +
+      '"01/09/2026","Pix - Enviado","Fulano","1","-50,00","Saída"\n' +
+      '"01/09/2026","Saldo do dia","","","150,00",""\n' +
+      '"02/09/2026","Pix - Enviado","Ciclana","2","-20,00","Saída"\n' +
+      '"02/09/2026","Saldo do dia","","","130,00",""\n' +
+      '"03/09/2026","S A L D O","","","130,00",""\n' +
+      '"00/00/0000","Saldo Final","","","130,00",""\n'
+    );
+
+    expect(expenses.map(e => [e.date, e.amount, e.sign, e.description])).toEqual([
+      ['2026-09-01', 50, 'negative', 'Pix - Enviado'],
+      ['2026-09-02', 20, 'negative', 'Pix - Enviado'],
+    ]);
+  });
+
+  it('não importa a linha de saldo quando o nome dela vem na coluna de histórico do Inter', async () => {
+    const expenses = await processCsv(
+      'Data Lançamento;Histórico;Descrição;Valor;Saldo\n' +
+      '02/09/2026;Saldo do dia;;485,59;485,59\n' +
+      '01/09/2026;Pix recebido;Fulano de Tal;100,00;485,59\n' +
+      '31/08/2026;Saldo Anterior;;385,59;385,59\n'
+    );
+
+    expect(expenses.map(e => e.description)).toEqual(['Pix recebido - Fulano de Tal']);
   });
 });
