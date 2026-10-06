@@ -7,6 +7,7 @@ import { TopCategoriesCard } from '../TopCategoriesCard';
 import { BentoCard } from '../BentoCard';
 import { CategoryTag } from '../CategoryTag';
 import { money } from '../format';
+import { CustomCategoriesCard } from './CustomCategoriesCard';
 
 /** Every category the user has, spent ones first by total, then the unspent ones alphabetically. */
 function categoryRows(categories: string[], totals: CategoryTotal[]): CategoryTotal[] {
@@ -50,6 +51,7 @@ export function CategoriesPage() {
             <p style={{ margin: 0, color: 'var(--ink-muted)' }}>Nenhuma categoria por aqui ainda.</p>
           )}
         </BentoCard>
+        <CustomCategoriesCard />
       </div>
     </>
   );

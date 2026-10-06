@@ -1,5 +1,5 @@
 import { render, screen, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CategoriesPage } from './CategoriesPage';
 import { useExpenses } from '@/store/expenses';
 import type { Expense } from '@/lib/finance';
@@ -62,5 +62,20 @@ describe('CategoriesPage', () => {
     render(<CategoriesPage />);
     expect(screen.queryByRole('list', { name: 'Gasto por categoria' })).not.toBeInTheDocument();
     expect(screen.getByText('Nenhuma categoria por aqui ainda.')).toBeInTheDocument();
+  });
+
+  describe('with the account categories loaded', () => {
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('ends with the categories the user created', async () => {
+      vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+        categories: [{ id: 'c1', name: 'Pets da Luna', is_custom: true }],
+        custom_limit: 10,
+      }))));
+      render(<CategoriesPage />);
+
+      expect(await screen.findByRole('heading', { level: 2, name: 'Criadas por você' })).toBeInTheDocument();
+      expect(screen.getAllByRole('heading', { level: 2 }).at(-1)).toHaveTextContent('Criadas por você');
+    });
   });
 });

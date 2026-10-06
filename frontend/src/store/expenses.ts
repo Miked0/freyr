@@ -10,6 +10,8 @@ interface ExpensesState {
   load: () => Promise<void>;
   update: (id: string, patch: ExpensePatch) => Promise<void>;
   remove: (ids: string[]) => Promise<void>;
+  /** Makes a category just created on the server available to pick. */
+  addCategory: (name: string) => void;
 }
 
 // Only the latest load may write; an older response arriving late would undo newer edits.
@@ -39,6 +41,8 @@ export const useExpenses = create<ExpensesState>((set, get) => ({
     await api.updateExpense(id, patch);
     set(state => ({ expenses: state.expenses.map(e => (e.id === id ? { ...e, ...patch } : e)) }));
   },
+
+  addCategory: name => set(state => ({ categories: [...state.categories, name] })),
 
   remove: async ids => {
     await Promise.all(ids.map(id => api.deleteExpense(id)));

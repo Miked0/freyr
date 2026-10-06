@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import TransactionList from './TransactionList';
+import TransactionList, { NEW_CATEGORY } from './TransactionList';
 import { useExpenses } from '@/store/expenses';
 
 const rows = [
@@ -13,6 +13,11 @@ let fetchMock: ReturnType<typeof vi.fn>;
 function stubApi(list: unknown = rows) {
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     if (init?.method === 'PUT') return new Response('{}', { status: 200 });
+    if (url.endsWith('/api/categories') && init?.method === 'POST') {
+      const { name } = JSON.parse(String(init.body));
+      if (name === 'Cheia') return new Response(JSON.stringify({ error: 'Você já criou 10 categorias, o máximo do seu plano.' }), { status: 403 });
+      return new Response(JSON.stringify({ id: 'c1', name, is_custom: true }), { status: 201 });
+    }
     if (url.endsWith('/api/expenses/categories/all')) return new Response(JSON.stringify([{ name: 'Moradia' }, { name: 'Salário' }]));
     if (url.endsWith('/api/expenses')) return list instanceof Error ? Promise.reject(list) : new Response(JSON.stringify(list));
     return new Response('{}', { status: 404 });
@@ -93,5 +98,40 @@ describe('TransactionList', () => {
     await act(() => useExpenses.getState().load());
 
     expect(screen.getByText('Aluguel')).toBeInTheDocument();
+  });
+
+  it('creates a category while editing an entry and files the entry under it', async () => {
+    stubApi();
+    await renderLoaded();
+
+    const row = screen.getByText('Aluguel').closest('tr')!;
+    fireEvent.click(within(row).getByRole('button', { name: /editar aluguel/i }));
+    fireEvent.change(within(row).getByRole('combobox', { name: /^categoria$/i }), { target: { value: NEW_CATEGORY } });
+    fireEvent.change(screen.getByRole('textbox', { name: /nome da nova categoria/i }), { target: { value: 'Apê da praia' } });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: /salvar/i })));
+
+    const post = fetchMock.mock.calls.find(([url, init]) => String(url).endsWith('/api/categories') && init?.method === 'POST');
+    expect(JSON.parse(post?.[1].body)).toEqual({ name: 'Apê da praia' });
+    const put = fetchMock.mock.calls.find(([, init]) => init?.method === 'PUT');
+    expect(JSON.parse(put?.[1].body)).toEqual({ category: 'Apê da praia' });
+    expect(screen.getByText('Aluguel').closest('tr')).toHaveTextContent('APÊ DA PRAIA');
+    expect(useExpenses.getState().categories).toContain('Apê da praia');
+  });
+
+  it('keeps the entry as it was when the new category is refused', async () => {
+    stubApi();
+    await renderLoaded();
+
+    const row = screen.getByText('Aluguel').closest('tr')!;
+    fireEvent.click(within(row).getByRole('button', { name: /editar aluguel/i }));
+    fireEvent.change(within(row).getByRole('combobox', { name: /^categoria$/i }), { target: { value: NEW_CATEGORY } });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: /salvar/i })));
+    expect(screen.getByRole('alert')).toHaveTextContent('Dê um nome à nova categoria.');
+
+    fireEvent.change(screen.getByRole('textbox', { name: /nome da nova categoria/i }), { target: { value: 'Cheia' } });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: /salvar/i })));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('o máximo do seu plano');
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'PUT')).toBe(false);
   });
 });
