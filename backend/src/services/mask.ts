@@ -10,6 +10,11 @@ const PERSONAL = [
   /\b\d{8,}\b/g, // account numbers and other long ids
 ];
 
+/** Whether the description is a transfer, which names a person instead of a store. */
+export function isTransfer(description: string): boolean {
+  return TRANSFER.test(description);
+}
+
 /**
  * The transaction description as sent to the external AI: transfers keep only their kind ("Pix enviado"),
  * and documents, card or account numbers and e-mails become "***". Merchant names stay, since they are
