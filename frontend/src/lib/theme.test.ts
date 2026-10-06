@@ -75,7 +75,7 @@ describe('applyTheme', () => {
   it('updates the browser bar color', () => {
     document.head.innerHTML = '<meta name="theme-color" content="#F7F6F3">';
     applyTheme('dark', document);
-    expect(document.querySelector('meta[name="theme-color"]')).toHaveAttribute('content', '#0F0F13');
+    expect(document.querySelector('meta[name="theme-color"]')).toHaveAttribute('content', '#0E1519');
     applyTheme('light', document);
     expect(document.querySelector('meta[name="theme-color"]')).toHaveAttribute('content', '#F7F6F3');
   });

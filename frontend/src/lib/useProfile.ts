@@ -14,11 +14,11 @@ export const AVATAR_COLORS: ReadonlyArray<{ token: AvatarColor; label: string }>
   { token: 'hero', label: 'Noite' },
 ];
 
-// Frost and harvest are light enough that cream initials fall under 4.5:1; ink reads on them.
+// Frost and harvest are light in both themes, so cream initials fall under 4.5:1; on-warm (dark in both) reads on them.
 const AVATAR_TEXT: Record<AvatarColor, string> = {
   'brand-primary': 'var(--on-brand)',
-  frost: 'var(--ink)',
-  'brand-warm': 'var(--ink)',
+  frost: 'var(--on-warm)',
+  'brand-warm': 'var(--on-warm)',
   positive: 'var(--on-brand)',
   alert: 'var(--on-brand)',
   hero: 'var(--on-hero)',
