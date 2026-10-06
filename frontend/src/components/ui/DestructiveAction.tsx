@@ -111,7 +111,7 @@ const Modal: React.FC<{
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fr-modal fixed inset-0 z-50 flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-title"
@@ -119,7 +119,7 @@ const Modal: React.FC<{
     >
       <div
         ref={overlayRef}
-        className="absolute inset-0 bg-text/60 backdrop-blur-sm animate-fade-in"
+        className="absolute inset-0 bg-scrim backdrop-blur-sm animate-fade-in"
         onClick={onClose}
         aria-hidden="true"
       />

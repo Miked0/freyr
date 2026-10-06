@@ -18,6 +18,7 @@
   --color-line: rgb(30 28 26 / 0.12);
   --color-line-strong: rgb(30 28 26 / 0.5);
   --color-surface-wash: rgb(30 28 26 / 0.04);
+  --color-scrim: rgb(30 28 26 / 0.6);
 
   --color-brand-primary: #5B5A96;
   --color-brand-primary-soft: rgb(91 90 150 / 0.12);
@@ -75,7 +76,11 @@
     outline-offset: 2px;
   }
 
-  /* brand-primary is only 2.71:1 on the dark surfaces; the light tint keeps focus visible there. */
+  /* brand-primary is only 2.7:1 on the dark surfaces; links and focus there use the light tint (8.9:1). */
+  .on-text a {
+    color: var(--color-brand-primary-light);
+  }
+
   .on-text :focus-visible {
     outline-color: var(--color-brand-primary-light);
   }
@@ -210,6 +215,27 @@
     border-color: var(--color-brand-primary);
     background: var(--color-brand-primary-soft);
   }
+}
+
+/* Fiorde for the Tailwind tokens. The transactions, goals and profile pages (and the confirm dialog, drawn
+   outside the app) are built from Tailwind utilities that read --color-*, which would otherwise stay on the
+   light palette: dark ink on the dark cards. Kept to the app so the sign-in panel (.on-text) stays as it is. */
+:root[data-theme="dark"] :is(.fr-app, .fr-modal) {
+  --color-surface: var(--background);
+  --color-text: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-surface-wash: var(--skeleton);
+  --color-scrim: rgb(5 9 11 / 0.72);
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-primary-soft: rgb(164 162 238 / 0.14);
+  --color-brand-warm: var(--brand-warm);
+  --color-brand-warm-soft: rgb(232 174 120 / 0.14);
+  --color-positive: var(--positive);
+  --color-positive-soft: rgb(127 203 166 / 0.14);
+  --color-alert: var(--alert);
+  --color-alert-soft: rgb(240 154 132 / 0.14);
 }
 
 @media (prefers-reduced-motion: reduce) {

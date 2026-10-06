@@ -17,6 +17,7 @@ const css = `
 .fr-field { display: grid; gap: var(--space-2); margin: 0; padding: 0; border: 0; min-width: 0; }
 .fr-field-label { font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-muted); padding: 0; }
 .fr-field-hint { margin: 0; font-size: 13px; line-height: 18px; color: var(--ink-muted); }
+.fr-field-hint a { color: var(--link); font-weight: 700; text-decoration: underline; text-underline-offset: 0.2em; }
 .fr-field-error { margin: 0; font-size: 13px; line-height: 18px; font-weight: 700; color: var(--alert-deep); }
 .fr-input { height: 44px; padding: 0 var(--space-3); border: var(--border-width) solid var(--line-strong); border-radius: var(--radius-sm); background: var(--background); color: var(--ink); font: inherit; font-size: 15px; min-width: 0; }
 .fr-input:focus-visible { outline: 2px solid transparent; box-shadow: var(--focus-ring); }
