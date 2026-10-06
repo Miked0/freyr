@@ -12,17 +12,31 @@ export const INVESTMENT_CATEGORY = 'Investimentos';
 
 export const isInvestment = (e: Pick<Expense, 'category'>) => e.category === INVESTMENT_CATEGORY;
 
-/**
- * Money applied in investments minus what was redeemed, up to `lastDay` ("YYYY-MM-DD") when given. Never below
- * zero: redemptions of money applied before the first statement do not make the invested amount negative.
- */
-export function investedTotal(expenses: Expense[], lastDay?: string): number {
+/** The amount the user told they had invested, on the day they told it ("YYYY-MM-DD"). */
+export interface InvestedAnchor {
+  amount: number;
+  on: string;
+}
+
+/** Money applied in investments minus what was redeemed, up to `lastDay` ("YYYY-MM-DD") when given. */
+export function netInvestedFlow(expenses: Expense[], lastDay?: string): number {
   let net = 0;
   for (const e of expenses) {
     if (!isInvestment(e) || (lastDay && e.date.slice(0, 10) > lastDay)) continue;
     net += e.type === 'income' ? -e.amount : e.amount;
   }
-  return Math.max(0, net);
+  return net;
+}
+
+/**
+ * How much is invested at the end of `lastDay`. Statements only show money moving in and out, so the amount the
+ * user told is the starting point, moved by what was applied or redeemed between that day and `lastDay`. Without
+ * it, the moves alone count, never below zero: redeeming money applied before the first statement is not a debt.
+ */
+export function investedTotal(expenses: Expense[], lastDay?: string, told?: InvestedAnchor | null): number {
+  const net = netInvestedFlow(expenses, lastDay);
+  if (!told) return Math.max(0, net);
+  return Math.max(0, told.amount + net - netInvestedFlow(expenses, told.on));
 }
 
 /** Bills that come back every month, whatever the user does; the rest of the spending is day-to-day. */

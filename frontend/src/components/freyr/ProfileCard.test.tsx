@@ -4,7 +4,7 @@ import type { Profile } from '@/api';
 import { resetProfile } from '@/lib/useProfile';
 import { ProfileCard } from './ProfileCard';
 
-const PROFILE: Profile = { username: 'ana', display_name: 'Ana Souza', avatar_color: 'frost', monthly_budget: null };
+const PROFILE: Profile = { username: 'ana', display_name: 'Ana Souza', avatar_color: 'frost', monthly_budget: null, invested_balance: null, invested_balance_on: null };
 
 function stubProfile(response: () => Response) {
   const fetchMock = vi.fn(async () => response());

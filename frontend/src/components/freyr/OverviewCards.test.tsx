@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OverviewCards } from './OverviewCards';
 import { useExpenses } from '@/store/expenses';
+import { setLoadedProfile } from '@/lib/useProfile';
 import type { Expense } from '@/lib/finance';
 
 const rows: Expense[] = [
@@ -138,5 +139,35 @@ describe('OverviewCards with investments', () => {
     expect(text(card('Saldo total'))).toContain('Disponível R$ 4.550,00');
     expect(text(card('Saldo total'))).toContain('Investido R$ 750,00');
     expect(text(card('Saídas'))).not.toContain('750');
+  });
+});
+
+describe('OverviewCards with the invested amount the user told', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-15T12:00:00'));
+    useExpenses.setState({ expenses: rows });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    setLoadedProfile(null);
+  });
+
+  it('adds it to the balance as invested money', () => {
+    setLoadedProfile({ username: 'mike', display_name: null, avatar_color: 'hero', monthly_budget: null, invested_balance: 3000, invested_balance_on: '2026-09-15' });
+    render(<OverviewCards />);
+
+    const balance = card('Saldo total');
+    expect(text(balance.querySelector('.fr-sum-value'))).toBe('R$ 8.300,00');
+    expect(text(balance)).toContain('Disponível R$ 5.300,00');
+    expect(text(balance)).toContain('Investido R$ 3.000,00');
+    expect(within(balance).queryByRole('link', { name: /informe quanto/i })).toBeNull();
+  });
+
+  it('asks for it in the profile when the user has not told it', () => {
+    render(<OverviewCards />);
+
+    expect(within(card('Saldo total')).getByRole('link', { name: 'Informe quanto você tem investido' })).toHaveAttribute('href', '#/perfil');
   });
 });

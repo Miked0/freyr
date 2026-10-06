@@ -337,3 +337,5 @@
 .fr-sum.is-hero .fr-meter-seg.is-b, .fr-sum.is-hero .fr-meter-dot.is-b { background: var(--frost); }
 .fr-meter-dot.is-none { background: var(--line); }
 .fr-sum.is-hero .fr-meter-dot.is-none { background: rgba(247, 246, 243, 0.24); }
+.fr-meter-link { justify-self: start; font-size: 13px; line-height: 18px; font-weight: 700; color: var(--brand-primary); text-underline-offset: 0.3em; }
+.fr-meter-link:focus-visible { outline: 2px solid transparent; box-shadow: var(--focus-ring); border-radius: 2px; }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseAmountInput, percentChange, toCsv, totalsByCategory, totalsByMonth, type Expense } from './finance';
+import { investedTotal, netInvestedFlow, parseAmountInput, percentChange, toCsv, totalsByCategory, totalsByMonth, type Expense } from './finance';
 
 let nextId = 0;
 const entry = (date: string, amount: number, category: string, type: Expense['type'] = 'expense', description = 'x'): Expense => ({
@@ -77,5 +77,24 @@ describe('percentChange', () => {
 
   it('has no comparison when the previous amount is zero', () => {
     expect(percentChange(300, 0)).toBeUndefined();
+  });
+});
+
+describe('investedTotal', () => {
+  const invest = (date: string, amount: number, type: Expense['type'] = 'expense') => entry(date, amount, 'Investimentos', type);
+  const moves = [invest('2026-09-10', 100, 'income'), invest('2026-09-25', 750)];
+
+  it('without what the user told, is what was applied minus redeemed, never below zero', () => {
+    expect(investedTotal(moves, '2026-09-30')).toBe(650);
+    expect(investedTotal(moves, '2026-09-15')).toBe(0);
+    expect(netInvestedFlow(moves, '2026-09-15')).toBe(-100);
+  });
+
+  it('starts from the amount the user told on that day and follows the moves before and after it', () => {
+    const told = { amount: 4000, on: '2026-09-20' };
+
+    expect(investedTotal(moves, '2026-09-30', told)).toBe(4750);
+    expect(investedTotal(moves, '2026-09-20', told)).toBe(4000);
+    expect(investedTotal(moves, '2026-09-05', told)).toBe(4100);
   });
 });

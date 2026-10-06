@@ -213,3 +213,20 @@ describe('fixed bills', () => {
     expect(summarizeLast30Days(rows, new Date('2026-09-20T12:00:00'))).toMatchObject({ expense: 1920, fixedExpense: 1620 });
   });
 });
+
+describe('available and invested money', () => {
+  const invest = (date: string, amount: number, type: Expense['type'] = 'expense'): Expense => ({
+    id: `v${++seq}`, date, amount, description: 'CDB', category: 'Investimentos', type,
+  });
+  const rows = [entry('2026-09-01', 5000, 'income'), entry('2026-09-10', 1000), invest('2026-09-12', 750), invest('2026-09-20', 900, 'income')];
+
+  it('puts redemptions of money invested before the first statement in the available money', () => {
+    expect(summarizeOverview(rows)).toMatchObject({ balance: 4000, available: 4150, invested: 0 });
+  });
+
+  it('uses the invested amount the user told', () => {
+    const told = { amount: 3000, on: '2026-09-30' };
+    expect(summarizeOverview(rows, undefined, told)).toMatchObject({ available: 4150, invested: 3000 });
+    expect(summarizeLast30Days(rows, new Date('2026-09-30T12:00:00'), told)).toMatchObject({ available: 4150, invested: 3000 });
+  });
+});

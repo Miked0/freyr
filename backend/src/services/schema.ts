@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS users (
   display_name TEXT,
   avatar_color TEXT NOT NULL DEFAULT 'brand-primary',
   monthly_budget REAL,
+  invested_balance REAL,
+  invested_balance_on TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

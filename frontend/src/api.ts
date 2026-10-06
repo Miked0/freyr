@@ -37,6 +37,9 @@ export interface Profile {
   display_name: string | null;
   avatar_color: 'brand-primary' | 'frost' | 'brand-warm' | 'positive' | 'alert' | 'hero';
   monthly_budget: number | null;
+  /** How much the user said they had invested, and on which day ("YYYY-MM-DD"). */
+  invested_balance: number | null;
+  invested_balance_on: string | null;
 }
 
 export interface ImportedFile {
@@ -45,7 +48,7 @@ export interface ImportedFile {
   transactions: number;
 }
 
-export type ProfilePatch = Partial<Pick<Profile, 'display_name' | 'avatar_color' | 'monthly_budget'>>;
+export type ProfilePatch = Partial<Pick<Profile, 'display_name' | 'avatar_color' | 'monthly_budget' | 'invested_balance'>>;
 
 /** An entry whose saved category the current rules would set differently. */
 export type Recategorization = Expense & { from: string; to: string };

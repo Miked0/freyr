@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Profile } from '../api';
 import { avatarInitials, displayNameOf, resetProfile, useProfile } from './useProfile';
 
-const PROFILE: Profile = { username: 'ana', display_name: null, avatar_color: 'brand-primary', monthly_budget: null };
+const PROFILE: Profile = { username: 'ana', display_name: null, avatar_color: 'brand-primary', monthly_budget: null, invested_balance: null, invested_balance_on: null };
 
 type Handler = (init?: RequestInit) => Response | Promise<Response>;
 
