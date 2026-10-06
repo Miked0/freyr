@@ -38,9 +38,12 @@ export interface Profile {
   display_name: string | null;
   avatar_color: AvatarColor;
   monthly_budget: number | null;
+  /** How much the user said they had invested, and on which day ("YYYY-MM-DD"). */
+  invested_balance: number | null;
+  invested_balance_on: string | null;
 }
 
-export type ProfileUpdate = Partial<Pick<Profile, 'display_name' | 'avatar_color' | 'monthly_budget'>>;
+export type ProfileUpdate = Partial<Pick<Profile, 'display_name' | 'avatar_color' | 'monthly_budget' | 'invested_balance'>>;
 
 interface ExpenseRow {
   id: string;
@@ -179,6 +182,8 @@ export class DatabaseService {
       ['avatar_color', "TEXT NOT NULL DEFAULT 'brand-primary'"],
       ['monthly_budget', 'REAL'],
       ['data_key', 'TEXT'],
+      ['invested_balance', 'REAL'],
+      ['invested_balance_on', 'TEXT'],
     ];
     for (const [name, definition] of added) {
       if (!existing.has(name)) await client.execute(`ALTER TABLE users ADD COLUMN ${name} ${definition}`);
@@ -308,7 +313,7 @@ export class DatabaseService {
 
   async getProfile(userId: string): Promise<Profile | undefined> {
     const rows = await this.all<Profile>(
-      'SELECT username, display_name, avatar_color, monthly_budget FROM users WHERE id = ?',
+      'SELECT username, display_name, avatar_color, monthly_budget, invested_balance, invested_balance_on FROM users WHERE id = ?',
       [userId]
     );
     return rows[0];
@@ -316,10 +321,14 @@ export class DatabaseService {
 
   /** Writes only the fields present in the update; returns the profile as stored afterwards. */
   async updateProfile(userId: string, update: ProfileUpdate): Promise<Profile | undefined> {
-    const fields = (['display_name', 'avatar_color', 'monthly_budget'] as const).filter(f => f in update);
+    const fields = (['display_name', 'avatar_color', 'monthly_budget', 'invested_balance'] as const).filter(f => f in update);
     if (fields.length > 0) {
+      // The invested balance is what the user had on the day they typed it; later moves are added to it.
+      const dated = 'invested_balance' in update
+        ? `, invested_balance_on = ${update.invested_balance == null ? 'NULL' : "date('now')"}`
+        : '';
       await this.run(
-        `UPDATE users SET ${fields.map(f => `${f} = @${f}`).join(', ')} WHERE id = @id`,
+        `UPDATE users SET ${fields.map(f => `${f} = @${f}`).join(', ')}${dated} WHERE id = @id`,
         { ...Object.fromEntries(fields.map(f => [f, update[f] ?? null])), id: userId }
       );
     }

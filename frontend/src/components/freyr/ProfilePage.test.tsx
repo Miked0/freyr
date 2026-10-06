@@ -5,7 +5,7 @@ import { parseBudget, resetProfile } from '@/lib/useProfile';
 import { ProfileCard } from './ProfileCard';
 import { ProfilePage } from './ProfilePage';
 
-const PROFILE: Profile = { username: 'ana', display_name: null, avatar_color: 'brand-primary', monthly_budget: null };
+const PROFILE: Profile = { username: 'ana', display_name: null, avatar_color: 'brand-primary', monthly_budget: null, invested_balance: null, invested_balance_on: null };
 
 type Handler = (body: Record<string, unknown>) => Response | Promise<Response>;
 
@@ -31,6 +31,7 @@ async function renderLoaded(profile: Profile = PROFILE, patch?: Handler) {
 
 const nameInput = () => screen.getByRole('textbox', { name: /nome de exibição/i });
 const budgetInput = () => screen.getByRole('textbox', { name: /meta de gasto mensal/i });
+const investedInput = () => screen.getByRole('textbox', { name: /quanto você tem investido hoje/i });
 const saveButton = () => screen.getByRole('button', { name: /salvar/i });
 
 describe('ProfilePage', () => {
@@ -106,6 +107,35 @@ describe('ProfilePage', () => {
 
     await screen.findByText('Perfil salvo.');
     expect(patchBodies(fetchMock)).toEqual([{ display_name: null, monthly_budget: null }]);
+  });
+
+  it('saves how much the user has invested today and shows the day it was told', async () => {
+    // The server keeps what was saved, so the refresh after saving brings the dated amount back.
+    let stored: Profile = PROFILE;
+    const fetchMock = stubApi({
+      get: () => json(stored),
+      patch: body => json((stored = { ...PROFILE, ...(body as object), invested_balance_on: '2026-10-06' })),
+    });
+    render(<ProfilePage />);
+    await screen.findByRole('textbox', { name: /nome de exibição/i });
+
+    fireEvent.change(investedInput(), { target: { value: '4.250,00' } });
+    fireEvent.click(saveButton());
+
+    await screen.findByText('Perfil salvo.');
+    expect(patchBodies(fetchMock)).toEqual([{ invested_balance: 4250 }]);
+    expect(screen.getByText(/informado em 06\/10\/2026/i)).toBeInTheDocument();
+  });
+
+  it('explains an invested amount it cannot read without calling the server', async () => {
+    const fetchMock = await renderLoaded();
+
+    fireEvent.change(investedInput(), { target: { value: 'bastante' } });
+    fireEvent.click(saveButton());
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/investido/i);
+    expect(investedInput()).toHaveAttribute('aria-invalid', 'true');
+    expect(patchBodies(fetchMock)).toEqual([]);
   });
 
   it('explains a budget it cannot read without calling the server', async () => {

@@ -1,11 +1,13 @@
-import { investedTotal, isFixedBill, isInvestment, percentChange, totalsByMonth, type Expense } from './finance';
+import { investedTotal, isFixedBill, isInvestment, netInvestedFlow, percentChange, totalsByMonth, type Expense, type InvestedAnchor } from './finance';
 
 export interface OverviewSummary {
   /** The latest month with entries, as "YYYY-MM". */
   monthKey: string;
   /** Running balance of every entry (income minus spending); money invested is still part of it. */
   balance: number;
-  /** How much of the balance sits in investments at the end of the month. */
+  /** Money out of investments: the balance minus what was applied, plus what was redeemed. */
+  available: number;
+  /** Money in investments at the end of the month. */
   invested: number;
   /** Change of the running balance against the end of the previous month with entries. */
   balanceDelta?: number;
@@ -23,7 +25,9 @@ export interface Last30DaysSummary {
   endsToday: boolean;
   /** Balance of every entry up to the end of the window. */
   balance: number;
-  /** How much of the balance sits in investments at the end of the window. */
+  /** Money out of investments: the balance minus what was applied, plus what was redeemed. */
+  available: number;
+  /** Money in investments at the end of the window. */
   invested: number;
   /** Change of the balance against the day before the window. */
   balanceDelta?: number;
@@ -44,7 +48,7 @@ export interface CashFlowPoint {
 const MONTH_LABELS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
 /** Summary of `monthKey` ("YYYY-MM"), or of the latest month with entries when it is omitted or has none. */
-export function summarizeOverview(expenses: Expense[], monthKey?: string): OverviewSummary | null {
+export function summarizeOverview(expenses: Expense[], monthKey?: string, told?: InvestedAnchor | null): OverviewSummary | null {
   const all = totalsByMonth(expenses);
   const index = all.findIndex(m => m.key === monthKey);
   const months = index === -1 ? all : all.slice(0, index + 1);
@@ -56,7 +60,8 @@ export function summarizeOverview(expenses: Expense[], monthKey?: string): Overv
   return {
     monthKey: current.key,
     balance,
-    invested: investedTotal(expenses, `${current.key}-31`),
+    available: balance - netInvestedFlow(expenses, `${current.key}-31`),
+    invested: investedTotal(expenses, `${current.key}-31`, told),
     balanceDelta: previous ? percentChange(balance, balance - current.balance) : undefined,
     income: current.income,
     incomeDelta: previous ? percentChange(current.income, previous.income) : undefined,
@@ -98,7 +103,7 @@ function totalsBetween(expenses: Expense[], first: string, last: string) {
  * Income and spending of the 30 days ending today, across month boundaries, so an import that ends on the
  * 1st does not show an empty month. With nothing in that window, it ends at the latest entry instead.
  */
-export function summarizeLast30Days(expenses: Expense[], today: Date = new Date()): Last30DaysSummary | null {
+export function summarizeLast30Days(expenses: Expense[], today: Date = new Date(), told?: InvestedAnchor | null): Last30DaysSummary | null {
   if (expenses.length === 0) return null;
   const todayKey = isoDay(today);
   const latest = expenses.reduce((max, e) => (e.date.slice(0, 10) > max ? e.date.slice(0, 10) : max), '');
@@ -119,7 +124,8 @@ export function summarizeLast30Days(expenses: Expense[], today: Date = new Date(
     end,
     endsToday: end === todayKey,
     balance,
-    invested: investedTotal(expenses, end),
+    available: balance - netInvestedFlow(expenses, end),
+    invested: investedTotal(expenses, end, told),
     balanceDelta: percentChange(balance, balanceBefore),
     income: current.income,
     incomeDelta: percentChange(current.income, previous.income),

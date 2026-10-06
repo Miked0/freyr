@@ -1,3 +1,4 @@
+import { formatDate } from '@/lib/finance';
 import { useId, useState, type FormEvent } from 'react';
 import { endSession, type Profile, type ProfilePatch } from '@/api';
 import { AVATAR_COLORS, displayNameOf, formatBudget, parseBudget, useProfile, type AvatarColor } from '@/lib/useProfile';
@@ -78,6 +79,8 @@ function ProfileForm({ profile, saved, onSavedChange }: ProfileFormProps) {
   const [color, setColor] = useState<AvatarColor>(profile.avatar_color);
   const [budgetText, setBudgetText] = useState(formatBudget(profile.monthly_budget));
   const [budgetError, setBudgetError] = useState<string | null>(null);
+  const [investedText, setInvestedText] = useState(formatBudget(profile.invested_balance));
+  const [investedError, setInvestedError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -87,6 +90,8 @@ function ProfileForm({ profile, saved, onSavedChange }: ProfileFormProps) {
   if (trimmedName !== profile.display_name) patch.display_name = trimmedName;
   if (color !== profile.avatar_color) patch.avatar_color = color;
   if (budget !== profile.monthly_budget) patch.monthly_budget = budget ?? null;
+  const invested = parseBudget(investedText);
+  if (invested !== profile.invested_balance) patch.invested_balance = invested ?? null;
   const dirty = Object.keys(patch).length > 0;
   const previewName = displayNameOf({ username: profile.username, display_name: trimmedName });
 
@@ -100,6 +105,10 @@ function ProfileForm({ profile, saved, onSavedChange }: ProfileFormProps) {
     if (!dirty || saving) return;
     if (budget === undefined) {
       setBudgetError('Escreva a meta em reais, como 2.500,00, ou deixe vazio.');
+      return;
+    }
+    if (invested === undefined) {
+      setInvestedError('Escreva o valor investido em reais, como 4.250,00, ou deixe vazio.');
       return;
     }
     setSaving(true);
@@ -173,6 +182,26 @@ function ProfileForm({ profile, saved, onSavedChange }: ProfileFormProps) {
         />
         <p id={`${id}-budget-hint`} className="fr-field-hint">O máximo que você quer gastar por mês. Deixe vazio para não usar.</p>
         {budgetError ? <p id={`${id}-budget-error`} role="alert" className="fr-field-error">{budgetError}</p> : null}
+      </div>
+
+      <div className="fr-field">
+        <label className="fr-field-label" htmlFor={`${id}-invested`}>Quanto você tem investido hoje (R$)</label>
+        <input
+          id={`${id}-invested`}
+          className="fr-input fr-num"
+          type="text"
+          inputMode="decimal"
+          value={investedText}
+          placeholder="0,00"
+          aria-invalid={investedError ? true : undefined}
+          aria-describedby={`${id}-invested-hint${investedError ? ` ${id}-invested-error` : ''}`}
+          onChange={e => { setInvestedText(e.target.value); setInvestedError(null); edited(); }}
+        />
+        <p id={`${id}-invested-hint`} className="fr-field-hint">
+          Some CDB, caixinhas, Tesouro e ações. O extrato só mostra o que entra e sai, então daqui em diante as aplicações e os resgates ajustam esse valor.
+          {profile.invested_balance_on ? ` Informado em ${formatDate(profile.invested_balance_on)}.` : ''}
+        </p>
+        {investedError ? <p id={`${id}-invested-error`} role="alert" className="fr-field-error">{investedError}</p> : null}
       </div>
 
       <div className="fr-profile-actions">

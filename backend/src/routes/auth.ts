@@ -14,6 +14,7 @@ const REGISTRATIONS = 5;
 const REGISTRATION_WINDOW_MS = 60 * 60 * 1000;
 const DISPLAY_NAME_MAX = 40;
 const MONTHLY_BUDGET_MAX = 1_000_000_000;
+const INVESTED_BALANCE_MAX = 1_000_000_000_000;
 
 interface AuthOptions {
   db: DatabaseService;
@@ -77,7 +78,7 @@ function createAttemptLimiter(max: number, windowMs: number) {
 export function parseProfileUpdate(body: unknown): { update: ProfileUpdate } | { error: string } {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return { error: 'Envie os campos do perfil.' };
   const input = body as Record<string, unknown>;
-  const allowed = ['display_name', 'avatar_color', 'monthly_budget'];
+  const allowed = ['display_name', 'avatar_color', 'monthly_budget', 'invested_balance'];
   const unknown = Object.keys(input).filter(key => !allowed.includes(key));
   if (unknown.length > 0) return { error: `Campo desconhecido: ${unknown.join(', ')}.` };
   if (Object.keys(input).length === 0) return { error: 'Nada para atualizar.' };
@@ -105,6 +106,13 @@ export function parseProfileUpdate(body: unknown): { update: ProfileUpdate } | {
     else if (typeof budget !== 'number' || !Number.isFinite(budget) || budget < 0 || budget > MONTHLY_BUDGET_MAX) {
       return { error: 'A meta de gasto mensal deve ser um valor a partir de zero.' };
     } else update.monthly_budget = Math.round(budget * 100) / 100;
+  }
+  if ('invested_balance' in input) {
+    const invested = input.invested_balance;
+    if (invested === null) update.invested_balance = null;
+    else if (typeof invested !== 'number' || !Number.isFinite(invested) || invested < 0 || invested > INVESTED_BALANCE_MAX) {
+      return { error: 'O valor investido deve ser um valor a partir de zero.' };
+    } else update.invested_balance = Math.round(invested * 100) / 100;
   }
   return { update };
 }

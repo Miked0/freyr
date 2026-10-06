@@ -61,9 +61,11 @@ export interface MeterProps {
   parts: MeterPart[];
   /** What the list under the bar shows, when it is not the bar's own parts. */
   legend?: MeterPart[];
+  /** A small link under the list, e.g. to fill in what the bar is missing. */
+  link?: { label: string; href: string };
 }
 
-function Meter({ label, parts, legend = parts }: MeterProps) {
+function Meter({ label, parts, legend = parts, link }: MeterProps) {
   const total = parts.reduce((sum, part) => sum + Math.max(0, part.value), 0);
   return (
     <div className="fr-meter">
@@ -83,6 +85,7 @@ function Meter({ label, parts, legend = parts }: MeterProps) {
           </li>
         ))}
       </ul>
+      {link ? <a className="fr-meter-link" href={link.href}>{link.label}</a> : null}
     </div>
   );
 }

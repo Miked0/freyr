@@ -108,6 +108,16 @@ const useProfileStore = create<ProfileState>((set, get) => ({
   },
 }));
 
+/** The profile already loaded (by the shell's profile card), without asking the server for it again. */
+export function useLoadedProfile(): Profile | null {
+  return useProfileStore(state => state.profile);
+}
+
+/** Puts a profile in the store as if it had loaded; for tests and previews. */
+export function setLoadedProfile(profile: Profile | null) {
+  useProfileStore.setState({ profile, status: profile ? 'ready' : 'idle', error: null });
+}
+
 /** Forgets the loaded profile, e.g. on logout, so the next account loads its own. */
 export function resetProfile() {
   generation += 1;
