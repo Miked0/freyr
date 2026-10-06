@@ -47,6 +47,9 @@ export interface ImportedFile {
 
 export type ProfilePatch = Partial<Pick<Profile, 'display_name' | 'avatar_color' | 'monthly_budget'>>;
 
+/** An entry whose saved category the current rules would set differently. */
+export type Recategorization = Expense & { from: string; to: string };
+
 export type ExpensePatch = Partial<Pick<Expense, 'description' | 'amount' | 'category' | 'type'>>;
 
 export class UnauthorizedError extends Error {}
@@ -95,6 +98,8 @@ export const api = {
   getProfile: () => request<Profile>('/api/auth/profile'),
   updateProfile: (patch: ProfilePatch) => request<Profile>('/api/auth/profile', json('PATCH', patch)),
   listExpenses: () => request<Expense[]>('/api/expenses'),
+  listRecategorizations: () => request<{ suggestions: Recategorization[] }>('/api/expenses/recategorize'),
+  applyRecategorizations: (ids: string[]) => request<{ updated: number }>('/api/expenses/recategorize', json('POST', { ids })),
   listCategories: () => request<Category[]>('/api/expenses/categories/all'),
   updateExpense: (id: string, patch: ExpensePatch) => request<void>(`/api/expenses/${id}`, json('PUT', patch)),
   deleteExpense: (id: string) => request<void>(`/api/expenses/${id}`, { method: 'DELETE' }),

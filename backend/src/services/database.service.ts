@@ -6,6 +6,7 @@ import { importKey } from './import-key';
 import { createKeyring, type Keyring, type UserKey } from './data-crypto';
 import { isBalanceLine } from './balance-line';
 import { findRepeatedImports } from './repeated-imports';
+import { suggestRecategorizations } from './recategorize';
 import { GOALS_SCHEMA, createGoalsStore, type GoalsStore } from './goals';
 
 export interface DatabaseConfig {
@@ -462,6 +463,33 @@ export class DatabaseService {
   /** Deletes every transaction that came from an imported file; returns how many went. */
   async deleteImportedExpensesForUser(userId: string): Promise<number> {
     return this.run('DELETE FROM expenses WHERE user_id = ? AND source_file IS NOT NULL', [userId]);
+  }
+
+  /** Entries whose category the current rules would set differently; see suggestRecategorizations. */
+  async getRecategorizationsForUser(userId: string) {
+    const expenses = await this.getAllExpensesForUser(userId);
+    const categories = (await this.getAllCategoriesForUser(userId)).map(c => c.name);
+    const byId = new Map(expenses.map(e => [e.id, e]));
+    const candidates = suggestRecategorizations(expenses, categories, new Set());
+    const corrected = new Set<string>();
+    for (const description of new Set(candidates.map(c => byId.get(c.id)!.description))) {
+      if ((await this.findCorrectedCategoryForUser(userId, description)) !== undefined) corrected.add(description);
+    }
+    return candidates
+      .filter(c => !corrected.has(byId.get(c.id)!.description))
+      .map(c => ({ ...byId.get(c.id)!, from: c.from, to: c.to }));
+  }
+
+  /** Applies those of the ids that still have a suggested category; returns how many changed. */
+  async applyRecategorizationsForUser(userId: string, ids: string[]): Promise<number> {
+    const requested = new Set(ids);
+    const chosen = (await this.getRecategorizationsForUser(userId)).filter(s => requested.has(s.id));
+    if (chosen.length === 0) return 0;
+    await this.client.batch(
+      chosen.map(s => ({ sql: 'UPDATE expenses SET category = ? WHERE user_id = ? AND id = ?', args: [s.to, userId, s.id] })),
+      'write'
+    );
+    return chosen.length;
   }
 
   async deleteExpenseForUser(userId: string, id: string): Promise<boolean> {

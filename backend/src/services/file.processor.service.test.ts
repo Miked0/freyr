@@ -153,6 +153,8 @@ describe('isInvestmentMove', () => {
     ['Resgate caixinha Reserva', true],
     ['Compra de ações - PETR4', true],
     ['Aplicação LCI', true],
+    ['Debito Online Td - Prot.105901227 Prefixado 2029', true],
+    ['SAQUE BANCO 24H - SAQUE BANCO 24H', false],
     ['Pix enviado - Fulano', false],
     ['Compra no debito - OXXO RIBEIRO DO VALE', false],
     ['Pagamento efetuado - Pagamento fatura cartao Inter', false],

@@ -44,7 +44,7 @@ export class AIService {
 
     try {
       // Only a masked description leaves the server: the model runs outside Brazil (LGPD, art. 33).
-      const prompt = this.createCategorizationPrompt(maskForAI(description), availableCategories);
+      const prompt = this.createCategorizationPrompt(maskForAI(categorizationText(description)), availableCategories);
 
       const response = await axios.post(
         `${this.apiUrl}/chat/completions`,
@@ -108,8 +108,24 @@ Respond with only the category name, exactly as written above, nothing else.`;
   }
 
   private fallbackCategorization(description: string, categories: string[]): string {
-    return matchKeywordCategory(description, categories) ?? (categories.includes('Outros') ? 'Outros' : categories[0]);
+    return matchKeywordCategory(categorizationText(description), categories) ?? (categories.includes('Outros') ? 'Outros' : categories[0]);
   }
+}
+
+// Card purchases carry the merchant as the card network sends it: a 22-character name, then the city and "BRA",
+// often glued together once spaces are collapsed ("Distribuidora C Carvalsao Bernardo Bra").
+const MERCHANT_NAME_LENGTH = 22;
+const COUNTRY_SUFFIX = /\s+bra$/i;
+
+/** The description as categorization sees it: the city and country cut from a card merchant's name. */
+export function categorizationText(description: string): string {
+  const separator = description.indexOf(' - ');
+  const kind = separator === -1 ? '' : description.slice(0, separator + 3);
+  const merchant = separator === -1 ? description : description.slice(separator + 3);
+  if (!COUNTRY_SUFFIX.test(merchant)) return description;
+  const withCity = merchant.replace(COUNTRY_SUFFIX, '');
+  const name = withCity.length > MERCHANT_NAME_LENGTH ? withCity.slice(0, MERCHANT_NAME_LENGTH) : withCity;
+  return kind + name.trim();
 }
 
 const fold = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
@@ -117,11 +133,14 @@ const words = (text: string) => ` ${fold(text).replace(/[^a-z0-9]+/g, ' ').trim(
 
 /**
  * Ordered keyword rules; the first match wins, so specific merchants come before generic words.
- * A keyword matches whole words; a trailing "*" makes it a word prefix ("farmacia*" matches "farmacias").
+ * A keyword matches whole words; a trailing "*" makes it a word prefix ("farmacia*" matches "farmacias"), and
+ * "*" on both ends matches inside a word ("*carne*" matches "Tropicarnes").
  * Cooking gas (Ultragaz, Comgás) goes to Contas with the other household utilities, not to Combustível,
  * which is only for vehicle fuel.
  */
 const KEYWORD_RULES: [category: string, keywords: string[]][] = [
+  // A cash withdrawal says so first, whatever else the line mentions ("caixa eletrônico").
+  ['Saques', ['saque*', 'banco24horas', 'banco 24h', 'banco 24 horas']],
   ['Assinaturas', [
     'netflix*', 'spotify*', 'deezer*', 'google one', 'google storage', 'youtube premium', 'youtubepremium', 'icloud*',
     'apple com bill', 'applecombill', 'amazon prime', 'amazonprime*', 'prime video', 'primevideo', 'disney*', 'hbo*',
@@ -145,7 +164,7 @@ const KEYWORD_RULES: [category: string, keywords: string[]][] = [
     'hortifrut*', 'sacolao*', 'quitanda*', 'acougue*', 'atacadao*', 'atacadista*', 'assai*', 'carrefour*',
     'pao de acucar', 'extra', 'zaffari*', 'guanabara', 'condor', 'muffato*', 'savegnago*', 'sonda', 'hirota*',
     'st marche', 'makro*', 'sams club', 'emporio*', 'grocery', 'supermarket', 'oxxo*', 'am pm', 'ampm*',
-    'conveniencia*',
+    'conveniencia*', '*carne*', 'frigorifico*',
   ]],
   ['Contas', [
     'ultragaz*', 'ultra gas', 'liquigas*', 'supergasbras*', 'copagaz*', 'nacional gas', 'comgas*', 'naturgy*',
@@ -158,6 +177,8 @@ const KEYWORD_RULES: [category: string, keywords: string[]][] = [
     'posto', 'postos', 'auto posto', 'shell', 'ipiranga', 'petrobras*', 'posto br', 'br mania', 'raizen*',
     'combustive*', 'gasolina', 'etanol', 'diesel', 'gnv', 'fuel',
   ]],
+  // Liquor stores and drinks distributors; after Combustível so "Petrobras Distribuidora" stays fuel.
+  ['Alimentação', ['adega*', 'adegas', 'distribuidora*', 'bebida*']],
   ['Transporte', [
     'uber', 'uberrides*', 'ubertrip*', 'uber trip', 'uber br', '99app*', '99 app', '99pop*', '99 pop', '99 tecnologia',
     '99taxi*', 'cabify*', 'taxi', 'metro', 'cptm', 'sptrans', 'bilhete unico', 'onibus', 'estacionamento*',
@@ -214,7 +235,8 @@ const KEYWORD_RULES: [category: string, keywords: string[]][] = [
   ['Compras', ['loja', 'lojas', 'shopping', 'store', 'magazine']],
   ['Salário', ['salario*', 'pro labore', 'prolabore', 'holerite', 'proventos', 'folha de pagamento']],
   ['Investimentos', [
-    'tesouro direto', 'aplicacao*', 'resgate*', 'investimento*', 'cdb', 'lci', 'lca', 'caixinha*', 'porquinho*',
+    'tesouro direto', 'tesouro prefixado', 'tesouro ipca', 'tesouro selic', 'debito online td', 'prefixado',
+    'aplicacao*', 'resgate*', 'investimento*', 'cdb', 'lci', 'lca', 'caixinha*', 'porquinho*',
     'acoes', 'corretora*', 'xp investimentos', 'nuinvest*', 'poupanca', 'bitcoin', 'binance*', 'cripto*',
   ]],
   ['Transferências', ['pix', 'ted', 'doc', 'transferencia*', 'transf']],
@@ -223,7 +245,9 @@ const KEYWORD_RULES: [category: string, keywords: string[]][] = [
 const COMPILED_RULES = KEYWORD_RULES.map(([category, keywords]) => ({
   category,
   patterns: keywords.map(keyword =>
-    keyword.endsWith('*') ? words(keyword.slice(0, -1)).trimEnd() : words(keyword)
+    keyword.startsWith('*') && keyword.endsWith('*')
+      ? words(keyword.slice(1, -1)).trim()
+      : keyword.endsWith('*') ? words(keyword.slice(0, -1)).trimEnd() : words(keyword)
   ),
 }));
 

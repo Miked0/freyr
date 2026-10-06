@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import axios from 'axios';
-import { AIService } from './ai.service';
+import { AIService, categorizationText } from './ai.service';
 import { DEFAULT_CATEGORY_NAMES } from './categories';
 
 const offline = new AIService({ apiKey: '', apiUrl: '', model: '' });
@@ -19,6 +19,16 @@ describe('AIService keyword categorization', () => {
     ['MercadoBairro', 'Mercado'],
     ['ATACADAO 123', 'Mercado'],
     ['Compra no debito - OXXO RIBEIRO DO VALE', 'Mercado'],
+    ['Compra no débito - Mp *adegar7 Sao Paulo Bra', 'Alimentação'],
+    ['Compra no débito - Adega Capao Redondo Sao Paulo Bra', 'Alimentação'],
+    ['Compra no débito - Distribuidora C Carvalsao Bernardo Bra', 'Alimentação'],
+    ['Compra no débito - Distribuidora C Carval Sao Bernardo Bra', 'Alimentação'],
+    ['Compra no débito - Tropicarnes Rosana Ltd Sao Paulo Bra', 'Mercado'],
+    ['Casa de Carnes Boi Gordo', 'Mercado'],
+    ['SAQUE BANCO 24H - SAQUE BANCO 24H', 'Saques'],
+    ['Saque - Caixa eletronico', 'Saques'],
+    ['Debito Online Td - Prot.105901227 Prefixado 2029', 'Investimentos'],
+    ['Tesouro IPCA+ 2035', 'Investimentos'],
     ['AM PM CONVENIENCIA', 'Mercado'],
     ['Aplicação na caixinha', 'Investimentos'],
     ['Resgate - CDB Porq Obj BANCO INTER S A', 'Investimentos'],
@@ -110,6 +120,30 @@ describe('AIService prompt', () => {
     expect(prompt).toContain('- Minha categoria');
     expect(prompt).toMatch(/- Mercado: .*Oxxo/);
     expect(prompt).toMatch(/- Investimentos: .*caixinha/);
+    expect(prompt).toMatch(/- Saques: /);
+  });
+});
+
+describe('categorizationText', () => {
+  it.each([
+    ['Compra no débito - Distribuidora C Carvalsao Bernardo Bra', 'Compra no débito - Distribuidora C Carval'],
+    ['Compra no débito - Tropicarnes Rosana Ltd Sao Paulo Bra', 'Compra no débito - Tropicarnes Rosana Ltd'],
+    ['Compra no débito - Mp *adegar7 Sao Paulo Bra', 'Compra no débito - Mp *adegar7 Sao Paulo'],
+    ['Pix enviado - Fulano de Tal', 'Pix enviado - Fulano de Tal'],
+    ['UBER TRIP', 'UBER TRIP'],
+  ])('%s → %s', (description, expected) => {
+    expect(categorizationText(description)).toBe(expected);
+  });
+
+  it('sends the merchant without the city glued to it to the model', async () => {
+    const post = vi.spyOn(axios, 'post').mockResolvedValue({ data: { choices: [{ message: { content: 'Alimentação' } }] } });
+    const online = new AIService({ apiKey: 'k', apiUrl: 'http://ai', model: 'm' });
+
+    await online.categorizeExpense('Compra no débito - Distribuidora C Carvalsao Bernardo Bra', DEFAULT_CATEGORY_NAMES);
+
+    const prompt: string = (post.mock.calls[0][1] as any).messages[1].content;
+    expect(prompt).toContain('"Compra no débito - Distribuidora C Carval"');
+    vi.restoreAllMocks();
   });
 });
 
