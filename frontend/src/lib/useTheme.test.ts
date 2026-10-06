@@ -1,65 +1,57 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { avatarStyle } from './useProfile';
 import { resetTheme, useTheme } from './useTheme';
 
 const root = document.documentElement;
 
-function stubMotion({ reduce = false } = {}) {
-  vi.stubGlobal('matchMedia', (query: string) => ({ matches: reduce && query === '(prefers-reduced-motion: reduce)' }));
-}
-
-describe('theme switch transition', () => {
+describe('theme switch', () => {
   beforeEach(() => {
     localStorage.clear();
-    stubMotion();
     resetTheme();
   });
 
   afterEach(() => {
-    vi.unstubAllGlobals();
-    vi.useRealTimers();
     // @ts-expect-error test cleanup of the optional browser API
     delete document.startViewTransition;
-    root.classList.remove('is-theme-fading');
-    root.style.removeProperty('--fr-theme-x');
-    root.style.removeProperty('--fr-theme-y');
-    root.style.removeProperty('--fr-theme-r');
   });
 
-  it('reveals the new theme from the toggle with a view transition when the browser has one', () => {
-    const startViewTransition = vi.fn((update: () => void) => { update(); return {}; });
-    Object.assign(document, { startViewTransition });
-
-    useTheme.getState().toggle({ x: 40, y: 700 });
-
-    expect(startViewTransition).toHaveBeenCalledOnce();
-    expect(root).toHaveAttribute('data-theme', 'dark');
-    expect(root.style.getPropertyValue('--fr-theme-x')).toBe('40px');
-    expect(root.style.getPropertyValue('--fr-theme-y')).toBe('700px');
-    // Far enough to cover the farthest corner of the 1024×768 jsdom window.
-    expect(parseFloat(root.style.getPropertyValue('--fr-theme-r'))).toBeGreaterThanOrEqual(Math.hypot(1024 - 40, 700));
-  });
-
-  it('cross-fades the colors when there is no view transition', () => {
-    vi.useFakeTimers();
-    useTheme.getState().toggle();
-
-    expect(root).toHaveAttribute('data-theme', 'dark');
-    expect(root).toHaveClass('is-theme-fading');
-    vi.runAllTimers();
-    expect(root).not.toHaveClass('is-theme-fading');
-  });
-
-  it('switches at once when the person asks for reduced motion', () => {
-    stubMotion({ reduce: true });
+  it('only flips the root marker; the colors glide in CSS, with no snapshot of the page', () => {
     const startViewTransition = vi.fn();
     Object.assign(document, { startViewTransition });
 
-    useTheme.getState().toggle({ x: 1, y: 1 });
+    useTheme.getState().toggle();
 
-    expect(startViewTransition).not.toHaveBeenCalled();
-    expect(root).not.toHaveClass('is-theme-fading');
     expect(root).toHaveAttribute('data-theme', 'dark');
+    expect(startViewTransition).not.toHaveBeenCalled();
+  });
+});
+
+// The glide: every theme color is a registered <color> custom property, so the root can transition it and every
+// element reading the token follows frame by frame.
+describe('freyr.css theme glide', () => {
+  const css = readFileSync(path.resolve(__dirname, '../styles/freyr.css'), 'utf8');
+  const darkBlock = /:root\[data-theme="dark"\] \{([^}]*)\}/.exec(css)?.[1] ?? '';
+  const colorTokens = [...darkBlock.matchAll(/(--[\w-]+):\s*(#[0-9A-Fa-f]{3,8}|rgba?\([^)]*\))/g)].map(m => m[1]);
+  const rootRule = /\n:root \{([^}]*)\}/.exec(css)?.[1] ?? '';
+  const transitioned = /transition:([^;]*);/.exec(rootRule)?.[1] ?? '';
+
+  it('finds the dark colors', () => {
+    expect(colorTokens.length).toBeGreaterThan(20);
+  });
+
+  it.each(colorTokens)('registers %s as a color', token => {
+    const rule = new RegExp(`@property ${token} \\{[^}]*syntax: '<color>'[^}]*\\}`);
+    expect(css).toMatch(rule);
+  });
+
+  it.each(colorTokens)('transitions %s on the root', token => {
+    expect(transitioned).toMatch(new RegExp(`${token}\\b`));
+  });
+
+  it('drops the circle reveal', () => {
+    expect(css).not.toMatch(/view-transition/);
   });
 });
 

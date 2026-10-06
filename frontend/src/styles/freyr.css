@@ -1,4 +1,33 @@
 /* Freyr design system v2 (artifact "Freyr 2.0"): tokens for the light "Papel" and dark "Fiorde" themes + component styles (.fr-*). */
+/* Theme colors as typed properties, so switching data-theme glides instead of snapping (see the :root transition). */
+@property --background { syntax: '<color>'; inherits: true; initial-value: #F7F6F3; }
+@property --ink { syntax: '<color>'; inherits: true; initial-value: #1E1C1A; }
+@property --ink-muted { syntax: '<color>'; inherits: true; initial-value: #6B6660; }
+@property --surface { syntax: '<color>'; inherits: true; initial-value: #F7F6F3; }
+@property --hero { syntax: '<color>'; inherits: true; initial-value: #2F2E55; }
+@property --on-hero { syntax: '<color>'; inherits: true; initial-value: #F7F6F3; }
+@property --hero-muted { syntax: '<color>'; inherits: true; initial-value: #BDBBD3; }
+@property --frost { syntax: '<color>'; inherits: true; initial-value: #4A90B8; }
+@property --series-a-dim { syntax: '<color>'; inherits: true; initial-value: rgba(91, 90, 150, 0.28); }
+@property --series-b-dim { syntax: '<color>'; inherits: true; initial-value: rgba(74, 144, 184, 0.28); }
+@property --bar-neutral { syntax: '<color>'; inherits: true; initial-value: #1E1C1A; }
+@property --grid { syntax: '<color>'; inherits: true; initial-value: rgba(30, 28, 26, 0.10); }
+@property --line { syntax: '<color>'; inherits: true; initial-value: rgba(30, 28, 26, 0.15); }
+@property --line-strong { syntax: '<color>'; inherits: true; initial-value: rgba(30, 28, 26, 0.45); }
+@property --brand-primary { syntax: '<color>'; inherits: true; initial-value: #5B5A96; }
+@property --brand-primary-hover { syntax: '<color>'; inherits: true; initial-value: #484776; }
+@property --on-brand { syntax: '<color>'; inherits: true; initial-value: #F7F6F3; }
+@property --brand-warm { syntax: '<color>'; inherits: true; initial-value: #C97B3D; }
+@property --brand-warm-deep { syntax: '<color>'; inherits: true; initial-value: #9A5A26; }
+@property --on-warm { syntax: '<color>'; inherits: true; initial-value: #1E1C1A; }
+@property --positive { syntax: '<color>'; inherits: true; initial-value: #3E7A5E; }
+@property --positive-soft { syntax: '<color>'; inherits: true; initial-value: #E2EDE6; }
+@property --positive-deep { syntax: '<color>'; inherits: true; initial-value: #336B51; }
+@property --alert { syntax: '<color>'; inherits: true; initial-value: #B5533C; }
+@property --alert-soft { syntax: '<color>'; inherits: true; initial-value: #F6E4DE; }
+@property --alert-deep { syntax: '<color>'; inherits: true; initial-value: #A0452F; }
+@property --skeleton { syntax: '<color>'; inherits: true; initial-value: rgba(30, 28, 26, 0.08); }
+
 :root {
   --background: #F7F6F3;
   --ink: #1E1C1A;
@@ -45,6 +74,9 @@
   --glow-frost: 0 0 0 rgba(0, 0, 0, 0);
   --font-sans: 'Manrope', ui-sans-serif, system-ui, sans-serif;
   --font-accent: 'Petrona', Georgia, serif;
+  /* Theme glide: the registered colors below interpolate, so every element reading them changes in step. */
+  --theme-glide: 900ms cubic-bezier(.65, 0, .35, 1);
+  transition: --background var(--theme-glide), --ink var(--theme-glide), --ink-muted var(--theme-glide), --surface var(--theme-glide), --hero var(--theme-glide), --on-hero var(--theme-glide), --hero-muted var(--theme-glide), --frost var(--theme-glide), --series-a-dim var(--theme-glide), --series-b-dim var(--theme-glide), --bar-neutral var(--theme-glide), --grid var(--theme-glide), --line var(--theme-glide), --line-strong var(--theme-glide), --brand-primary var(--theme-glide), --brand-primary-hover var(--theme-glide), --on-brand var(--theme-glide), --brand-warm var(--theme-glide), --brand-warm-deep var(--theme-glide), --on-warm var(--theme-glide), --positive var(--theme-glide), --positive-soft var(--theme-glide), --positive-deep var(--theme-glide), --alert var(--theme-glide), --alert-soft var(--theme-glide), --alert-deep var(--theme-glide), --skeleton var(--theme-glide);
 }
 
 /* Dark "Fiorde" theme, switched by ThemeToggle through data-theme on <html>. */
@@ -83,16 +115,6 @@
 }
 :root[data-theme="dark"] body { background: var(--background); color: var(--ink); }
 
-/* Theme switch motion (useTheme): the new theme grows as a circle from the switch; without view transitions the
-   colors cross-fade for a moment. Reduced motion skips both in JS. */
-::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
-::view-transition-new(root) { animation: fr-theme-reveal 560ms cubic-bezier(.65, 0, .35, 1); }
-@keyframes fr-theme-reveal {
-  from { clip-path: circle(0 at var(--fr-theme-x, 50%) var(--fr-theme-y, 50%)); }
-  to { clip-path: circle(var(--fr-theme-r, 150%) at var(--fr-theme-x, 50%) var(--fr-theme-y, 50%)); }
-}
-/* The switch keeps its own transform transitions. */
-.is-theme-fading, .is-theme-fading :not(.fr-theme-toggle, .fr-theme-toggle *), .is-theme-fading :not(.fr-theme-toggle *)::before, .is-theme-fading :not(.fr-theme-toggle *)::after { transition: background-color 400ms ease-out, color 400ms ease-out, border-color 400ms ease-out, fill 400ms ease-out, stroke 400ms ease-out, box-shadow 400ms ease-out !important; }
 
 .fr-num { font-variant-numeric: tabular-nums; }
 .fr-stage { padding: var(--space-6); display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; }

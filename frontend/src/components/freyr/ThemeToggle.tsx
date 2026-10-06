@@ -5,17 +5,17 @@ import { Icon } from './Icon';
 // The orb is the sun (brand-warm, "Colheita") on the light side; switching slides it across the track while the rays
 // fold away and a bite turns it into the moon (brand-primary, "Aurora"). Everything keys off aria-checked.
 const css = `
-.fr-theme-toggle { position: relative; display: block; flex: none; width: 64px; height: 34px; padding: 0; border: var(--border-width) solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface); color: var(--ink-muted); cursor: pointer; transition: background-color 320ms ease-out, border-color 320ms ease-out; }
+.fr-theme-toggle { position: relative; display: block; flex: none; width: 64px; height: 34px; padding: 0; border: var(--border-width) solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface); color: var(--ink-muted); cursor: pointer; transition: border-color 160ms ease-out; }
 .fr-theme-toggle:hover { border-color: var(--ink); }
 .fr-theme-toggle:focus-visible { outline: 2px solid transparent; box-shadow: var(--focus-ring); }
-.fr-theme-mark { position: absolute; top: 50%; margin-top: -7px; opacity: .5; transition: opacity 320ms ease-out; }
+.fr-theme-mark { position: absolute; top: 50%; margin-top: -7px; opacity: .5; transition: opacity var(--theme-glide); }
 .fr-theme-mark.is-sun { left: 8px; }
 .fr-theme-mark.is-moon { right: 8px; }
-.fr-theme-thumb { position: absolute; top: 3px; left: 3px; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--background); box-shadow: 0 0 0 1px var(--line); color: var(--brand-warm); transition: transform 420ms cubic-bezier(.65, 0, .35, 1), color 420ms ease-out, box-shadow 420ms ease-out; }
+.fr-theme-thumb { position: absolute; top: 3px; left: 3px; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--background); box-shadow: 0 0 0 1px var(--line); color: var(--brand-warm); transition: transform var(--theme-glide), color var(--theme-glide), box-shadow var(--theme-glide); }
 .fr-theme-orb { overflow: visible; }
-.fr-theme-core { fill: currentColor; transform-origin: 12px 12px; transition: transform 420ms cubic-bezier(.65, 0, .35, 1); }
-.fr-theme-rays { stroke: currentColor; stroke-width: 2; stroke-linecap: square; transform-origin: 12px 12px; transition: transform 420ms cubic-bezier(.65, 0, .35, 1), opacity 260ms ease-out; }
-.fr-theme-bite { transition: transform 420ms cubic-bezier(.65, 0, .35, 1); }
+.fr-theme-core { fill: currentColor; transform-origin: 12px 12px; transition: transform var(--theme-glide); }
+.fr-theme-rays { stroke: currentColor; stroke-width: 2; stroke-linecap: square; transform-origin: 12px 12px; transition: transform var(--theme-glide), opacity 420ms ease-out; }
+.fr-theme-bite { transition: transform var(--theme-glide); }
 .fr-theme-toggle[aria-checked="true"] .fr-theme-thumb { transform: translateX(30px) rotate(-30deg); color: var(--brand-primary); box-shadow: 0 0 0 1px var(--line), var(--glow-aurora); }
 .fr-theme-toggle[aria-checked="true"] .fr-theme-core { transform: scale(1.55); }
 .fr-theme-toggle[aria-checked="true"] .fr-theme-rays { transform: rotate(90deg) scale(.4); opacity: 0; }
@@ -46,10 +46,7 @@ export function ThemeToggle() {
         aria-label="Tema escuro"
         title={dark ? 'Usar tema claro' : 'Usar tema escuro'}
         className="fr-theme-toggle"
-        onClick={e => {
-          const r = e.currentTarget.getBoundingClientRect();
-          toggle({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
-        }}
+        onClick={toggle}
       >
         <Icon name="sun" size={14} className="fr-theme-mark is-sun" />
         <Icon name="moon" size={14} className="fr-theme-mark is-moon" />
