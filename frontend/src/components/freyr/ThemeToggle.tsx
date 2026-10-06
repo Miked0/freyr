@@ -46,7 +46,10 @@ export function ThemeToggle() {
         aria-label="Tema escuro"
         title={dark ? 'Usar tema claro' : 'Usar tema escuro'}
         className="fr-theme-toggle"
-        onClick={toggle}
+        onClick={e => {
+          const r = e.currentTarget.getBoundingClientRect();
+          toggle({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+        }}
       >
         <Icon name="sun" size={14} className="fr-theme-mark is-sun" />
         <Icon name="moon" size={14} className="fr-theme-mark is-moon" />

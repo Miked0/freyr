@@ -1,4 +1,4 @@
-// Light "Papel" / dark "Noite polar" theme. The same reading runs inline in index.html before the first paint;
+// Light "Papel" / dark "Fiorde" theme. The same reading runs inline in index.html before the first paint;
 // theme.test.ts checks the two agree.
 
 export type Theme = 'light' | 'dark';
@@ -6,7 +6,7 @@ export type Theme = 'light' | 'dark';
 export const THEME_STORAGE_KEY = 'freyr:theme';
 
 /** Browser bar color per theme: the `background` token of each. */
-const THEME_COLOR: Record<Theme, string> = { light: '#F7F6F3', dark: '#0F0F13' };
+const THEME_COLOR: Record<Theme, string> = { light: '#F7F6F3', dark: '#0E1519' };
 
 type ThemeStorage = Pick<Storage, 'getItem' | 'setItem'>;
 type MatchMedia = (query: string) => { matches: boolean };

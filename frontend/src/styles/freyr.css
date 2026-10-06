@@ -1,4 +1,4 @@
-/* Freyr design system v2 (artifact "Freyr 2.0"): tokens for the light "Papel" and dark "Noite polar" themes + component styles (.fr-*). */
+/* Freyr design system v2 (artifact "Freyr 2.0"): tokens for the light "Papel" and dark "Fiorde" themes + component styles (.fr-*). */
 :root {
   --background: #F7F6F3;
   --ink: #1E1C1A;
@@ -19,6 +19,7 @@
   --on-brand: #F7F6F3;
   --brand-warm: #C97B3D;
   --brand-warm-deep: #9A5A26;
+  --on-warm: #1E1C1A;
   --positive: #3E7A5E;
   --positive-soft: #E2EDE6;
   --positive-deep: #336B51;
@@ -46,40 +47,52 @@
   --font-accent: 'Petrona', Georgia, serif;
 }
 
-/* Dark "Noite polar" theme, switched by ThemeToggle through data-theme on <html>. */
+/* Dark "Fiorde" theme, switched by ThemeToggle through data-theme on <html>. */
 :root[data-theme="dark"] {
-  --background: #0F0F13;
-  --ink: #F1EFEA;
-  --ink-muted: #A6A3AE;
-  --surface: #17171D;
-  --hero: #2A2950;
-  --on-hero: #F1EFEA;
-  --hero-muted: #B5B3CC;
-  --frost: #8FD3F5;
-  --series-a-dim: rgba(160, 159, 219, 0.22);
-  --series-b-dim: rgba(143, 211, 245, 0.2);
-  --bar-neutral: #6E6B78;
-  --grid: rgba(241, 239, 234, 0.08);
-  --line: rgba(241, 239, 234, 0.10);
-  --line-strong: rgba(241, 239, 234, 0.45);
-  --brand-primary: #A09FDB;
-  --brand-primary-hover: #B6B5E6;
-  --on-brand: #0F0F13;
-  --brand-warm: #E3A26D;
-  --brand-warm-deep: #E3A26D;
-  --positive: #7DC4A1;
-  --positive-soft: #1A2E25;
-  --positive-deep: #7DC4A1;
-  --alert: #EE917A;
-  --alert-soft: #3A211B;
-  --alert-deep: #EE917A;
-  --skeleton: rgba(241, 239, 234, 0.08);
-  --focus-ring: 0 0 0 2px #17171D, 0 0 0 4px #A09FDB;
-  --glow-aurora: 0 0 28px rgba(160, 159, 219, 0.45);
-  --glow-frost: 0 0 28px rgba(143, 211, 245, 0.4);
+  --background: #0E1519;
+  --ink: #EAF1F4;
+  --ink-muted: #9AABB4;
+  --surface: #152026;
+  --hero: #23485C;
+  --on-hero: #EAF1F4;
+  --hero-muted: #A9C3D0;
+  --frost: #A8E2FA;
+  --series-a-dim: rgba(164, 162, 238, 0.22);
+  --series-b-dim: rgba(168, 226, 250, 0.2);
+  --bar-neutral: #5E7380;
+  --grid: rgba(234, 241, 244, 0.07);
+  --line: rgba(234, 241, 244, 0.10);
+  --line-strong: rgba(234, 241, 244, 0.42);
+  --brand-primary: #A4A2EE;
+  --brand-primary-hover: #BAB9F3;
+  --on-brand: #0E1519;
+  --brand-warm: #E8AE78;
+  --brand-warm-deep: #E8AE78;
+  --on-warm: #0E1519;
+  --positive: #7FCBA6;
+  --positive-soft: #16302A;
+  --positive-deep: #7FCBA6;
+  --alert: #F09A84;
+  --alert-soft: #3A2321;
+  --alert-deep: #F09A84;
+  --skeleton: rgba(234, 241, 244, 0.07);
+  --focus-ring: 0 0 0 2px #152026, 0 0 0 4px #A4A2EE;
+  --glow-aurora: 0 0 24px rgba(164, 162, 238, 0.35);
+  --glow-frost: 0 0 24px rgba(168, 226, 250, 0.32);
   color-scheme: dark;
 }
 :root[data-theme="dark"] body { background: var(--background); color: var(--ink); }
+
+/* Theme switch motion (useTheme): the new theme grows as a circle from the switch; without view transitions the
+   colors cross-fade for a moment. Reduced motion skips both in JS. */
+::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+::view-transition-new(root) { animation: fr-theme-reveal 560ms cubic-bezier(.65, 0, .35, 1); }
+@keyframes fr-theme-reveal {
+  from { clip-path: circle(0 at var(--fr-theme-x, 50%) var(--fr-theme-y, 50%)); }
+  to { clip-path: circle(var(--fr-theme-r, 150%) at var(--fr-theme-x, 50%) var(--fr-theme-y, 50%)); }
+}
+/* The switch keeps its own transform transitions. */
+.is-theme-fading, .is-theme-fading :not(.fr-theme-toggle, .fr-theme-toggle *), .is-theme-fading :not(.fr-theme-toggle *)::before, .is-theme-fading :not(.fr-theme-toggle *)::after { transition: background-color 400ms ease-out, color 400ms ease-out, border-color 400ms ease-out, fill 400ms ease-out, stroke 400ms ease-out, box-shadow 400ms ease-out !important; }
 
 .fr-num { font-variant-numeric: tabular-nums; }
 .fr-stage { padding: var(--space-6); display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; }
@@ -91,8 +104,7 @@
 .fr-btn:disabled { opacity: .45; cursor: not-allowed; }
 .fr-btn-primary { background: var(--brand-primary); color: var(--on-brand); }
 .fr-btn-primary:hover:not(:disabled) { background: var(--brand-primary-hover); }
-.fr-btn-secondary { background: var(--brand-warm); color: var(--ink); }
-[data-theme="dark"] .fr-btn-secondary { color: var(--on-brand); }
+.fr-btn-secondary { background: var(--brand-warm); color: var(--on-warm); }
 .fr-btn-secondary:hover:not(:disabled) { opacity: .85; }
 .fr-btn-outline { background: transparent; color: var(--ink); border-color: var(--ink); }
 .fr-btn-outline:hover:not(:disabled) { background: var(--skeleton); }
