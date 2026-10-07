@@ -130,8 +130,13 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
   });
 
   router.delete('/imports', canClearImports, async (req, res) => {
+    // Without a list every imported file goes; with one, only the files named in it.
+    const files = req.body?.files;
+    if (files !== undefined && (!Array.isArray(files) || !files.every(name => typeof name === 'string'))) {
+      return res.status(400).json({ error: 'Informe os arquivos a apagar.' });
+    }
     try {
-      res.json({ removed: await db.deleteImportedExpensesForUser(req.user!.id) });
+      res.json({ removed: await db.deleteImportedExpensesForUser(req.user!.id, files) });
     } catch (error) {
       res.status(500).json({ error: 'Não foi possível apagar o histórico de arquivos.' });
     }

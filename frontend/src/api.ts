@@ -125,7 +125,8 @@ export const api = {
   listRepeatedImports: () => request<{ expenses: Expense[] }>('/api/expenses/repeated'),
   removeRepeatedImports: (ids: string[]) => request<{ removed: number }>('/api/expenses/repeated/remove', json('POST', { ids })),
   listImportedFiles: () => request<{ files: ImportedFile[] }>('/api/expenses/imports'),
-  clearImportHistory: () => request<{ removed: number }>('/api/expenses/imports', { method: 'DELETE' }),
+  /** Deletes the transactions of the named imported files. */
+  deleteImportedFiles: (files: string[]) => request<{ removed: number }>('/api/expenses/imports', json('DELETE', { files })),
   uploadStatement: (file: File) => {
     const form = new FormData();
     form.append('statement', file);

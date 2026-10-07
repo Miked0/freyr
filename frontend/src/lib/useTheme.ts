@@ -14,6 +14,7 @@ const systemMedia = (query: string) => window.matchMedia(query);
 interface ThemeState {
   theme: Theme;
   toggle: () => void;
+  set: (theme: Theme) => void;
 }
 
 function initialTheme(): Theme {
@@ -26,8 +27,8 @@ function initialTheme(): Theme {
 export const useTheme = create<ThemeState>((set, get) => ({
   theme: initialTheme(),
   // The colors glide by themselves: freyr.css transitions the theme tokens on :root.
-  toggle: () => {
-    const next: Theme = get().theme === 'dark' ? 'light' : 'dark';
+  toggle: () => get().set(get().theme === 'dark' ? 'light' : 'dark'),
+  set: next => {
     saveTheme(next, storage());
     applyTheme(next, document);
     set({ theme: next });

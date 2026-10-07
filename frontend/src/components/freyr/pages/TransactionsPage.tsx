@@ -5,7 +5,6 @@ import { BentoCard } from '../BentoCard';
 import { csvExporter } from './exportCsv';
 import { RepeatedImportsCard } from './RepeatedImportsCard';
 import { RecategorizeCard } from './RecategorizeCard';
-import { ImportHistoryCard } from './ImportHistoryCard';
 
 export function TransactionsPage() {
   const { expenses } = useExpenses();
@@ -15,7 +14,6 @@ export function TransactionsPage() {
       <div className="fr-bento">
         <RepeatedImportsCard />
         <RecategorizeCard />
-        <ImportHistoryCard />
         <BentoCard span={12}>
           <TransactionList />
         </BentoCard>
