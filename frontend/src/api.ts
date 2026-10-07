@@ -10,6 +10,19 @@ export interface Category {
   parent_id: string | null;
 }
 
+/** A category as /api/categories lists it; custom ones are those the user created. */
+export interface AccountCategory {
+  id: string;
+  name: string;
+  is_custom: boolean;
+}
+
+export interface CategoryCatalog {
+  categories: AccountCategory[];
+  /** How many custom categories the account may have. */
+  custom_limit: number;
+}
+
 export interface User {
   id: string;
   username: string;
@@ -104,6 +117,9 @@ export const api = {
   listRecategorizations: () => request<{ suggestions: Recategorization[] }>('/api/expenses/recategorize'),
   applyRecategorizations: (ids: string[]) => request<{ updated: number }>('/api/expenses/recategorize', json('POST', { ids })),
   listCategories: () => request<Category[]>('/api/expenses/categories/all'),
+  getCategoryCatalog: () => request<CategoryCatalog>('/api/categories'),
+  createCategory: (name: string) => request<AccountCategory>('/api/categories', json('POST', { name })),
+  deleteCategory: (id: string) => request<{ message: string }>(`/api/categories/${id}`, { method: 'DELETE' }),
   updateExpense: (id: string, patch: ExpensePatch) => request<void>(`/api/expenses/${id}`, json('PUT', patch)),
   deleteExpense: (id: string) => request<void>(`/api/expenses/${id}`, { method: 'DELETE' }),
   listRepeatedImports: () => request<{ expenses: Expense[] }>('/api/expenses/repeated'),

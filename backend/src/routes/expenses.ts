@@ -257,6 +257,13 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
       if (!currentExpense) {
         return res.status(404).json({ error: 'Transação não encontrada.' });
       }
+      // Only the account's own categories: a free-typed one would get around the custom category limit.
+      const target = updates.category !== undefined && updates.category !== currentExpense.category
+        ? (await db.getAllCategoriesForUser(userId)).find(c => c.name === updates.category)
+        : undefined;
+      if (updates.category !== undefined && updates.category !== currentExpense.category && !target) {
+        return res.status(400).json({ error: 'Escolha uma das suas categorias.' });
+      }
       if ((updates.type ?? currentExpense.type) === 'income' && (updates.amount ?? currentExpense.amount) < 0) {
         return res.status(400).json({ error: 'Uma entrada precisa ter valor maior que zero.' });
       }
@@ -273,6 +280,7 @@ export function createExpensesRouter({ db, ai, fileProcessor }: ExpensesRouterDe
           original_category: currentExpense.category,
           corrected_category: category
         });
+        if (target?.is_custom) await db.recordCategorySignalForUser(userId, currentExpense.description, category);
       }
 
       res.json({ message: 'Transação atualizada.' });
