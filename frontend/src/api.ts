@@ -59,6 +59,11 @@ export interface ImportedFile {
   name: string;
   /** How many of the file's transactions are still saved. */
   transactions: number;
+  /** First and last transaction dates (YYYY-MM-DD). */
+  from: string;
+  to: string;
+  /** Day the file was first imported (YYYY-MM-DD), when known. */
+  importedAt: string | null;
 }
 
 export type ProfilePatch = Partial<Pick<Profile, 'display_name' | 'avatar_color' | 'monthly_budget' | 'invested_balance'>>;
@@ -125,8 +130,8 @@ export const api = {
   listRepeatedImports: () => request<{ expenses: Expense[] }>('/api/expenses/repeated'),
   removeRepeatedImports: (ids: string[]) => request<{ removed: number }>('/api/expenses/repeated/remove', json('POST', { ids })),
   listImportedFiles: () => request<{ files: ImportedFile[] }>('/api/expenses/imports'),
-  /** Deletes the transactions of the named imported files. */
-  deleteImportedFiles: (files: string[]) => request<{ removed: number }>('/api/expenses/imports', json('DELETE', { files })),
+  /** Deletes the imported transactions with these ids; entries typed by hand are never touched. Survives a page close. */
+  deleteImported: (ids: string[]) => request<{ removed: number }>('/api/expenses/imports', { ...json('DELETE', { ids }), keepalive: true }),
   uploadStatement: (file: File) => {
     const form = new FormData();
     form.append('statement', file);

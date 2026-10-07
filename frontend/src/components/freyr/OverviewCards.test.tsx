@@ -168,6 +168,6 @@ describe('OverviewCards with the invested amount the user told', () => {
   it('asks for it in the profile when the user has not told it', () => {
     render(<OverviewCards />);
 
-    expect(within(card('Saldo total')).getByRole('link', { name: 'Informe quanto você tem investido' })).toHaveAttribute('href', '#/perfil');
+    expect(within(card('Saldo total')).getByRole('link', { name: 'Informe quanto você tem investido' })).toHaveAttribute('href', '#/configuracoes');
   });
 });

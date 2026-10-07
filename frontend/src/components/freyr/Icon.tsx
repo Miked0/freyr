@@ -20,6 +20,13 @@ const ICONS = {
   accounts: 'M3 9l9-6 9 6M5 9v9M10 9v9M14 9v9M19 9v9M3 21h18',
   sun: 'M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8zM12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1',
   moon: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+  shield: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM9 12l2 2 4-4',
+  user: 'M8 7h8v8H8zM4 21l3-4h10l3 4',
+  trash: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6',
+  palette: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 16h7M16.5 13v7',
+  warning: 'M12 3l10 18H2zM12 10v5M12 17.5v1',
+  file: 'M6 3h9l4 4v14H6zM15 3v4h4',
+  close: 'M6 6l12 12M18 6L6 18',
 } as const;
 
 export type IconName = keyof typeof ICONS;

@@ -2,6 +2,8 @@
 // theme.test.ts checks the two agree.
 
 export type Theme = 'light' | 'dark';
+/** What the person picked: a theme, or "auto" to follow the system. */
+export type ThemePreference = Theme | 'auto';
 
 export const THEME_STORAGE_KEY = 'freyr:theme';
 
@@ -27,6 +29,27 @@ export function saveTheme(theme: Theme, storage: ThemeStorage | undefined): void
     storage?.setItem(THEME_STORAGE_KEY, theme);
   } catch {
     // Not saved; the theme still applies for this visit.
+  }
+}
+
+/** The saved choice, or "auto" when none is saved (the theme then follows the system). */
+export function readPreference(storage: ThemeStorage | undefined): ThemePreference {
+  try {
+    const saved = storage?.getItem(THEME_STORAGE_KEY);
+    if (saved === 'light' || saved === 'dark') return saved;
+  } catch {
+    // Storage blocked: nothing was saved.
+  }
+  return 'auto';
+}
+
+/** "auto" forgets the saved theme, which is how index.html and readTheme fall back to the system. */
+export function savePreference(preference: ThemePreference, storage: (ThemeStorage & Pick<Storage, 'removeItem'>) | undefined): void {
+  if (preference !== 'auto') return saveTheme(preference, storage);
+  try {
+    storage?.removeItem(THEME_STORAGE_KEY);
+  } catch {
+    // Not forgotten; the system theme still applies for this visit.
   }
 }
 

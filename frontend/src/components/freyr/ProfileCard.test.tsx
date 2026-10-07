@@ -23,7 +23,7 @@ describe('ProfileCard', () => {
     render(<ProfileCard />);
 
     const link = await screen.findByRole('link', { name: /Ana Souza/ });
-    expect(link).toHaveAttribute('href', '#/perfil');
+    expect(link).toHaveAttribute('href', '#/configuracoes');
     expect(link).toHaveAccessibleName(/editar perfil/i);
     expect(screen.getByText('@ana')).toBeInTheDocument();
 
@@ -70,6 +70,6 @@ describe('ProfileCard', () => {
     stubProfile(() => new Response(JSON.stringify({ error: 'Erro ao carregar o perfil.' }), { status: 500 }));
     render(<ProfileCard />);
 
-    expect(await screen.findByRole('link', { name: /seu perfil/i })).toHaveAttribute('href', '#/perfil');
+    expect(await screen.findByRole('link', { name: /seu perfil/i })).toHaveAttribute('href', '#/configuracoes');
   });
 });

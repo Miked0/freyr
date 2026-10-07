@@ -61,4 +61,13 @@ describe('LoginScreen', () => {
     const { container } = render(<LoginScreen onSuccess={() => {}} />);
     expect(container.querySelector('.fr-sky-layer')).toHaveAttribute('aria-hidden', 'true');
   });
+
+  it('greets in a glass panel that changes with the tab', () => {
+    render(<LoginScreen onSuccess={() => {}} />);
+
+    const form = screen.getByRole('form', { name: 'Bom te ver de volta' });
+    expect(form).toHaveClass('fr-glass');
+    fireEvent.click(screen.getByRole('button', { name: 'Criar conta' }));
+    expect(screen.getByRole('form', { name: 'Crie sua conta' })).toBeInTheDocument();
+  });
 });

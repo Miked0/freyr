@@ -1,13 +1,14 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { applyTheme, readTheme, saveTheme, THEME_STORAGE_KEY, type Theme } from './theme';
+import { applyTheme, readPreference, readTheme, savePreference, saveTheme, THEME_STORAGE_KEY, type Theme } from './theme';
 
 function memoryStorage(initial: Record<string, string> = {}) {
   const data = new Map(Object.entries(initial));
   return {
     getItem: (k: string) => data.get(k) ?? null,
     setItem: (k: string, v: string) => void data.set(k, v),
+    removeItem: (k: string) => void data.delete(k),
     data,
   };
 }
@@ -120,5 +121,21 @@ describe('index.html anti-flash script', () => {
         expect(runOnLoad(saved, osDark), `saved=${saved} osDark=${osDark}`).toBe(expected);
       }
     }
+  });
+});
+
+describe('theme preference', () => {
+  it('is automatic until the user picks a theme', () => {
+    expect(readPreference(memoryStorage())).toBe('auto');
+    expect(readPreference(undefined)).toBe('auto');
+    expect(readPreference(memoryStorage({ [THEME_STORAGE_KEY]: 'dark' }))).toBe('dark');
+  });
+
+  it('forgets the stored theme when set back to automatic', () => {
+    const storage = memoryStorage();
+    savePreference('light', storage);
+    expect(storage.data.get(THEME_STORAGE_KEY)).toBe('light');
+    savePreference('auto', storage);
+    expect(storage.data.has(THEME_STORAGE_KEY)).toBe(false);
   });
 });

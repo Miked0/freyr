@@ -24,6 +24,7 @@ export function FreyrSideNav({ transactionCount, route, onLogout }: FreyrSideNav
             { icon: 'goals', label: 'Metas', ...item('goals') },
           ],
         },
+        { title: 'Conta', items: [{ icon: 'settings', label: 'Configurações', ...item('settings') }] },
       ]}
       footer={
         <div className="fr-side-foot mt-auto">

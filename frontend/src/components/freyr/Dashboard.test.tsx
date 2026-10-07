@@ -10,7 +10,7 @@ vi.mock('./ProfileCard', () => ({
     <div data-testid="profile-card">{onLogout ? <button type="button" onClick={onLogout}>Sair</button> : null}</div>
   ),
 }));
-vi.mock('./pages/ProfilePage', () => ({ ProfilePage: () => <h1>Página de perfil</h1> }));
+vi.mock('./pages/SettingsPage', () => ({ SettingsPage: () => <h1>Página de configurações</h1> }));
 vi.mock('./pages/GoalsPage', () => ({ GoalsPage: () => <h1>Página de metas</h1> }));
 vi.mock('./GoalsCard', () => ({ GoalsCard: () => null }));
 
@@ -64,9 +64,12 @@ describe('Dashboard', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Página de metas' })).toBeInTheDocument();
     expect(current()).toHaveTextContent('Metas');
 
+    go('#/configuracoes');
+    expect(screen.getByRole('heading', { level: 1, name: 'Página de configurações' })).toBeInTheDocument();
+    expect(current()).toHaveTextContent('Configurações');
+
     go('#/perfil');
-    expect(screen.getByRole('heading', { level: 1, name: 'Página de perfil' })).toBeInTheDocument();
-    expect(current()).toBeNull();
+    expect(screen.getByRole('heading', { level: 1, name: 'Página de configurações' })).toBeInTheDocument();
 
     go('#/nada');
     expect(screen.getByRole('heading', { level: 1, name: 'Seu dinheiro hoje' })).toBeInTheDocument();

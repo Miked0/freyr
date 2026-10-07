@@ -2,7 +2,7 @@ import type { ButtonHTMLAttributes } from 'react';
 import { cx } from './format';
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline';
+  variant?: 'primary' | 'secondary' | 'outline' | 'danger';
 }
 
 export function Button({ variant = 'primary', className, type = 'button', ...rest }: ButtonProps) {

@@ -3,6 +3,7 @@ import { AlertCircle, Lock, User, Eye, EyeOff, ShieldCheck, X, FileText, Tags, S
 import PillButton from '@/components/ui/PillButton';
 import Spinner from '@/components/ui/Spinner';
 import { Wordmark } from '@/components/freyr/Wordmark';
+import { SkyPeak } from '@/components/freyr/SkyPeak';
 import { api } from '@/api';
 import { legalHref } from '@/legal/content';
 
@@ -120,6 +121,8 @@ export default function LoginScreenV2({ onSuccess }: { onSuccess: () => void }) 
   return (
     <main className="on-text fr-sky bg-text text-surface min-h-screen flex flex-col">
       <div className="fr-sky-layer" aria-hidden="true" />
+      <SkyPeak />
+      <div className="fr-glass-orb" aria-hidden="true" />
       <div className="max-w-[1240px] w-full mx-auto px-5 sm:px-10 py-6">
         <Wordmark size={26} />
       </div>
@@ -129,7 +132,11 @@ export default function LoginScreenV2({ onSuccess }: { onSuccess: () => void }) 
           <h1 className="display text-[44px] sm:text-[64px] lg:self-end">
             Envie o extrato.<br /> O Freyr <span className="keyword">organiza o resto</span>.
           </h1>
-          <form onSubmit={submit} className="lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:self-center max-w-md w-full">
+          <form onSubmit={submit} aria-labelledby="login-greet" className="fr-glass lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:self-center max-w-md w-full">
+            <div className="mb-6">
+              <h2 id="login-greet" className="text-[22px] leading-7 font-semibold tracking-[-0.02em]">{isRegister ? 'Crie sua conta' : 'Bom te ver de volta'}</h2>
+              <p className="mt-1 text-sm text-on-text-muted">{isRegister ? 'Leva menos de um minuto.' : 'Entre para ver como o mês está indo.'}</p>
+            </div>
             {/* A bordered track around both options, so the unselected one still reads as a button (WCAG 1.4.11). */}
             <div role="group" aria-label="Entrar ou criar conta" className="flex gap-1 p-1 mb-6 rounded-full border border-on-text-control">
               {([false, true] as const).map(register => {

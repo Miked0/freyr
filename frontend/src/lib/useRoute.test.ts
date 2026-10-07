@@ -14,7 +14,8 @@ describe('routeFromHash', () => {
     ['#/', 'overview'],
     ['#/transacoes', 'transactions'],
     ['#/categorias', 'categories'],
-    ['#/perfil', 'profile'],
+    ['#/configuracoes', 'settings'],
+    ['#/perfil', 'settings'],
     ['#/perfil/configuracoes', 'settings'],
     ['#/metas', 'goals'],
     ['#/nao-existe', 'overview'],
@@ -34,8 +35,7 @@ describe('routeHref', () => {
     expect(routeHref('overview')).toBe('#/');
     expect(routeHref('transactions')).toBe('#/transacoes');
     expect(routeHref('categories')).toBe('#/categorias');
-    expect(routeHref('profile')).toBe('#/perfil');
-    expect(routeHref('settings')).toBe('#/perfil/configuracoes');
+    expect(routeHref('settings')).toBe('#/configuracoes');
   });
 });
 
@@ -67,8 +67,8 @@ describe('useRoute', () => {
 
   it('navigates by writing the hash', () => {
     const { result } = renderHook(() => useRoute());
-    act(() => result.current.navigate('profile'));
-    expect(window.location.hash).toBe('#/perfil');
-    expect(result.current.route).toBe('profile');
+    act(() => result.current.navigate('settings'));
+    expect(window.location.hash).toBe('#/configuracoes');
+    expect(result.current.route).toBe('settings');
   });
 });

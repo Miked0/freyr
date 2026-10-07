@@ -242,13 +242,65 @@
 .fr-sky-layer { --glow-a: var(--color-sky-aurora); --glow-b: var(--color-sky-frost); --ridge: var(--color-sky-ridge); }
 .fr-main, .fr-sky > :not(.fr-sky-layer) { position: relative; z-index: 1; }
 
+/* Sign-in glass (design system 2.3): the form sits on a frosted panel over the sky, with an aurora and fjord orb
+   drifting behind it and the rune mountain at the foot of the page. */
+.fr-sky {
+  --glass-fill: rgb(247 246 243 / 0.07);
+  --glass-border: rgb(247 246 243 / 0.18);
+  --glass-highlight: rgb(255 255 255 / 0.14);
+  --glass-input: rgb(14 13 12 / 0.32);
+  --glass-orb-a: rgb(164 162 238 / 0.55);
+  --glass-orb-b: rgb(80 170 200 / 0.4);
+  --glass-shadow: 0 24px 60px rgb(5 9 11 / 0.45), inset 0 1px 0 rgb(255 255 255 / 0.14);
+  --glass-blur: 24px;
+  --radius-glass: 20px;
+  --sky-peak: #272523;
+  --sky-peak-far: #22201E;
+  --sky-peak-edge: rgb(185 184 230 / 0.32);
+  --sky-rune: rgb(185 184 230 / 0.42);
+  --glow-rune: 0 0 12px rgb(164 162 238 / 0.3);
+}
+.fr-sky { position: relative; overflow: hidden; }
+.fr-sky > .fr-peak, .fr-sky > .fr-glass-orb { position: absolute; z-index: 0; }
+.fr-glass {
+  position: relative; isolation: isolate; padding: 2rem;
+  border: 1px solid var(--glass-border); border-radius: var(--radius-glass);
+  background: var(--glass-fill); box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+}
+.fr-glass::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(160deg, var(--glass-highlight), transparent 38%);
+}
+.fr-glass input { background: var(--glass-input); }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .fr-glass { background: rgb(30 28 26 / 0.88); } }
+.fr-glass-orb {
+  right: 6%; top: 18%; width: 520px; height: 420px; pointer-events: none;
+  background:
+    radial-gradient(closest-side at 38% 40%, var(--glass-orb-a), transparent 70%),
+    radial-gradient(closest-side at 70% 68%, var(--glass-orb-b), transparent 72%);
+  filter: blur(8px);
+  animation: fr-drift 48s ease-in-out infinite alternate;
+}
+.fr-peak { right: 0; bottom: 0; width: min(100%, 900px); height: auto; pointer-events: none; }
+.fr-peak-far { fill: var(--sky-peak-far); }
+.fr-peak-near { fill: var(--sky-peak); }
+.fr-peak-edge { fill: none; stroke: var(--sky-peak-edge); stroke-width: 1.5; stroke-linejoin: miter; vector-effect: non-scaling-stroke; }
+.fr-peak-rune { fill: none; stroke: var(--sky-rune); stroke-width: 9; stroke-linecap: square; filter: drop-shadow(var(--glow-rune)); }
+@media (max-width: 860px) {
+  .fr-glass { padding: 1.5rem; }
+  .fr-glass-orb { right: -30%; top: 45%; }
+  .fr-peak { width: 140%; right: -20%; opacity: .8; }
+}
+
 @keyframes fr-drift {
   from { transform: translate3d(0, 0, 0) scale(1); }
   to { transform: translate3d(-3%, 2%, 0) scale(1.06); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fr-backdrop::before, .fr-sky-layer::before { animation: none; }
+  .fr-backdrop::before, .fr-sky-layer::before, .fr-glass-orb { animation: none; }
 }
 
 /* Fiorde for the Tailwind tokens. The transactions, goals and profile pages (and the confirm dialog, drawn

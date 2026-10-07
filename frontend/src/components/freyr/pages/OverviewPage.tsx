@@ -10,6 +10,7 @@ import { GoalsCard } from '../GoalsCard';
 import { RecentTransactionsCard } from '../RecentTransactionsCard';
 import { SpendingCard } from '../SpendingCard';
 import { csvExporter } from './exportCsv';
+import { currentMonthKey, readDashboardPeriod } from '@/lib/dashboardPeriod';
 
 export interface OverviewPageProps {
   /** Called after a statement is imported with at least one entry. */
@@ -27,7 +28,8 @@ export function OverviewPage({ onImported }: OverviewPageProps) {
     ],
     [expenses],
   );
-  const [picked, setPicked] = useState(LAST_30_DAYS);
+  // Opens on what Configurações > Finanças asks for; the current month falls back to 30 days until it has entries.
+  const [picked, setPicked] = useState(() => (readDashboardPeriod() === 'month' ? currentMonthKey() : LAST_30_DAYS));
   const period = periods.some(p => p.key === picked) ? picked : LAST_30_DAYS;
   const summary = useMemo(() => periodSummary(expenses, period), [expenses, period]);
   const phrase = !summary

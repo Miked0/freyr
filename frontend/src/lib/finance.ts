@@ -5,6 +5,8 @@ export interface Expense {
   description: string;
   category: string;
   type: 'income' | 'expense';
+  /** Name of the statement it came from; absent for entries typed by hand. */
+  source_file?: string | null;
 }
 
 /** Applying or redeeming investments moves the user's own money: it is neither spending nor income. */

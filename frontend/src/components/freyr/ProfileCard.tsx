@@ -69,7 +69,7 @@ export function ProfileCard({ onLogout }: ProfileCardProps) {
       <ProfileStyles />
       {status === 'unavailable' ? null : (
         <a
-          href={routeHref('profile')}
+          href={routeHref('settings')}
           className="fr-profile-link"
           title="Editar perfil"
           aria-busy={status === 'loading' || status === 'idle' ? true : undefined}

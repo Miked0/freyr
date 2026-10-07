@@ -63,7 +63,7 @@ export function OverviewCards({ period }: { period?: string }) {
             { label: 'Disponível', value: available, tone: 'a' },
             { label: 'Investido', value: invested, tone: 'b' },
           ],
-          link: told ? undefined : { label: 'Informe quanto você tem investido', href: '#/perfil' },
+          link: told ? undefined : { label: 'Informe quanto você tem investido', href: '#/configuracoes' },
         }}
         actionLabel="Ver transações" href="#transacoes" />
       <SummaryCard span={4} icon="expense" label="Saídas" sublabel={sublabel} invert

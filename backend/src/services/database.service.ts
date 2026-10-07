@@ -46,6 +46,17 @@ export interface Profile {
 
 export type ProfileUpdate = Partial<Pick<Profile, 'display_name' | 'avatar_color' | 'monthly_budget' | 'invested_balance'>>;
 
+export interface ImportedFileSummary {
+  name: string;
+  /** How many of the file's transactions are still saved. */
+  transactions: number;
+  /** First and last transaction dates (YYYY-MM-DD). */
+  from: string;
+  to: string;
+  /** Day the file was first imported (YYYY-MM-DD), when known. */
+  importedAt: string | null;
+}
+
 interface ExpenseRow {
   id: string;
   user_id: string;
@@ -513,30 +524,49 @@ export class DatabaseService {
     return doomed.length;
   }
 
-  /** The files the user imported, with how many of their transactions are still saved. */
-  async getImportedFilesForUser(userId: string): Promise<{ name: string; transactions: number }[]> {
-    const rows = await this.all<ExpenseRow>('SELECT * FROM expenses WHERE user_id = ? AND source_file IS NOT NULL', [userId]);
+  /**
+   * The files the user imported, with how many of their transactions are still saved, the dates those
+   * transactions span and the day the file first arrived.
+   */
+  async getImportedFilesForUser(userId: string): Promise<ImportedFileSummary[]> {
+    const rows = await this.all<ExpenseRow & { created_at: string | null }>('SELECT * FROM expenses WHERE user_id = ? AND source_file IS NOT NULL', [userId]);
     const key = await this.userKey(userId);
-    // Each file name is sealed with its own nonce, so they are counted opened.
-    const counts = new Map<string, number>();
+    // Each file name is sealed with its own nonce, so they are grouped opened.
+    const files = new Map<string, ImportedFileSummary>();
     for (const row of rows) {
       const name = this.openExpense(key, row).source_file!;
-      counts.set(name, (counts.get(name) ?? 0) + 1);
+      const importedAt = row.created_at ? row.created_at.slice(0, 10) : null;
+      const file = files.get(name);
+      if (!file) {
+        files.set(name, { name, transactions: 1, from: row.date, to: row.date, importedAt });
+        continue;
+      }
+      file.transactions++;
+      if (row.date < file.from) file.from = row.date;
+      if (row.date > file.to) file.to = row.date;
+      if (importedAt && (!file.importedAt || importedAt < file.importedAt)) file.importedAt = importedAt;
     }
-    return [...counts].map(([name, transactions]) => ({ name, transactions })).sort((a, b) => a.name.localeCompare(b.name));
+    return [...files.values()].sort((a, b) => a.name.localeCompare(b.name));
   }
 
   /**
-   * Deletes the transactions that came from imported files: only those of the named files when `files` is given,
-   * every imported one otherwise. Returns how many went.
+   * Deletes transactions that came from imported files: those of the named files, those with the given ids,
+   * or every imported one when neither is given. Entries typed by hand are never touched. Returns how many went.
    */
-  async deleteImportedExpensesForUser(userId: string, files?: string[]): Promise<number> {
-    if (!files) return this.run('DELETE FROM expenses WHERE user_id = ? AND source_file IS NOT NULL', [userId]);
-    const chosen = new Set(files);
+  async deleteImportedExpensesForUser(userId: string, choice: { files?: string[]; ids?: string[] } = {}): Promise<number> {
+    if (!choice.files && !choice.ids) return this.run('DELETE FROM expenses WHERE user_id = ? AND source_file IS NOT NULL', [userId]);
     const rows = await this.all<ExpenseRow>('SELECT * FROM expenses WHERE user_id = ? AND source_file IS NOT NULL', [userId]);
-    const key = await this.userKey(userId);
-    // File names are sealed with their own nonce, so they are compared opened.
-    const doomed = rows.filter(row => chosen.has(this.openExpense(key, row).source_file!));
+    let doomed = rows;
+    if (choice.ids) {
+      const ids = new Set(choice.ids);
+      doomed = doomed.filter(row => ids.has(row.id));
+    }
+    if (choice.files) {
+      const chosen = new Set(choice.files);
+      const key = await this.userKey(userId);
+      // File names are sealed with their own nonce, so they are compared opened.
+      doomed = doomed.filter(row => chosen.has(this.openExpense(key, row).source_file!));
+    }
     if (doomed.length === 0) return 0;
     await this.client.batch(
       doomed.map(row => ({ sql: 'DELETE FROM expenses WHERE user_id = ? AND id = ?', args: [userId, row.id] })),

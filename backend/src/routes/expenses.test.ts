@@ -451,8 +451,8 @@ describe('/api/expenses/imports', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.files).toEqual([
-      { name: 'extrato-set.csv', transactions: 2 },
-      { name: 'fatura.pdf', transactions: 1 },
+      { name: 'extrato-set.csv', transactions: 2, from: '2026-09-10', to: '2026-09-10', importedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) },
+      { name: 'fatura.pdf', transactions: 1, from: '2026-09-10', to: '2026-09-10', importedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) },
     ]);
   });
 
@@ -484,7 +484,30 @@ describe('/api/expenses/imports', () => {
     expect(res.body.removed).toBe(2);
     const left = await request(app).get('/api/expenses').set('Cookie', mike);
     expect(left.body.map((e: any) => e.id).sort()).toEqual([uber, manual].sort());
-    expect((await history(mike)).body.files).toEqual([{ name: 'fatura.pdf', transactions: 1 }]);
+    expect((await history(mike)).body.files).toMatchObject([{ name: 'fatura.pdf', transactions: 1 }]);
+  });
+
+  it('deletes the imported transactions with the given ids and never one typed by hand', async () => {
+    const mike = await login('Mike');
+    const mercado = await save('Mike', 'MERCADO', 'extrato-set.csv');
+    const padaria = await save('Mike', 'PADARIA', 'extrato-set.csv');
+    const manual = await save('Mike', 'ALUGUEL');
+
+    const res = await request(app).delete('/api/expenses/imports').set('Cookie', mike).send({ ids: [mercado, manual] });
+
+    expect(res.body.removed).toBe(1);
+    const left = await request(app).get('/api/expenses').set('Cookie', mike);
+    expect(left.body.map((e: any) => e.id).sort()).toEqual([padaria, manual].sort());
+  });
+
+  it('spans each file from its first to its last transaction', async () => {
+    const mike = await login('Mike');
+    const user = (await db.getUserByUsername('Mike'))!.id;
+    for (const date of ['2026-08-03', '2026-09-28', '2026-08-20']) {
+      await db.createExpenseForUser(user, { id: randomUUID(), date, amount: 10, description: 'X', category: 'Outros', type: 'expense', sourceFile: 'extrato.csv' });
+    }
+
+    expect((await history(mike)).body.files).toMatchObject([{ name: 'extrato.csv', transactions: 3, from: '2026-08-03', to: '2026-09-28' }]);
   });
 
   it('deletes nothing when the chosen list is empty', async () => {

@@ -1,22 +1,24 @@
 import { useCallback, useEffect, useState } from 'react';
 import { legalDocFromHash } from '../legal/content';
 
-export type Route = 'overview' | 'transactions' | 'categories' | 'goals' | 'profile' | 'settings';
+export type Route = 'overview' | 'transactions' | 'categories' | 'goals' | 'settings';
 
 const paths: Record<Route, string> = {
   overview: '',
   transactions: 'transacoes',
   categories: 'categorias',
   goals: 'metas',
-  profile: 'perfil',
-  settings: 'perfil/configuracoes',
+  settings: 'configuracoes',
 };
+
+// The profile became the first section of the settings; its old links land there.
+const aliases: Record<string, Route> = { perfil: 'settings', 'perfil/configuracoes': 'settings' };
 
 /** Maps a location hash to a page. Accepts "#/transacoes" and the older "#transacoes"; anything unknown is the overview. */
 export function routeFromHash(hash: string): Route {
   const path = hash.replace(/^#\/?/, '');
   const match = (Object.keys(paths) as Route[]).find(r => paths[r] === path);
-  return match ?? 'overview';
+  return match ?? aliases[path] ?? 'overview';
 }
 
 export function routeHref(route: Route): string {

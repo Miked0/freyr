@@ -16,7 +16,8 @@ describe('FreyrSideNav', () => {
     expect(screen.getByRole('link', { name: /^Transações\s*142/ })).toHaveAttribute('href', '#/transacoes');
     expect(screen.getByRole('link', { name: 'Categorias' })).toHaveAttribute('href', '#/categorias');
     expect(screen.getByRole('link', { name: 'Metas' })).toHaveAttribute('href', '#/metas');
-    expect(screen.getAllByRole('link')).toHaveLength(4);
+    expect(screen.getByRole('link', { name: 'Configurações' })).toHaveAttribute('href', '#/configuracoes');
+    expect(screen.getAllByRole('link')).toHaveLength(5);
   });
 
   it('no longer offers an "Importar" item', () => {
@@ -29,20 +30,16 @@ describe('FreyrSideNav', () => {
     ['transactions', /^Transações/],
     ['categories', 'Categorias'],
     ['goals', 'Metas'],
+    ['settings', 'Configurações'],
   ] as const)('marks the %s item as the current page', (route, name) => {
     render(<FreyrSideNav transactionCount={3} route={route} />);
     const current = screen.getAllByRole('link').filter(a => a.getAttribute('aria-current') === 'page');
     expect(current).toEqual([screen.getByRole('link', { name })]);
   });
 
-  it('marks no item on the profile page', () => {
-    render(<FreyrSideNav transactionCount={3} route="profile" />);
-    expect(document.querySelector('[aria-current]')).toBeNull();
-  });
-
   it('does not offer pages that do not exist yet', () => {
     render(<FreyrSideNav transactionCount={0} route="overview" />);
-    for (const label of ['Orçamentos', 'Relatórios', 'Configurações', 'Contas', 'Planejamento']) {
+    for (const label of ['Orçamentos', 'Relatórios', 'Contas', 'Planejamento']) {
       expect(screen.queryByText(label)).not.toBeInTheDocument();
     }
     expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
