@@ -7,6 +7,7 @@ import { createKeyring, type Keyring, type UserKey } from './data-crypto';
 import { isBalanceLine } from './balance-line';
 import { findRepeatedImports } from './repeated-imports';
 import { suggestRecategorizations } from './recategorize';
+import { storePattern } from './category-signals';
 import { GOALS_SCHEMA, createGoalsStore, type GoalsStore } from './goals';
 
 export interface DatabaseConfig {
@@ -76,6 +77,9 @@ interface CorrectionRow {
   corrected_category: string;
   corrected_at: string;
 }
+
+/** A category name as two names are compared: no case, no accents, single spaces. */
+const foldName = (name: string) => name.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/\s+/g, ' ').trim();
 
 function toObjects<T>(rs: ResultSet): T[] {
   return rs.rows.map(row => Object.fromEntries(rs.columns.map((column, i) => [column, row[i]]))) as T[];
@@ -297,7 +301,7 @@ export class DatabaseService {
   async deleteUser(userId: string): Promise<void> {
     // Explicit deletes: the foreign-key cascade depends on a per-connection pragma.
     await this.client.batch(
-      ['goals', 'category_corrections', 'categories', 'expenses'].map(table => ({
+      ['goals', 'category_signals', 'category_corrections', 'categories', 'expenses'].map(table => ({
         sql: `DELETE FROM ${table} WHERE user_id = ?`,
         args: [userId],
       })).concat([{ sql: 'DELETE FROM users WHERE id = ?', args: [userId] }]),
@@ -360,6 +364,59 @@ export class DatabaseService {
       { id, user_id: userId, name, is_custom: isCustom ? 1 : 0, parent_id: parentId ?? null }
     );
     return id;
+  }
+
+  /**
+   * Adds a category the user named, unless they already have one by that name (ignoring case and accents)
+   * or already created `limit` of their own.
+   */
+  async createCustomCategoryForUser(userId: string, name: string, limit: number): Promise<
+    { created: CategoryRow } | { refused: 'duplicate' | 'limit' }
+  > {
+    const existing = await this.getAllCategoriesForUser(userId);
+    if (existing.some(c => foldName(c.name) === foldName(name))) return { refused: 'duplicate' };
+    const id = randomUUID();
+    // The count is checked inside the insert, so two requests racing for the last slot cannot both get it.
+    const inserted = await this.run(
+      `INSERT INTO categories (id, user_id, name, is_custom)
+       SELECT ?, ?, ?, 1 WHERE (SELECT COUNT(*) FROM categories WHERE user_id = ? AND is_custom = 1) < ?`,
+      [id, userId, name, userId, limit]
+    );
+    if (inserted === 0) return { refused: 'limit' };
+    return { created: (await this.all<CategoryRow>('SELECT * FROM categories WHERE id = ?', [id]))[0] };
+  }
+
+  /**
+   * Deletes one of the user's own categories: its transactions go back to Outros and the corrections that
+   * pointed to it stop applying, and the platform forgets what it learned from it. Returns false when the user has no custom category with that id.
+   */
+  async deleteCustomCategoryForUser(userId: string, id: string): Promise<boolean> {
+    const rows = await this.all<CategoryRow>('SELECT * FROM categories WHERE user_id = ? AND id = ? AND is_custom = 1', [userId, id]);
+    if (rows.length === 0) return false;
+    const { name } = rows[0];
+    await this.client.batch([
+      { sql: "UPDATE expenses SET category = 'Outros' WHERE user_id = ? AND category = ?", args: [userId, name] },
+      { sql: 'DELETE FROM category_corrections WHERE user_id = ? AND corrected_category = ?', args: [userId, name] },
+      { sql: 'DELETE FROM category_signals WHERE user_id = ? AND category = ?', args: [userId, name] },
+      { sql: 'DELETE FROM categories WHERE user_id = ? AND id = ?', args: [userId, id] },
+    ], 'write');
+    return true;
+  }
+
+  /** Remembers that the user filed this store under one of their own categories. */
+  async recordCategorySignalForUser(userId: string, description: string, category: string): Promise<void> {
+    const pattern = storePattern(description);
+    if (pattern === undefined) return;
+    await this.run('INSERT OR IGNORE INTO category_signals (user_id, pattern, category) VALUES (?, ?, ?)', [userId, pattern, category]);
+  }
+
+  /** Every store and custom category pair users chose, with how many accounts chose it; no account is named. */
+  async getCategorySignals(): Promise<{ pattern: string; category: string; users: number }[]> {
+    const rows = await this.all<{ pattern: string; category: string; users: number }>(
+      `SELECT pattern, category, COUNT(*) AS users FROM category_signals
+       GROUP BY pattern, category ORDER BY users DESC, pattern, category`
+    );
+    return rows.map(row => ({ ...row, users: Number(row.users) }));
   }
 
   // Expense methods with user_id

@@ -50,6 +50,17 @@ CREATE TABLE IF NOT EXISTS category_corrections (
   corrected_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+-- What the platform learns from custom categories: a store's masked name and the category a user filed it
+-- under. No amount, date or link to the transaction; erased with the account.
+CREATE TABLE IF NOT EXISTS category_signals (
+  user_id TEXT NOT NULL,
+  pattern TEXT NOT NULL,
+  category TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, pattern, category),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
 `;
 
 // Runs after the legacy column migration: pre-multi-user tables only gain user_id there.
