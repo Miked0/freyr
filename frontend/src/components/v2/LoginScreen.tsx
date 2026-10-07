@@ -34,7 +34,7 @@ const TextInput = React.forwardRef<HTMLInputElement, TextInputProps>(({ label, i
           {...props}
         />
       </div>
-      {error && <p className="mt-1.5 text-sm text-on-text-alert flex items-center gap-1.5" role="alert"><AlertCircle className="h-3.5 w-3.5" /> {error}</p>}
+      {error && <p className="mt-1.5 text-sm text-on-text-alert flex items-center gap-1.5" role="alert"><AlertCircle className="h-3.5 w-3.5" aria-hidden="true" /> {error}</p>}
     </div>
   );
 });
@@ -56,7 +56,7 @@ function Alert({ children, variant = 'error', onClose }: AlertProps) {
   };
   return (
     <div className={`mb-4 p-3 flex items-center gap-3 rounded-xl ${styles[variant]}`} role="alert">
-      <AlertCircle className="h-4 w-4 flex-shrink-0" />
+      <AlertCircle className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
       <p className="text-sm font-medium flex-1">{children}</p>
       {onClose && <button type="button" onClick={onClose} className="cursor-pointer hover:opacity-70" aria-label="Fechar aviso"><X className="h-4 w-4" /></button>}
     </div>
@@ -121,27 +121,24 @@ export default function LoginScreenV2({ onSuccess }: { onSuccess: () => void }) 
             Seus gastos, <span className="keyword">só seus</span>.
           </h1>
           <form onSubmit={submit} className="max-w-md w-full">
-            <div className="flex gap-2 mb-6">
-              <button
-                type="button"
-                onClick={() => selectMode(false)}
-                aria-pressed={!isRegister}
-                className={`flex-1 px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
-                  !isRegister ? 'bg-brand-primary-light text-text' : 'bg-transparent text-on-text-muted hover:bg-on-text-line'
-                }`}
-              >
-                Entrar
-              </button>
-              <button
-                type="button"
-                onClick={() => selectMode(true)}
-                aria-pressed={isRegister}
-                className={`flex-1 px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
-                  isRegister ? 'bg-brand-primary-light text-text' : 'bg-transparent text-on-text-muted hover:bg-on-text-line'
-                }`}
-              >
-                Cadastrar
-              </button>
+            {/* A bordered track around both options, so the unselected one still reads as a button (WCAG 1.4.11). */}
+            <div role="group" aria-label="Entrar ou criar conta" className="flex gap-1 p-1 mb-6 rounded-full border border-on-text-control">
+              {([false, true] as const).map(register => {
+                const on = register === isRegister;
+                return (
+                  <button
+                    key={String(register)}
+                    type="button"
+                    onClick={() => selectMode(register)}
+                    aria-pressed={on}
+                    className={`flex-1 px-4 py-2.5 rounded-full text-sm font-medium cursor-pointer transition-colors ${
+                      on ? 'bg-brand-primary-light text-text' : 'bg-transparent text-surface hover:bg-on-text-line'
+                    }`}
+                  >
+                    {register ? 'Cadastrar' : 'Entrar'}
+                  </button>
+                );
+              })}
             </div>
 
             <TextInput
@@ -162,15 +159,16 @@ export default function LoginScreenV2({ onSuccess }: { onSuccess: () => void }) 
                 {isRegister ? 'Criar senha' : 'Senha de acesso'}
               </label>
               <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-on-text-muted pointer-events-none" />
+                <Lock aria-hidden="true" className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-on-text-muted pointer-events-none" />
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   autoComplete={isRegister ? 'new-password' : 'current-password'}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
+                  aria-describedby={isRegister ? 'password-rule' : undefined}
                   className="w-full rounded-full bg-transparent border border-on-text-control hover:border-on-text-muted pl-11 pr-14 py-3.5 text-surface placeholder:text-on-text-muted focus:border-brand-primary-light transition-colors"
-                  placeholder={isRegister ? 'Mínimo 8 caracteres' : 'Digite a senha'}
+                  placeholder={isRegister ? 'Crie uma senha' : 'Digite a senha'}
                   required
                   disabled={submitting}
                 />
@@ -183,6 +181,7 @@ export default function LoginScreenV2({ onSuccess }: { onSuccess: () => void }) 
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+              {isRegister && <p id="password-rule" className="mt-1.5 pl-5 text-xs text-on-text-muted">Mínimo de 8 caracteres.</p>}
             </div>
 
             {isRegister && (
