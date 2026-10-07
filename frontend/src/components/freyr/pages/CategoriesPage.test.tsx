@@ -61,7 +61,7 @@ describe('CategoriesPage', () => {
     useExpenses.setState({ expenses: [], categories: [] });
     render(<CategoriesPage />);
     expect(screen.queryByRole('list', { name: 'Gasto por categoria' })).not.toBeInTheDocument();
-    expect(screen.getByText('Nenhuma categoria por aqui ainda.')).toBeInTheDocument();
+    expect(screen.getByText('Suas categorias aparecem quando o primeiro extrato chegar.')).toBeInTheDocument();
   });
 
   describe('with the account categories loaded', () => {

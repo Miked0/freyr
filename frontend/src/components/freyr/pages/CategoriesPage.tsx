@@ -48,7 +48,7 @@ export function CategoriesPage() {
               ))}
             </ul>
           ) : (
-            <p style={{ margin: 0, color: 'var(--ink-muted)' }}>Nenhuma categoria por aqui ainda.</p>
+            <p style={{ margin: 0, color: 'var(--ink-muted)' }}>Suas categorias aparecem quando o primeiro extrato chegar.</p>
           )}
         </BentoCard>
         <CustomCategoriesCard />

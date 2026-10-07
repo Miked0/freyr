@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { contrastRatio } from './contrast';
+import { blend, contrastRatio } from './contrast';
 
 describe('contrastRatio', () => {
   it('is 21:1 between black and white, in either order', () => {
@@ -19,5 +19,16 @@ describe('contrastRatio', () => {
 
   it('accepts short hex', () => {
     expect(contrastRatio('#000', '#fff')).toBeCloseTo(21, 5);
+  });
+});
+
+describe('blend', () => {
+  it('lays a translucent color over an opaque one and returns the opaque result', () => {
+    expect(blend('rgba(0, 0, 0, 0.5)', '#FFFFFF')).toBe('rgb(128 128 128)');
+    expect(blend('#5B5A96', '#F7F6F3')).toBe('rgb(91 90 150)');
+  });
+
+  it('stacks several layers, the first one on top and the opaque base last', () => {
+    expect(blend('rgba(255, 255, 255, 0.5)', 'rgba(0, 0, 0, 0.5)', '#FFFFFF')).toBe('rgb(191 191 191)');
   });
 });

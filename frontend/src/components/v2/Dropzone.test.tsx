@@ -30,7 +30,7 @@ describe('Dropzone', () => {
 
     expect(area).toHaveClass('fr-drop');
     expect(area.querySelector('.fr-tag-muted')).toHaveTextContent('[ Importar ]');
-    expect(area.querySelector('.fr-drop-title')).toHaveTextContent('Anexe ou arraste seu arquivo para iniciar a análise');
+    expect(area.querySelector('.fr-drop-title')).toHaveTextContent('Arraste aqui o extrato do seu banco');
     expect(area.querySelector('.fr-drop-hint')).toHaveTextContent('Extratos PDF ou CSV · até 4 MB');
     expect(screen.getByRole('button', { name: /escolher arquivo/i })).toHaveClass('fr-btn', 'fr-btn-outline');
     expect(screen.queryByText(/colunas de data, valor e descrição/i)).toBeNull();
@@ -42,7 +42,7 @@ describe('Dropzone', () => {
 
     fireEvent.dragOver(area);
     expect(area).toHaveClass('is-over');
-    expect(area.querySelector('.fr-drop-title')).toHaveTextContent('Solte o arquivo aqui');
+    expect(area.querySelector('.fr-drop-title')).toHaveTextContent('Pode soltar, a gente cuida do resto');
   });
 
   it('rejects a file that is not a PDF or CSV without uploading it', async () => {

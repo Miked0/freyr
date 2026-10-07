@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import path from 'path';
-import { contrastRatio } from '@/lib/contrast';
+import { blend, contrastRatio } from '@/lib/contrast';
 
 // WCAG 2.2 AA: 4.5:1 for body text, 3:1 for large text and for the parts of a control you need to see
 // (input borders, focus rings, chart marks). These checks read the real stylesheets, so a token edit that
@@ -123,5 +123,37 @@ describe('links', () => {
     const rule = indexCss.match(/\.on-text a\s*\{([^}]*)\}/);
     expect(rule?.[1]).toMatch(/color:\s*var\(--color-brand-primary-light\)/);
     expect(contrastRatio(lightTw['--color-brand-primary-light'], lightTw['--color-text'])).toBeGreaterThanOrEqual(TEXT);
+  });
+});
+
+describe('backdrop behind the app (sun glow, aurora and fjord ridges)', () => {
+  // The page title and the Tailwind pages print text straight on the backdrop, so text must still pass on the
+  // darkest spot it can produce: a ridge line drawn over the strongest glow.
+  const darkTw = tokens(indexCss, ':root[data-theme="dark"] :is(.fr-app, .fr-modal)');
+  const cases = [
+    ['light', themes.light, resolver(lightTw, lightFreyr)],
+    ['dark', themes.dark, resolver(darkTw, lightTw, darkFreyr)],
+  ] as const;
+
+  it.each(cases)('%s theme: text stays at AA where the glows and ridges are strongest', (_, t, tw) => {
+    for (const glow of ['--backdrop-glow-a', '--backdrop-glow-b']) {
+      const ground = blend(t('--backdrop-ridge'), t(glow), t('--background'));
+      for (const fg of ['--ink', '--ink-muted', '--brand-primary', '--link']) {
+        expect(contrastRatio(t(fg), ground), `${fg} over ${glow}`).toBeGreaterThanOrEqual(TEXT);
+      }
+      for (const fg of ['--color-text', '--color-ink-muted']) {
+        expect(contrastRatio(tw(fg), ground), `${fg} over ${glow}`).toBeGreaterThanOrEqual(TEXT);
+      }
+    }
+  });
+
+  it('sign-in sky: muted text and form borders hold up under the aurora', () => {
+    const tw = resolver(lightTw);
+    for (const glow of ['--color-sky-aurora', '--color-sky-frost']) {
+      const ground = blend(tw('--color-sky-ridge'), tw(glow), tw('--color-text'));
+      expect(contrastRatio(tw('--color-on-text-muted'), ground), glow).toBeGreaterThanOrEqual(TEXT);
+      expect(contrastRatio(tw('--color-surface'), ground), glow).toBeGreaterThanOrEqual(TEXT);
+      expect(contrastRatio(tw('--color-on-text-control'), ground), glow).toBeGreaterThanOrEqual(NON_TEXT);
+    }
   });
 });

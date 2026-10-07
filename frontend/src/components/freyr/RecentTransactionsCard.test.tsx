@@ -34,6 +34,6 @@ describe('RecentTransactionsCard', () => {
     const { container } = render(<RecentTransactionsCard />);
 
     expect(container.querySelector('.fr-tx')).toBeNull();
-    expect(screen.getByText(/nenhum lançamento/i)).toBeInTheDocument();
+    expect(screen.getByText(/primeiro extrato chegar/i)).toBeInTheDocument();
   });
 });
