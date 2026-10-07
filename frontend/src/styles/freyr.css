@@ -13,7 +13,7 @@
 @property --bar-neutral { syntax: '<color>'; inherits: true; initial-value: #1E1C1A; }
 @property --grid { syntax: '<color>'; inherits: true; initial-value: rgba(30, 28, 26, 0.10); }
 @property --line { syntax: '<color>'; inherits: true; initial-value: rgba(30, 28, 26, 0.15); }
-@property --line-strong { syntax: '<color>'; inherits: true; initial-value: rgba(30, 28, 26, 0.45); }
+@property --line-strong { syntax: '<color>'; inherits: true; initial-value: rgba(30, 28, 26, 0.5); }
 @property --brand-primary { syntax: '<color>'; inherits: true; initial-value: #5B5A96; }
 @property --brand-primary-hover { syntax: '<color>'; inherits: true; initial-value: #484776; }
 @property --on-brand { syntax: '<color>'; inherits: true; initial-value: #F7F6F3; }
@@ -42,7 +42,8 @@
   --bar-neutral: #1E1C1A;
   --grid: rgba(30, 28, 26, 0.10);
   --line: rgba(30, 28, 26, 0.15);
-  --line-strong: rgba(30, 28, 26, 0.45);
+  /* Input and dropzone borders: 3.2:1 on paper (WCAG 1.4.11). */
+  --line-strong: rgba(30, 28, 26, 0.5);
   --brand-primary: #5B5A96;
   --brand-primary-hover: #484776;
   --on-brand: #F7F6F3;
