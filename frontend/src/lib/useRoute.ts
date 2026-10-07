@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { legalDocFromHash } from '../legal/content';
 
-export type Route = 'overview' | 'transactions' | 'categories' | 'goals' | 'profile';
+export type Route = 'overview' | 'transactions' | 'categories' | 'goals' | 'profile' | 'settings';
 
 const paths: Record<Route, string> = {
   overview: '',
@@ -9,6 +9,7 @@ const paths: Record<Route, string> = {
   categories: 'categorias',
   goals: 'metas',
   profile: 'perfil',
+  settings: 'perfil/configuracoes',
 };
 
 /** Maps a location hash to a page. Accepts "#/transacoes" and the older "#transacoes"; anything unknown is the overview. */

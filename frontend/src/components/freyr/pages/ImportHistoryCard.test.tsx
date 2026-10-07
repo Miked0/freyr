@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ImportHistoryCard } from './ImportHistoryCard';
 import { useExpenses } from '@/store/expenses';
@@ -15,8 +15,10 @@ function stubApi({ allowed = true, history = files }: { allowed?: boolean; histo
     if (url.endsWith('/api/expenses/imports')) {
       if (!allowed) return new Response(JSON.stringify({ error: 'Esta função ainda não está liberada para a sua conta.' }), { status: 403 });
       if (init?.method === 'DELETE') {
-        left = [];
-        return new Response(JSON.stringify({ removed: 13 }));
+        const names: string[] = JSON.parse(String(init.body)).files;
+        const gone = (left as typeof files).filter(f => names.includes(f.name));
+        left = (left as typeof files).filter(f => !names.includes(f.name));
+        return new Response(JSON.stringify({ removed: gone.reduce((sum, f) => sum + f.transactions, 0) }));
       }
       return new Response(JSON.stringify({ files: left }));
     }
@@ -45,12 +47,12 @@ describe('ImportHistoryCard', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('shows nothing when no file was imported', async () => {
+  it('says so when no file was imported', async () => {
     stubApi({ history: [] });
-    const { container } = render(<ImportHistoryCard />);
+    render(<ImportHistoryCard />);
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    expect(container).toBeEmptyDOMElement();
+    expect(await screen.findByText('Nenhum arquivo importado por enquanto.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /apagar/i })).not.toBeInTheDocument();
   });
 
   it('lists each imported file with its transaction count', async () => {
@@ -61,25 +63,46 @@ describe('ImportHistoryCard', () => {
     expect(screen.getByText('fatura.pdf').closest('li')).toHaveTextContent('1 transação');
   });
 
-  it('deletes the import history after the user confirms', async () => {
+  it('deletes only the files the user picked, after confirming', async () => {
     stubApi();
     render(<ImportHistoryCard />);
 
-    fireEvent.click(await screen.findByRole('button', { name: /apagar histórico de arquivos/i }));
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^apagar$/i }));
+    const remove = await screen.findByRole('button', { name: /apagar selecionados/i });
+    expect(remove).toBeDisabled();
+    fireEvent.click(screen.getByLabelText('fatura.pdf'));
+    expect(screen.getByText(/1 arquivo/).closest('p')).toHaveTextContent('1 arquivo · 1 transação');
+    fireEvent.click(remove);
+    expect(screen.getByRole('group')).toHaveTextContent('Apagar 1 transação de 1 arquivo? Não dá para desfazer.');
+    fireEvent.click(screen.getByRole('button', { name: /apagar de vez/i }));
 
-    expect(await screen.findByText(/13 transações importadas apagadas/i)).toBeInTheDocument();
+    expect(await screen.findByText('1 transação apagada de 1 arquivo.')).toBeInTheDocument();
     expect(deleteCalls()).toHaveLength(1);
+    expect(JSON.parse(String(deleteCalls()[0][1]!.body))).toEqual({ files: ['fatura.pdf'] });
+    expect(screen.queryByText('fatura.pdf')).not.toBeInTheDocument();
+    expect(screen.getByText('extrato-set.csv')).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith('/api/expenses'))).toBe(true);
+  });
+
+  it('selects every file at once', async () => {
+    stubApi();
+    render(<ImportHistoryCard />);
+
+    fireEvent.click(await screen.findByLabelText('Selecionar todos'));
+    expect(screen.getByLabelText('extrato-set.csv')).toBeChecked();
+    expect(screen.getByLabelText('fatura.pdf')).toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: /apagar selecionados/i }));
+    expect(screen.getByRole('group')).toHaveTextContent('Apagar 13 transações de 2 arquivos?');
   });
 
   it('keeps everything when the user cancels', async () => {
     stubApi();
     render(<ImportHistoryCard />);
 
-    fireEvent.click(await screen.findByRole('button', { name: /apagar histórico de arquivos/i }));
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /cancelar/i }));
+    fireEvent.click(await screen.findByLabelText('fatura.pdf'));
+    fireEvent.click(screen.getByRole('button', { name: /apagar selecionados/i }));
+    fireEvent.click(screen.getByRole('button', { name: /cancelar/i }));
 
     expect(deleteCalls()).toHaveLength(0);
+    expect(screen.getByRole('button', { name: /apagar selecionados/i })).toBeEnabled();
   });
 });

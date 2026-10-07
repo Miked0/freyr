@@ -15,6 +15,7 @@ describe('routeFromHash', () => {
     ['#/transacoes', 'transactions'],
     ['#/categorias', 'categories'],
     ['#/perfil', 'profile'],
+    ['#/perfil/configuracoes', 'settings'],
     ['#/metas', 'goals'],
     ['#/nao-existe', 'overview'],
     ['#/transacoes/123', 'overview'],
@@ -34,6 +35,7 @@ describe('routeHref', () => {
     expect(routeHref('transactions')).toBe('#/transacoes');
     expect(routeHref('categories')).toBe('#/categorias');
     expect(routeHref('profile')).toBe('#/perfil');
+    expect(routeHref('settings')).toBe('#/perfil/configuracoes');
   });
 });
 

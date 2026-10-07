@@ -526,9 +526,23 @@ export class DatabaseService {
     return [...counts].map(([name, transactions]) => ({ name, transactions })).sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  /** Deletes every transaction that came from an imported file; returns how many went. */
-  async deleteImportedExpensesForUser(userId: string): Promise<number> {
-    return this.run('DELETE FROM expenses WHERE user_id = ? AND source_file IS NOT NULL', [userId]);
+  /**
+   * Deletes the transactions that came from imported files: only those of the named files when `files` is given,
+   * every imported one otherwise. Returns how many went.
+   */
+  async deleteImportedExpensesForUser(userId: string, files?: string[]): Promise<number> {
+    if (!files) return this.run('DELETE FROM expenses WHERE user_id = ? AND source_file IS NOT NULL', [userId]);
+    const chosen = new Set(files);
+    const rows = await this.all<ExpenseRow>('SELECT * FROM expenses WHERE user_id = ? AND source_file IS NOT NULL', [userId]);
+    const key = await this.userKey(userId);
+    // File names are sealed with their own nonce, so they are compared opened.
+    const doomed = rows.filter(row => chosen.has(this.openExpense(key, row).source_file!));
+    if (doomed.length === 0) return 0;
+    await this.client.batch(
+      doomed.map(row => ({ sql: 'DELETE FROM expenses WHERE user_id = ? AND id = ?', args: [userId, row.id] })),
+      'write'
+    );
+    return doomed.length;
   }
 
   /** Entries whose category the current rules would set differently; see suggestRecategorizations. */

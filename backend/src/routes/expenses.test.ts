@@ -471,6 +471,38 @@ describe('/api/expenses/imports', () => {
     expect((await history(mike)).body.files).toEqual([]);
   });
 
+  it('deletes only the transactions of the chosen files', async () => {
+    const mike = await login('Mike');
+    await save('Mike', 'MERCADO', 'extrato-set.csv');
+    await save('Mike', 'PADARIA', 'extrato-set.csv');
+    const uber = await save('Mike', 'UBER', 'fatura.pdf');
+    const manual = await save('Mike', 'ALUGUEL');
+
+    const res = await request(app).delete('/api/expenses/imports').set('Cookie', mike).send({ files: ['extrato-set.csv'] });
+
+    expect(res.status).toBe(200);
+    expect(res.body.removed).toBe(2);
+    const left = await request(app).get('/api/expenses').set('Cookie', mike);
+    expect(left.body.map((e: any) => e.id).sort()).toEqual([uber, manual].sort());
+    expect((await history(mike)).body.files).toEqual([{ name: 'fatura.pdf', transactions: 1 }]);
+  });
+
+  it('deletes nothing when the chosen list is empty', async () => {
+    const mike = await login('Mike');
+    await save('Mike', 'MERCADO', 'extrato-set.csv');
+
+    const res = await request(app).delete('/api/expenses/imports').set('Cookie', mike).send({ files: [] });
+
+    expect(res.body.removed).toBe(0);
+    expect((await history(mike)).body.files).toHaveLength(1);
+  });
+
+  it('rejects a list of files that is not made of names', async () => {
+    const mike = await login('Mike');
+    const res = await request(app).delete('/api/expenses/imports').set('Cookie', mike).send({ files: 'extrato.csv' });
+    expect(res.status).toBe(400);
+  });
+
   it("never touches another user's imports", async () => {
     const mike = await login('Mike');
     await login('other');
