@@ -2,7 +2,7 @@ import React, { useState, type FormEvent } from 'react';
 import { AlertCircle, Lock, User, Eye, EyeOff, ShieldCheck, X, FileText, Tags, Sprout } from 'lucide-react';
 import PillButton from '@/components/ui/PillButton';
 import Spinner from '@/components/ui/Spinner';
-import { Logo } from '@/components/Hero';
+import { Wordmark } from '@/components/freyr/Wordmark';
 import { api } from '@/api';
 import { legalHref } from '@/legal/content';
 
@@ -121,7 +121,7 @@ export default function LoginScreenV2({ onSuccess }: { onSuccess: () => void }) 
     <main className="on-text fr-sky bg-text text-surface min-h-screen flex flex-col">
       <div className="fr-sky-layer" aria-hidden="true" />
       <div className="max-w-[1240px] w-full mx-auto px-5 sm:px-10 py-6">
-        <Logo className="text-[34px]" />
+        <Wordmark size={26} />
       </div>
       <div className="flex-1 flex items-center">
         {/* Headline, form, pitch: the order a phone shows them. On wide screens the pitch slides under the headline. */}
