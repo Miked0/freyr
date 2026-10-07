@@ -60,4 +60,22 @@ describe('DeleteAccount', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Senha incorreta.');
     expect(onDeleted).not.toHaveBeenCalled();
   });
+
+  it('asks a Google-only account to type its username instead of a password', async () => {
+    const fetchMock = stubDelete(200, { deleted: true });
+    const onDeleted = vi.fn();
+    render(<DeleteAccount onDeleted={onDeleted} username="mike.silva" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir conta' }));
+    expect(screen.queryByLabelText('Confirme com sua senha')).toBeNull();
+    const button = screen.getByRole('button', { name: 'Excluir minha conta' });
+
+    fireEvent.change(screen.getByLabelText('Digite mike.silva para confirmar'), { target: { value: 'mike' } });
+    expect(button).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Digite mike.silva para confirmar'), { target: { value: 'mike.silva' } });
+    fireEvent.click(button);
+
+    await vi.waitFor(() => expect(onDeleted).toHaveBeenCalled());
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(JSON.parse(String(init.body))).toEqual({ username: 'mike.silva' });
+  });
 });

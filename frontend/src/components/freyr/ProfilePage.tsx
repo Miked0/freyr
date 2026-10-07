@@ -1,10 +1,12 @@
 import { formatDate } from '@/lib/finance';
 import { useId, useState, type FormEvent } from 'react';
+import { takeSearchParam, useGoogleLogin } from '@/lib/useGoogleLogin';
 import { endSession, type Profile, type ProfilePatch } from '@/api';
 import { AVATAR_COLORS, displayNameOf, formatBudget, parseBudget, useProfile, type AvatarColor } from '@/lib/useProfile';
 import { BentoCard } from './BentoCard';
 import { DeleteAccount } from './DeleteAccount';
 import { Button } from './Button';
+import { GoogleAccount } from './GoogleAccount';
 import { Avatar, ProfileStyles } from './ProfileCard';
 
 const NAME_MAX = 40;
@@ -39,6 +41,8 @@ const css = `
 export function ProfilePage() {
   const { profile, status, error, load } = useProfile();
   const [saved, setSaved] = useState(false);
+  const googleAvailable = useGoogleLogin();
+  const [googleConflict] = useState(() => takeSearchParam('google') === 'em-uso');
 
   let body;
   if (profile) {
@@ -62,7 +66,8 @@ export function ProfilePage() {
       <ProfileStyles />
       <style href="freyr-profile-page" precedence="default">{css}</style>
       <BentoCard title="Seu perfil" span={8}>{body}</BentoCard>
-      {profile ? <DeleteAccount onDeleted={endSession} /> : null}
+      {profile ? <GoogleAccount linked={profile.google_linked === true} available={googleAvailable} conflict={googleConflict} /> : null}
+      {profile ? <DeleteAccount onDeleted={endSession} username={profile.has_password === false ? profile.username : undefined} /> : null}
     </div>
   );
 }

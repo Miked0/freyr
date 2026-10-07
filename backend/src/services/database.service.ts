@@ -22,6 +22,9 @@ export interface DataProtectionOptions {
 
 const DEV_MASTER_KEY = 'freyr-dev-master-key';
 
+/** Stored as the password hash of accounts created through Google: not a bcrypt hash, so no password matches it. */
+export const NO_PASSWORD = '!';
+
 interface UserRow {
   id: string;
   username: string;
@@ -31,6 +34,8 @@ interface UserRow {
   avatar_color: AvatarColor;
   monthly_budget: number | null;
   data_key: string | null;
+  google_sub: string | null;
+  email: string | null;
   created_at: string;
 }
 
@@ -42,6 +47,10 @@ export interface Profile {
   /** How much the user said they had invested, and on which day ("YYYY-MM-DD"). */
   invested_balance: number | null;
   invested_balance_on: string | null;
+  /** Whether the account can be opened with "Entrar com Google". */
+  google_linked: boolean;
+  /** False for accounts created through Google, which only open with Google. */
+  has_password: boolean;
 }
 
 export type ProfileUpdate = Partial<Pick<Profile, 'display_name' | 'avatar_color' | 'monthly_budget' | 'invested_balance'>>;
@@ -188,6 +197,8 @@ export class DatabaseService {
       ['data_key', 'TEXT'],
       ['invested_balance', 'REAL'],
       ['invested_balance_on', 'TEXT'],
+      ['google_sub', 'TEXT'],
+      ['email', 'TEXT'],
     ];
     for (const [name, definition] of added) {
       if (!existing.has(name)) await client.execute(`ALTER TABLE users ADD COLUMN ${name} ${definition}`);
@@ -310,17 +321,32 @@ export class DatabaseService {
     this.keys.delete(userId);
   }
 
+  async getUserByGoogleSub(googleSub: string): Promise<UserRow | undefined> {
+    const rows = await this.all<UserRow>('SELECT * FROM users WHERE google_sub = ?', [googleSub]);
+    return rows[0];
+  }
+
+  /** Lets the user log in with this Google account; false if the user already has another one linked. */
+  async linkGoogleAccount(userId: string, googleSub: string, email: string): Promise<boolean> {
+    return (await this.run(
+      'UPDATE users SET google_sub = ?, email = ? WHERE id = ? AND (google_sub IS NULL OR google_sub = ?)',
+      [googleSub, email, userId, googleSub]
+    )) > 0;
+  }
+
   /** Invalidates every session cookie issued to the user so far. */
   async endAllSessions(userId: string): Promise<void> {
     await this.run('UPDATE users SET session_version = session_version + 1 WHERE id = ?', [userId]);
   }
 
   async getProfile(userId: string): Promise<Profile | undefined> {
-    const rows = await this.all<Profile>(
-      'SELECT username, display_name, avatar_color, monthly_budget, invested_balance, invested_balance_on FROM users WHERE id = ?',
+    const rows = await this.all<Omit<Profile, 'google_linked' | 'has_password'> & { google_sub: string | null; password_hash: string }>(
+      'SELECT username, display_name, avatar_color, monthly_budget, invested_balance, invested_balance_on, google_sub, password_hash FROM users WHERE id = ?',
       [userId]
     );
-    return rows[0];
+    if (!rows[0]) return undefined;
+    const { google_sub, password_hash, ...profile } = rows[0];
+    return { ...profile, google_linked: google_sub !== null, has_password: password_hash !== NO_PASSWORD };
   }
 
   /** Writes only the fields present in the update; returns the profile as stored afterwards. */

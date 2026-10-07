@@ -22,25 +22,30 @@ const css = `
 
 const DOCS: LegalDocKey[] = ['privacidade', 'termos', 'lgpd'];
 
-/** Profile card with the privacy documents and the LGPD right to erase the account. */
-export function DeleteAccount({ onDeleted }: { onDeleted: () => void }) {
+/**
+ * Profile card with the privacy documents and the LGPD right to erase the account.
+ * Accounts created through Google have no password, so they pass `username` and confirm by typing it.
+ */
+export function DeleteAccount({ onDeleted, username }: { onDeleted: () => void; username?: string }) {
   const id = useId();
-  const [password, setPassword] = useState('');
+  const [confirmation, setConfirmation] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [asking, setAsking] = useState(false);
 
+  const ready = username ? confirmation === username : !!confirmation;
+
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!password || deleting) return;
+    if (!ready || deleting) return;
     setDeleting(true);
     setError(null);
     try {
-      await api.deleteAccount(password);
+      await api.deleteAccount(username ? { username: confirmation } : { password: confirmation });
       onDeleted();
     } catch (err) {
       setError((err as Error).message);
-      setPassword('');
+      setConfirmation('');
     } finally {
       setDeleting(false);
     }
@@ -76,18 +81,20 @@ export function DeleteAccount({ onDeleted }: { onDeleted: () => void }) {
       {asking ? (
         <form id={`${id}-delete`} className="fr-field" onSubmit={submit}>
           <p className="fr-field-hint">Apaga a conta, as transações, as categorias e as metas. Não dá para desfazer.</p>
-          <label className="fr-field-hint" htmlFor={`${id}-password`}>Confirme com sua senha</label>
+          <label className="fr-field-hint" htmlFor={`${id}-confirmation`}>
+            {username ? `Digite ${username} para confirmar` : 'Confirme com sua senha'}
+          </label>
           <input
-            id={`${id}-password`}
+            id={`${id}-confirmation`}
             className="fr-input"
-            type="password"
-            autoComplete="current-password"
+            type={username ? 'text' : 'password'}
+            autoComplete={username ? 'off' : 'current-password'}
             autoFocus
-            value={password}
-            onChange={e => setPassword(e.target.value)}
+            value={confirmation}
+            onChange={e => setConfirmation(e.target.value)}
           />
           {error ? <p role="alert" className="fr-field-error">{error}</p> : null}
-          <Button type="submit" variant="outline" disabled={!password || deleting}>
+          <Button type="submit" variant="outline" disabled={!ready || deleting}>
             {deleting ? 'Excluindo…' : 'Excluir minha conta'}
           </Button>
         </form>
