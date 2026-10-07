@@ -1,10 +1,14 @@
 import React, { useState, type FormEvent } from 'react';
-import { AlertCircle, Lock, User, Eye, EyeOff, X } from 'lucide-react';
+import { AlertCircle, Lock, User, Eye, EyeOff, ShieldCheck, X } from 'lucide-react';
 import PillButton from '@/components/ui/PillButton';
 import Spinner from '@/components/ui/Spinner';
 import { Logo } from '@/components/Hero';
 import { api } from '@/api';
 import { legalHref } from '@/legal/content';
+
+// Legal links stay in the text color: the consent sentence marks them with a soft underline, the footer row only on hover.
+const consentLink = 'text-on-text-muted underline decoration-on-text-control underline-offset-4 hover:text-surface hover:decoration-surface transition-colors';
+const quietLink = 'inline-block py-1 text-on-text-muted no-underline hover:text-surface hover:underline underline-offset-4 transition-colors';
 
 interface TextInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
@@ -196,10 +200,10 @@ export default function LoginScreenV2({ onSuccess }: { onSuccess: () => void }) 
             )}
 
             {isRegister && (
-              <p className="mb-4 text-sm text-on-text-muted">
+              <p className="mb-5 text-xs leading-5 text-on-text-muted">
                 Ao criar a conta, você concorda com os{' '}
-                <a className="underline hover:text-surface" href={legalHref('termos')}>Termos de Uso</a> e a{' '}
-                <a className="underline hover:text-surface" href={legalHref('privacidade')}>Política de Privacidade</a>.
+                <a className={consentLink} href={legalHref('termos')}>Termos de Uso</a> e a{' '}
+                <a className={consentLink} href={legalHref('privacidade')}>Política de Privacidade</a>.
               </p>
             )}
 
@@ -210,13 +214,14 @@ export default function LoginScreenV2({ onSuccess }: { onSuccess: () => void }) 
             </PillButton>
 
             {!isRegister && (
-              <p className="mt-4 text-sm text-on-text-muted">
-                <a className="underline hover:text-surface" href={legalHref('privacidade')}>Privacidade</a>
-                {' · '}
-                <a className="underline hover:text-surface" href={legalHref('termos')}>Termos</a>
-                {' · '}
-                <a className="underline hover:text-surface" href={legalHref('lgpd')}>LGPD</a>
-              </p>
+              <nav aria-label="Documentos legais" className="mt-6 flex items-center gap-2 text-xs text-on-text-muted">
+                <ShieldCheck className="h-3.5 w-3.5 flex-none" aria-hidden="true" />
+                <a className={quietLink} href={legalHref('privacidade')}>Privacidade</a>
+                <span aria-hidden="true">·</span>
+                <a className={quietLink} href={legalHref('termos')}>Termos</a>
+                <span aria-hidden="true">·</span>
+                <a className={quietLink} href={legalHref('lgpd')}>LGPD</a>
+              </nav>
             )}
           </form>
         </div>
