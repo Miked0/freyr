@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import LoginScreen from './LoginScreen';
 
@@ -18,5 +18,26 @@ describe('LoginScreen', () => {
     render(<LoginScreen onSuccess={() => {}} />);
 
     expect(screen.getByRole('link', { name: 'Privacidade' })).toHaveAttribute('href', '#/privacidade');
+  });
+
+  it('groups Entrar and Cadastrar as one switch that says which is on', () => {
+    render(<LoginScreen onSuccess={() => {}} />);
+    const group = screen.getByRole('group', { name: 'Entrar ou criar conta' });
+    const entrar = within(group).getByRole('button', { name: 'Entrar' });
+    const cadastrar = within(group).getByRole('button', { name: 'Cadastrar' });
+    expect(entrar).toHaveAttribute('aria-pressed', 'true');
+    expect(cadastrar).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.click(cadastrar);
+
+    expect(cadastrar).toHaveAttribute('aria-pressed', 'true');
+    expect(entrar).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('keeps the password rule visible while the new user types', () => {
+    render(<LoginScreen onSuccess={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Cadastrar' }));
+
+    expect(screen.getByLabelText('Criar senha')).toHaveAccessibleDescription('Mínimo de 8 caracteres.');
   });
 });

@@ -18,10 +18,23 @@ describe('DeleteAccount', () => {
     expect(screen.getByRole('link', { name: 'Seus direitos (LGPD)' })).toHaveAttribute('href', '#/lgpd');
   });
 
+  it('keeps the delete form folded until it is asked for', () => {
+    render(<DeleteAccount onDeleted={() => {}} />);
+    const toggle = screen.getByRole('button', { name: 'Excluir conta' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByLabelText('Confirme com sua senha')).not.toBeInTheDocument();
+
+    fireEvent.click(toggle);
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByLabelText('Confirme com sua senha')).toBeInTheDocument();
+  });
+
   it('deletes the account only after the password is typed', async () => {
     const fetchMock = stubDelete(200, { deleted: true });
     const onDeleted = vi.fn();
     render(<DeleteAccount onDeleted={onDeleted} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir conta' }));
     const button = screen.getByRole('button', { name: 'Excluir minha conta' });
     expect(button).toBeDisabled();
 
@@ -39,6 +52,7 @@ describe('DeleteAccount', () => {
     stubDelete(401, { error: 'Senha incorreta.' });
     const onDeleted = vi.fn();
     render(<DeleteAccount onDeleted={onDeleted} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir conta' }));
 
     fireEvent.change(screen.getByLabelText('Confirme com sua senha'), { target: { value: 'errada' } });
     fireEvent.click(screen.getByRole('button', { name: 'Excluir minha conta' }));
