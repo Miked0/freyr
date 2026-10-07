@@ -11,7 +11,7 @@ export function TransactionsPage() {
   const { expenses } = useExpenses();
   return (
     <>
-      <PageHeader page="Transações" title="Todas as transações" phrase="Cada lançamento, do jeito que entrou." onExport={csvExporter(expenses)} />
+      <PageHeader page="Transações" title="Seu extrato" phrase="Tudo o que entrou e saiu, já organizado." onExport={csvExporter(expenses)} />
       <div className="fr-bento">
         <RepeatedImportsCard />
         <RecategorizeCard />

@@ -33,8 +33,8 @@ describe('GoalsCard', () => {
 
   it('invites the user to create a goal when there are none', () => {
     render(<GoalsCard />);
-    expect(screen.getByText(/nenhuma meta/i)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Criar meta' })).toHaveAttribute('href', '#/metas');
+    expect(screen.getByText(/crie uma meta/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Criar minha primeira meta' })).toHaveAttribute('href', '#/metas');
   });
 
   it('loads the goals the first time it shows', async () => {

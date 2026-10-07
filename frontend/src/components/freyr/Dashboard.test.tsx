@@ -42,18 +42,18 @@ describe('Dashboard', () => {
 
   it('opens on the overview inside the app shell', () => {
     render(<Dashboard />);
-    expect(screen.getByRole('main')).toContainElement(screen.getByRole('heading', { level: 1, name: 'Visão geral financeira' }));
+    expect(screen.getByRole('main')).toContainElement(screen.getByRole('heading', { level: 1, name: 'Seu dinheiro hoje' }));
     expect(screen.getByRole('navigation', { name: 'Principal' })).toHaveTextContent('Transações3');
     expect(current()).toHaveTextContent('Visão geral');
-    expect(screen.queryByRole('heading', { name: 'Todas as transações' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Seu extrato' })).not.toBeInTheDocument();
   });
 
   it('swaps the page when the hash changes and follows it in the nav', () => {
     render(<Dashboard />);
 
     go('#/transacoes');
-    expect(screen.getByRole('heading', { level: 1, name: 'Todas as transações' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Visão geral financeira' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Seu extrato' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Seu dinheiro hoje' })).not.toBeInTheDocument();
     expect(current()).toHaveTextContent('Transações');
 
     go('#/categorias');
@@ -69,7 +69,7 @@ describe('Dashboard', () => {
     expect(current()).toBeNull();
 
     go('#/nada');
-    expect(screen.getByRole('heading', { level: 1, name: 'Visão geral financeira' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Seu dinheiro hoje' })).toBeInTheDocument();
   });
 
   it('opens the page in the hash it was loaded with', () => {

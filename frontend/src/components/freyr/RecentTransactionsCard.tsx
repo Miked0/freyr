@@ -13,7 +13,7 @@ export function RecentTransactionsCard() {
       {items.length > 0 ? (
         <TransactionList items={items} />
       ) : (
-        <p style={{ margin: 0, color: 'var(--ink-muted)' }}>Nenhum lançamento por aqui ainda. Importe um extrato para começar.</p>
+        <p style={{ margin: 0, color: 'var(--ink-muted)' }}>Seus lançamentos aparecem aqui assim que o primeiro extrato chegar.</p>
       )}
     </BentoCard>
   );

@@ -47,7 +47,7 @@ describe('GoalsPage', () => {
   it('explains what a goal is when there are none', () => {
     useGoals.setState({ goals: [] });
     render(<GoalsPage />);
-    expect(screen.getByText(/nenhuma meta ainda/i)).toBeInTheDocument();
+    expect(screen.getByText(/toda conquista começa/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Criar meta' })).toBeInTheDocument();
   });
 

@@ -27,19 +27,19 @@ describe('OverviewPage', () => {
   it('lays out the overview panel without the full transaction list', () => {
     render(<OverviewPage />);
     expect(screen.getByText('Visão geral', { selector: 'b' }).parentElement).toHaveTextContent('Finanças / Visão geral');
-    expect(screen.getByRole('heading', { level: 1, name: 'Visão geral financeira' })).toBeInTheDocument();
-    expect(screen.getByText('Nos últimos 30 dias entrou mais do que saiu. Boa colheita.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Seu dinheiro hoje' })).toBeInTheDocument();
+    expect(screen.getByText('Nos últimos 30 dias sobrou dinheiro. Boa colheita.')).toBeInTheDocument();
     const period = screen.getByRole('combobox', { name: 'Período' });
     expect(period).toHaveValue('30d');
     expect([...period.querySelectorAll('option')].map(o => o.textContent)).toEqual(['Últimos 30 dias', 'Setembro 2026', 'Agosto 2026']);
     const titles = screen.getAllByRole('heading', { level: 2 }).map(h => h.textContent);
-    expect(titles).toEqual(['Fluxo de caixa', 'Importar extrato', 'Metas', 'Transações recentes', 'Para onde foi']);
+    expect(titles).toEqual(['Fluxo de caixa', 'Novo extrato', 'Metas', 'Transações recentes', 'Para onde foi']);
   });
 
   it('keeps the import box and drops the header import button', () => {
     render(<OverviewPage />);
-    expect(document.getElementById('importar')).toHaveTextContent('Importar extrato');
-    expect(screen.queryByRole('button', { name: 'Importar extrato' })).not.toBeInTheDocument();
+    expect(document.getElementById('importar')).toHaveTextContent('Novo extrato');
+    expect(screen.queryByRole('button', { name: 'Novo extrato' })).not.toBeInTheDocument();
   });
 
   it('points "Ver extrato" and the summary links to the transactions page', () => {
@@ -61,6 +61,6 @@ describe('OverviewPage', () => {
     fireEvent.change(screen.getByRole('combobox', { name: 'Período' }), { target: { value: '2026-08' } });
     const spending = screen.getByRole('heading', { level: 3, name: 'Saídas' }).closest('section')!;
     expect(spending.querySelector('.fr-sum-value')?.textContent?.replace(/\s/g, ' ')).toBe('R$ 500,00');
-    expect(screen.getByText('Agosto saiu mais do que entrou. Hora de ajustar.')).toBeInTheDocument();
+    expect(screen.getByText('Agosto saiu mais do que entrou. Dá para virar esse jogo.')).toBeInTheDocument();
   });
 });

@@ -16,7 +16,7 @@ export interface OverviewPageProps {
   onImported?: () => void;
 }
 
-/** The "Visão geral financeira" screen of the Freyr 2.0 design system, fed by the user's entries. */
+/** The "Seu dinheiro hoje" screen of the Freyr 2.0 design system, fed by the user's entries. */
 export function OverviewPage({ onImported }: OverviewPageProps) {
   const { expenses } = useExpenses();
   // The last 30 days, then the months with entries, newest first; the cards follow the one picked in the header.
@@ -40,7 +40,7 @@ export function OverviewPage({ onImported }: OverviewPageProps) {
     <>
       <PageHeader
         page="Visão geral"
-        title="Visão geral financeira"
+        title="Seu dinheiro hoje"
         phrase={phrase}
         periodLabel={summary ? periods.find(p => p.key === period)?.label : undefined}
         period={period}
