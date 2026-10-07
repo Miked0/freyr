@@ -35,3 +35,10 @@ export function contrastRatio(foreground: string, background: string): number {
   const [hi, lo] = [luminance(seen), luminance(bg)].sort((x, y) => y - x);
   return (hi + 0.05) / (lo + 0.05);
 }
+
+/** Flattens translucent layers into the opaque color you see: the first layer is on top, the last is the opaque base. */
+export function blend(...layers: string[]): string {
+  const [base, ...above] = layers.map(parse).reverse();
+  const seen = above.reduce<Rgba>((under, [r, g, b, a]) => [r * a + under[0] * (1 - a), g * a + under[1] * (1 - a), b * a + under[2] * (1 - a), 1], base);
+  return `rgb(${seen.slice(0, 3).map(Math.round).join(' ')})`;
+}

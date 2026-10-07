@@ -197,7 +197,7 @@ export function GoalsPage() {
     );
   } else if (goals.length === 0) {
     list = (
-      <p style={muted}>Nenhuma meta ainda. Escolha um objetivo, diga quanto quer juntar e registre cada valor que guardar.</p>
+      <p style={muted}>Toda conquista começa com um número. Escolha um objetivo, diga quanto quer juntar e registre cada valor que guardar.</p>
     );
   } else {
     list = (

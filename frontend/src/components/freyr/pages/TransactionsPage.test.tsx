@@ -18,7 +18,7 @@ describe('TransactionsPage', () => {
   it('shows the full list in a full-width card', () => {
     render(<TransactionsPage />);
     expect(screen.getByText('Transações', { selector: 'b' }).parentElement).toHaveTextContent('Finanças / Transações');
-    expect(screen.getByRole('heading', { level: 1, name: 'Todas as transações' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Seu extrato' })).toBeInTheDocument();
     const card = screen.getByText('Mercado do bairro').closest('section');
     expect(card).toHaveClass('fr-card', 'fr-span-12');
     expect(screen.getByText('Aluguel')).toBeInTheDocument();

@@ -22,8 +22,8 @@ export function GoalsCard() {
   } else if (goals.length === 0) {
     body = (
       <div className="grid gap-3 justify-items-start">
-        <p style={muted}>Nenhuma meta ainda. Defina quanto quer juntar e acompanhe aqui.</p>
-        <TextLink href="#/metas">Criar meta</TextLink>
+        <p style={muted}>Viagem, reserva, carro novo: crie uma meta e veja quanto falta.</p>
+        <TextLink href="#/metas">Criar minha primeira meta</TextLink>
       </div>
     );
   } else {

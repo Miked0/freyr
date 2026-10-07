@@ -4,9 +4,9 @@ import { PageHeader } from './PageHeader';
 
 describe('PageHeader', () => {
   it('shows the crumb, title and phrase', () => {
-    render(<PageHeader page="Visão geral" title="Visão geral financeira" phrase="Setembro rendeu mais do que saiu. Boa colheita." />);
+    render(<PageHeader page="Visão geral" title="Seu dinheiro hoje" phrase="Setembro rendeu mais do que saiu. Boa colheita." />);
     expect(screen.getByText('Visão geral', { selector: 'b' }).parentElement).toHaveTextContent('Finanças / Visão geral');
-    expect(screen.getByRole('heading', { level: 1, name: 'Visão geral financeira' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Seu dinheiro hoje' })).toBeInTheDocument();
     expect(screen.getByText('Setembro rendeu mais do que saiu. Boa colheita.')).toBeInTheDocument();
   });
 

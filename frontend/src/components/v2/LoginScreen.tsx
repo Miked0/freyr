@@ -1,5 +1,5 @@
 import React, { useState, type FormEvent } from 'react';
-import { AlertCircle, Lock, User, Eye, EyeOff, ShieldCheck, X } from 'lucide-react';
+import { AlertCircle, Lock, User, Eye, EyeOff, ShieldCheck, X, FileText, Tags, Sprout } from 'lucide-react';
 import PillButton from '@/components/ui/PillButton';
 import Spinner from '@/components/ui/Spinner';
 import { Logo } from '@/components/Hero';
@@ -9,6 +9,13 @@ import { legalHref } from '@/legal/content';
 // Legal links stay in the text color: the consent sentence marks them with a soft underline, the footer row only on hover.
 const consentLink = 'text-on-text-muted underline decoration-on-text-control underline-offset-4 hover:text-surface hover:decoration-surface transition-colors';
 const quietLink = 'inline-block py-1 text-on-text-muted no-underline hover:text-surface hover:underline underline-offset-4 transition-colors';
+
+// What a visitor gets, in the order they live it: send the file, see it sorted, watch the month.
+const perks = [
+  { icon: FileText, text: 'Lê o extrato do seu banco em PDF ou CSV' },
+  { icon: Tags, text: 'Separa cada gasto por categoria e aprende com suas correções' },
+  { icon: Sprout, text: 'Mostra quanto sobra no mês e quanto falta para cada meta' },
+];
 
 interface TextInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
@@ -111,16 +118,18 @@ export default function LoginScreenV2({ onSuccess }: { onSuccess: () => void }) 
   };
 
   return (
-    <main className="on-text bg-text text-surface min-h-screen flex flex-col">
+    <main className="on-text fr-sky bg-text text-surface min-h-screen flex flex-col">
+      <div className="fr-sky-layer" aria-hidden="true" />
       <div className="max-w-[1240px] w-full mx-auto px-5 sm:px-10 py-6">
         <Logo className="text-[34px]" />
       </div>
       <div className="flex-1 flex items-center">
-        <div className="max-w-[1240px] w-full mx-auto px-5 sm:px-10 pb-24 grid gap-12 lg:grid-cols-[1.3fr_1fr] items-end">
-          <h1 className="display text-[56px] sm:text-[88px]">
-            Seus gastos, <span className="keyword">só seus</span>.
+        {/* Headline, form, pitch: the order a phone shows them. On wide screens the pitch slides under the headline. */}
+        <div className="max-w-[1240px] w-full mx-auto px-5 sm:px-10 pb-24 grid gap-x-12 gap-y-10 lg:gap-y-6 lg:grid-cols-[1.3fr_1fr]">
+          <h1 className="display text-[44px] sm:text-[64px] lg:self-end">
+            Envie o extrato.<br /> O Freyr <span className="keyword">organiza o resto</span>.
           </h1>
-          <form onSubmit={submit} className="max-w-md w-full">
+          <form onSubmit={submit} className="lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:self-center max-w-md w-full">
             {/* A bordered track around both options, so the unselected one still reads as a button (WCAG 1.4.11). */}
             <div role="group" aria-label="Entrar ou criar conta" className="flex gap-1 p-1 mb-6 rounded-full border border-on-text-control">
               {([false, true] as const).map(register => {
@@ -135,7 +144,7 @@ export default function LoginScreenV2({ onSuccess }: { onSuccess: () => void }) 
                       on ? 'bg-brand-primary-light text-text' : 'bg-transparent text-surface hover:bg-on-text-line'
                     }`}
                   >
-                    {register ? 'Cadastrar' : 'Entrar'}
+                    {register ? 'Criar conta' : 'Entrar'}
                   </button>
                 );
               })}
@@ -156,7 +165,7 @@ export default function LoginScreenV2({ onSuccess }: { onSuccess: () => void }) 
 
             <div className="mb-4">
               <label htmlFor="password" className="block text-sm text-on-text-muted mb-2">
-                {isRegister ? 'Criar senha' : 'Senha de acesso'}
+                {isRegister ? 'Criar senha' : 'Senha'}
               </label>
               <div className="relative">
                 <Lock aria-hidden="true" className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-on-text-muted pointer-events-none" />
@@ -209,7 +218,7 @@ export default function LoginScreenV2({ onSuccess }: { onSuccess: () => void }) 
             {error && <Alert>{error}</Alert>}
 
             <PillButton type="submit" tone="light" disabled={!username || !password || (isRegister && !confirmPassword) || submitting} icon={submitting ? <Spinner size="sm" /> : undefined}>
-              {isRegister ? 'Criar conta' : 'Entrar'}
+              {isRegister ? 'Começar agora' : 'Entrar'}
             </PillButton>
 
             {!isRegister && (
@@ -223,6 +232,21 @@ export default function LoginScreenV2({ onSuccess }: { onSuccess: () => void }) 
               </nav>
             )}
           </form>
+          <div className="lg:col-start-1 lg:row-start-2">
+            <p className="max-w-xl text-lg text-on-text-muted">
+              Seu dinheiro em ordem sem planilha e sem digitar nada. Você vê para onde vai cada real e decide o próximo passo.
+            </p>
+            <ul aria-label="O que o Freyr faz por você" className="mt-8 grid gap-3 max-w-xl">
+              {perks.map(({ icon: PerkIcon, text }) => (
+                <li key={text} className="flex items-center gap-3 text-[15px] text-surface">
+                  <span className="flex-none grid place-items-center h-8 w-8 rounded-full border border-on-text-line text-brand-primary-light">
+                    <PerkIcon className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                  {text}
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </div>
     </main>

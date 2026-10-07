@@ -12,7 +12,7 @@ export function TopCategoriesCard() {
       {data.length > 0 ? (
         <BarChart data={data} label="Maiores gastos do mês" />
       ) : (
-        <p style={{ margin: 0, color: 'var(--ink-muted)' }}>Nenhum gasto no mês ainda.</p>
+        <p style={{ margin: 0, color: 'var(--ink-muted)' }}>Nenhum gasto neste mês até agora.</p>
       )}
     </BentoCard>
   );

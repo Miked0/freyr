@@ -51,7 +51,7 @@ export function DeleteAccount({ onDeleted }: { onDeleted: () => void }) {
       <style href="freyr-privacy" precedence="default">{css}</style>
       <div className="fr-privacy-seal">
         <span className="fr-privacy-seal-icon" aria-hidden="true"><ShieldCheck size={16} strokeWidth={2} /></span>
-        <p>Suas descrições ficam cifradas com uma chave só sua.</p>
+        <p>Suas descrições são cifradas com uma chave exclusiva da sua conta.</p>
       </div>
       <ul className="fr-privacy-docs">
         {DOCS.map(key => (

@@ -16,7 +16,7 @@ export function SpendingCard({ id }: SpendingCardProps) {
       {data.length > 0 ? (
         <DonutChart data={data} centerLabel="Saídas" />
       ) : (
-        <p style={{ margin: 0, color: 'var(--ink-muted)' }}>Nenhum gasto no mês ainda.</p>
+        <p style={{ margin: 0, color: 'var(--ink-muted)' }}>Nenhum gasto neste mês até agora.</p>
       )}
     </BentoCard>
   );

@@ -60,7 +60,7 @@ export default function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
       <div className="flex-1 flex items-center">
         <div className="max-w-[1240px] w-full mx-auto px-5 sm:px-10 pb-24 grid gap-12 lg:grid-cols-[1.3fr_1fr] items-end">
           <h1 className="display text-[56px] sm:text-[88px]">
-            Seus gastos, <span className="keyword">só seus</span>.
+            Envie o extrato. O Freyr <span className="keyword">organiza o resto</span>.
           </h1>
           <form onSubmit={submit} className="max-w-md w-full">
             <div className="flex gap-2 mb-6">

@@ -9,7 +9,7 @@ describe('ImportCard', () => {
     const section = container.querySelector('section')!;
     expect(section).toHaveClass('fr-card');
     expect(section).toHaveAttribute('id', 'importar');
-    expect(screen.getByRole('heading', { name: 'Importar extrato' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Novo extrato' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: /envio de extrato/i })).toBeInTheDocument();
   });
 });

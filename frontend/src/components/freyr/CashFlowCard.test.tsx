@@ -69,6 +69,6 @@ describe('CashFlowCard', () => {
     useExpenses.setState({ expenses: [] });
     const { container } = render(<CashFlowCard />);
     expect(container.querySelector('figure')).toBeNull();
-    expect(screen.getByText(/importe um extrato/i)).toBeInTheDocument();
+    expect(screen.getByText(/envie um extrato/i)).toBeInTheDocument();
   });
 });

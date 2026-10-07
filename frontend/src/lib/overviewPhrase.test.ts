@@ -22,12 +22,12 @@ describe('overviewPhrase', () => {
   });
 
   it('nudges when the month spent more than it brought in', () => {
-    expect(overviewPhrase(1000, 1500, 'Outubro')).toBe('Outubro saiu mais do que entrou. Hora de ajustar.');
+    expect(overviewPhrase(1000, 1500, 'Outubro')).toBe('Outubro saiu mais do que entrou. Dá para virar esse jogo.');
   });
 
   it('asks for a statement when there is no data', () => {
-    expect(overviewPhrase(0, 0, 'Setembro')).toBe('Envie um extrato para começar.');
-    expect(overviewPhrase(0, 0)).toBe('Envie um extrato para começar.');
+    expect(overviewPhrase(0, 0, 'Setembro')).toBe('Envie seu primeiro extrato e veja o mês tomar forma.');
+    expect(overviewPhrase(0, 0)).toBe('Envie seu primeiro extrato e veja o mês tomar forma.');
   });
 
   it('says the month broke even when income equals spending', () => {
@@ -37,9 +37,9 @@ describe('overviewPhrase', () => {
 
 describe('last30Phrase', () => {
   it('speaks of the last 30 days', () => {
-    expect(last30Phrase(3000, 500)).toBe('Nos últimos 30 dias entrou mais do que saiu. Boa colheita.');
-    expect(last30Phrase(500, 3000)).toBe('Nos últimos 30 dias saiu mais do que entrou. Hora de ajustar.');
-    expect(last30Phrase(100, 100)).toBe('Nos últimos 30 dias entrou o mesmo que saiu.');
-    expect(last30Phrase(0, 0)).toBe('Envie um extrato para começar.');
+    expect(last30Phrase(3000, 500)).toBe('Nos últimos 30 dias sobrou dinheiro. Boa colheita.');
+    expect(last30Phrase(500, 3000)).toBe('Nos últimos 30 dias saiu mais do que entrou. Dá para virar esse jogo.');
+    expect(last30Phrase(100, 100)).toBe('Nos últimos 30 dias tudo o que entrou, saiu. Empate técnico.');
+    expect(last30Phrase(0, 0)).toBe('Envie seu primeiro extrato e veja o mês tomar forma.');
   });
 });
