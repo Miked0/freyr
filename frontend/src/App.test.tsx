@@ -37,7 +37,7 @@ describe('App', () => {
     stubApi(loggedIn);
     vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
     render(<App />);
-    await screen.findByRole('heading', { level: 1, name: 'Visão geral financeira' }, { timeout: 3000 });
+    await screen.findByRole('heading', { level: 1, name: 'Seu dinheiro hoje' }, { timeout: 3000 });
 
     window.location.hash = '#/termos';
     window.dispatchEvent(new HashChangeEvent('hashchange'));
@@ -51,7 +51,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Visão geral financeira' }, { timeout: 3000 })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Seu dinheiro hoje' }, { timeout: 3000 })).toBeInTheDocument();
   });
 
   it('switches pages from the side nav', async () => {
@@ -61,8 +61,8 @@ describe('App', () => {
     render(<App />);
     fireEvent.click(await screen.findByRole('link', { name: /^Transações/ }, { timeout: 3000 }));
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Todas as transações' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Visão geral financeira' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Seu extrato' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Seu dinheiro hoje' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /^Transações/ })).toHaveAttribute('aria-current', 'page');
   });
 

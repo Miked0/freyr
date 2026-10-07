@@ -96,7 +96,7 @@ export function Dropzone({ onComplete }: DropzoneProps) {
           data-testid="statement-input"
         />
         <CategoryTag tone="muted">Importar</CategoryTag>
-        <p className="fr-drop-title">{isDragging ? 'Solte o arquivo aqui' : 'Anexe ou arraste seu arquivo para iniciar a análise'}</p>
+        <p className="fr-drop-title">{isDragging ? 'Pode soltar, a gente cuida do resto' : 'Arraste aqui o extrato do seu banco'}</p>
         <p className="fr-drop-hint">Extratos PDF ou CSV · até 4 MB</p>
         <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploading !== null}>
           <Icon name="import" size={16} />

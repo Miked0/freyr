@@ -50,7 +50,7 @@ export function CashFlowCard() {
       {data.length ? (
         <CashFlowChart key={view} data={data} mode="all" height={370} defaultIndex={data.length - 1} />
       ) : (
-        <p className="m-0 text-sm text-[color:var(--ink-muted)]">Importe um extrato para ver suas entradas e saídas aqui.</p>
+        <p className="m-0 text-sm text-[color:var(--ink-muted)]">Envie um extrato e veja, mês a mês, o que entra e o que sai.</p>
       )}
     </BentoCard>
   );

@@ -1,0 +1,34 @@
+import { describe, it, expect } from 'vitest';
+import { blend, contrastRatio } from './contrast';
+
+describe('contrastRatio', () => {
+  it('is 21:1 between black and white, in either order', () => {
+    expect(contrastRatio('#000000', '#FFFFFF')).toBeCloseTo(21, 5);
+    expect(contrastRatio('#FFFFFF', '#000000')).toBeCloseTo(21, 5);
+  });
+
+  it('matches the WCAG reference for the brand primary on the light surface', () => {
+    expect(contrastRatio('#5B5A96', '#F7F6F3')).toBeCloseTo(5.8, 1);
+  });
+
+  it('blends a translucent foreground over the background before measuring', () => {
+    // 45% ink over paper reads as a mid grey, not as solid ink.
+    expect(contrastRatio('rgba(30, 28, 26, 0.45)', '#F7F6F3')).toBeCloseTo(2.81, 1);
+    expect(contrastRatio('rgb(30 28 26 / 0.5)', '#F7F6F3')).toBeCloseTo(3.23, 1);
+  });
+
+  it('accepts short hex', () => {
+    expect(contrastRatio('#000', '#fff')).toBeCloseTo(21, 5);
+  });
+});
+
+describe('blend', () => {
+  it('lays a translucent color over an opaque one and returns the opaque result', () => {
+    expect(blend('rgba(0, 0, 0, 0.5)', '#FFFFFF')).toBe('rgb(128 128 128)');
+    expect(blend('#5B5A96', '#F7F6F3')).toBe('rgb(91 90 150)');
+  });
+
+  it('stacks several layers, the first one on top and the opaque base last', () => {
+    expect(blend('rgba(255, 255, 255, 0.5)', 'rgba(0, 0, 0, 0.5)', '#FFFFFF')).toBe('rgb(191 191 191)');
+  });
+});

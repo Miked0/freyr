@@ -6,7 +6,10 @@ import { useExpenses } from '@/store/expenses';
 import { formatBRL, formatDate, parseAmountInput, toCsv, type Expense } from '@/lib/finance';
 import { categoryColor } from '@/lib/categoryColors';
 import { downloadText, todayStamp } from '@/lib/download';
-import type { ExpensePatch } from '@/api';
+import { api, type ExpensePatch } from '@/api';
+
+/** The category select's option that asks for a new category's name. */
+export const NEW_CATEGORY = '__nova__';
 
 type SortKey = 'date' | 'description' | 'category' | 'amount';
 
@@ -15,7 +18,7 @@ const SORT_LABELS: Record<SortKey, string> = { date: 'Data', description: 'Descr
 const signed = (e: Pick<Expense, 'amount' | 'type'>) => (e.type === 'income' ? e.amount : -e.amount);
 
 export function TransactionList() {
-  const { expenses, categories: knownCategories, status, error: loadError, load, update, remove } = useExpenses();
+  const { expenses, categories: knownCategories, status, error: loadError, load, update, remove, addCategory } = useExpenses();
   const [actionError, setActionError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -23,7 +26,7 @@ export function TransactionList() {
   const [dateTo, setDateTo] = useState('');
   const [sort, setSort] = useState<{ key: SortKey; direction: 'asc' | 'desc' }>({ key: 'date', direction: 'desc' });
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<{ description: string; amount: string; category: string; type: Expense['type'] }>({ description: '', amount: '', category: '', type: 'expense' });
+  const [editForm, setEditForm] = useState<{ description: string; amount: string; category: string; newCategory: string; type: Expense['type'] }>({ description: '', amount: '', category: '', newCategory: '', type: 'expense' });
   const [saving, setSaving] = useState(false);
 
   const usedCategories = useMemo(() => Array.from(new Set(expenses.map(e => e.category))).sort(), [expenses]);
@@ -92,6 +95,7 @@ export function TransactionList() {
       description: expense.description,
       amount: Math.abs(expense.amount).toFixed(2).replace('.', ','),
       category: expense.category,
+      newCategory: '',
       type: expense.type,
     });
   };
@@ -104,6 +108,11 @@ export function TransactionList() {
     }
     if (!Number.isFinite(amount) || amount <= 0) {
       setActionError('Informe um valor maior que zero.');
+      return;
+    }
+    const creating = editForm.category === NEW_CATEGORY;
+    if (creating && !editForm.newCategory.trim()) {
+      setActionError('Dê um nome à nova categoria.');
       return;
     }
 
@@ -123,6 +132,11 @@ export function TransactionList() {
     setSaving(true);
     try {
       setActionError(null);
+      // The new category is created first; the entry then moves to it like to any other.
+      if (creating) {
+        patch.category = (await api.createCategory(editForm.newCategory.trim())).name;
+        addCategory(patch.category);
+      }
       await update(expense.id, patch);
       setEditingId(null);
     } catch (err) {
@@ -277,7 +291,20 @@ export function TransactionList() {
                           aria-label="Categoria"
                         >
                           {categoryOptions.map(cat => <option key={cat} value={cat}>{cat.toUpperCase()}</option>)}
+                          <option value={NEW_CATEGORY}>+ Nova categoria…</option>
                         </select>
+                      ) : null}
+                      {isEditing && editForm.category === NEW_CATEGORY ? (
+                        <input
+                          value={editForm.newCategory}
+                          onChange={e => setEditForm(prev => ({ ...prev, newCategory: e.target.value }))}
+                          className="input !py-2 !w-44 ml-2"
+                          aria-label="Nome da nova categoria"
+                          placeholder="Nome da categoria"
+                          maxLength={40}
+                          onKeyDown={onEditKey(expense)}
+                          autoFocus
+                        />
                       ) : null}
                       {isEditing ? (
                         <select

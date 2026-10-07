@@ -3,7 +3,7 @@
 /** Who answers for the data (controlador e encarregado, LGPD arts. 5º VI e 41). */
 export const RESPONSAVEL = 'Michael Douglas Bessa Alves';
 export const CONTATO = 'dev.miked0@gmail.com';
-export const ATUALIZADO_EM = '02/10/2026';
+export const ATUALIZADO_EM = '06/10/2026';
 
 export type LegalDocKey = 'privacidade' | 'termos' | 'lgpd';
 
@@ -38,6 +38,7 @@ export const LEGAL_DOCS: Record<LegalDocKey, LegalDoc> = {
           '• Conta: nome de usuário, senha (guardada só como hash bcrypt, nunca em texto), nome de exibição, cor do avatar e meta de gasto mensal.',
           '• Transações: data, valor, descrição, categoria, se é entrada ou saída e o nome do arquivo de onde vieram.',
           '• Metas que você cadastra.',
+          '• Categorias que você cria e, quando você coloca uma transação numa delas, o nome da loja dessa transação.',
           '• Sessão: um cookie essencial que mantém você conectado por até 30 dias. Não usamos cookies de publicidade nem de rastreamento.',
           '• Endereço IP: usado só em memória, por alguns minutos, para limitar tentativas de login. Não é gravado no banco. O provedor de hospedagem pode registrá-lo em logs técnicos.',
           'Os extratos e faturas que você envia são lidos em memória e descartados logo após a importação. O Freyr não guarda o arquivo, nem a linha original de cada lançamento.',
@@ -48,6 +49,7 @@ export const LEGAL_DOCS: Record<LegalDocKey, LegalDoc> = {
         body: [
           'Para mostrar seus gastos, entradas, categorias e metas; sugerir a categoria de cada transação; reconhecer transações já importadas; e manter sua conta segura.',
           'A base legal é a execução do contrato com você, que é o uso do Freyr (art. 7º, V). A proteção contra acessos indevidos usa o legítimo interesse (art. 7º, IX). Não vendemos dados, não fazemos publicidade e não traçamos perfil de consumo para terceiros.',
+          'Para melhorar as categorias que o Freyr sugere a todos, guardamos o nome de cada categoria que você cria junto com o nome da loja que você colocou nela, por exemplo "petz" em "Pets da Luna". Guardamos só isso: nenhum valor, data, descrição completa ou nome de arquivo. Documentos e números de conta são mascarados, e transferências como Pix e TED, que trazem o nome de uma pessoa, ficam de fora. Esse uso se apoia no legítimo interesse (art. 7º, IX, e art. 10) e é sempre analisado em conjunto, contando quantas contas fizeram a mesma escolha. Não crie categorias com dados pessoais, como nomes de pessoas.',
         ],
       },
       {
@@ -63,13 +65,14 @@ export const LEGAL_DOCS: Record<LegalDocKey, LegalDoc> = {
         heading: 'Como protegemos',
         body: [
           'Cada conta tem uma chave de dados própria. As descrições e os nomes de arquivo são gravados cifrados com AES-256-GCM, e a chave de cada conta fica cifrada por uma chave mestra que não é guardada no banco. As buscas por descrição usam tokens HMAC, então o banco não guarda esses textos em lugar nenhum.',
+          'Os nomes de categorias e as lojas guardadas com elas não são cifrados, porque o Freyr precisa lê-los para melhorar as sugestões. Por isso eles não levam valores nem a descrição completa.',
           'O tráfego usa HTTPS e cada usuário só acessa as próprias transações. Mesmo assim, nenhum sistema é totalmente imune. Se houver um incidente que traga risco a você, avisaremos você e a ANPD (art. 48).',
         ],
       },
       {
         heading: 'Por quanto tempo guardamos',
         body: [
-          'Enquanto sua conta existir. Você pode excluir transações a qualquer momento. Ao excluir a conta no Perfil, apagamos na hora a conta, as transações, as categorias, as correções, as metas e a chave de dados. Cópias de segurança do provedor do banco podem existir por um período curto e já guardam esses dados cifrados.',
+          'Enquanto sua conta existir. Você pode excluir transações a qualquer momento. Ao apagar uma categoria criada por você, esquecemos também as lojas guardadas para ela. Ao excluir a conta no Perfil, apagamos na hora a conta, as transações, as categorias, as lojas guardadas com elas, as correções, as metas e a chave de dados. Cópias de segurança do provedor do banco podem existir por um período curto e já guardam esses dados cifrados.',
         ],
       },
       {

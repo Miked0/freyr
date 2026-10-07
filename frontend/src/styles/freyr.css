@@ -13,7 +13,7 @@
 @property --bar-neutral { syntax: '<color>'; inherits: true; initial-value: #1E1C1A; }
 @property --grid { syntax: '<color>'; inherits: true; initial-value: rgba(30, 28, 26, 0.10); }
 @property --line { syntax: '<color>'; inherits: true; initial-value: rgba(30, 28, 26, 0.15); }
-@property --line-strong { syntax: '<color>'; inherits: true; initial-value: rgba(30, 28, 26, 0.45); }
+@property --line-strong { syntax: '<color>'; inherits: true; initial-value: rgba(30, 28, 26, 0.5); }
 @property --brand-primary { syntax: '<color>'; inherits: true; initial-value: #5B5A96; }
 @property --brand-primary-hover { syntax: '<color>'; inherits: true; initial-value: #484776; }
 @property --on-brand { syntax: '<color>'; inherits: true; initial-value: #F7F6F3; }
@@ -27,11 +27,15 @@
 @property --alert-soft { syntax: '<color>'; inherits: true; initial-value: #F6E4DE; }
 @property --alert-deep { syntax: '<color>'; inherits: true; initial-value: #A0452F; }
 @property --skeleton { syntax: '<color>'; inherits: true; initial-value: rgba(30, 28, 26, 0.08); }
+@property --backdrop-glow-a { syntax: '<color>'; inherits: true; initial-value: rgba(255, 196, 140, 0.4); }
+@property --backdrop-glow-b { syntax: '<color>'; inherits: true; initial-value: rgba(214, 210, 252, 0.5); }
+@property --backdrop-ridge { syntax: '<color>'; inherits: true; initial-value: rgba(30, 28, 26, 0.05); }
 
 :root {
   --background: #F7F6F3;
   --ink: #1E1C1A;
-  --ink-muted: #6B6660;
+  /* Darker than the bundle's #6B6660 so muted text keeps AA over the backdrop's sun glow. */
+  --ink-muted: #625D57;
   --surface: #F7F6F3;
   --hero: #2F2E55;
   --on-hero: #F7F6F3;
@@ -42,7 +46,8 @@
   --bar-neutral: #1E1C1A;
   --grid: rgba(30, 28, 26, 0.10);
   --line: rgba(30, 28, 26, 0.15);
-  --line-strong: rgba(30, 28, 26, 0.45);
+  /* Input and dropzone borders: 3.2:1 on paper (WCAG 1.4.11). */
+  --line-strong: rgba(30, 28, 26, 0.5);
   --brand-primary: #5B5A96;
   --brand-primary-hover: #484776;
   --on-brand: #F7F6F3;
@@ -56,6 +61,12 @@
   --alert-soft: #F6E4DE;
   --alert-deep: #A0452F;
   --skeleton: rgba(30, 28, 26, 0.08);
+  /* Backdrop (index.css .fr-backdrop): the harvest sun in the corner, a violet dusk opposite it and the fjord ridges.
+     Light, saturated tints by day and deep ones at night, so the color shows without eating text contrast;
+     themeContrast.test.ts checks text over the strongest spot. */
+  --backdrop-glow-a: rgba(255, 196, 140, 0.4);
+  --backdrop-glow-b: rgba(214, 210, 252, 0.5);
+  --backdrop-ridge: rgba(30, 28, 26, 0.05);
   --link: var(--brand-primary);
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -76,7 +87,7 @@
   --font-accent: 'Petrona', Georgia, serif;
   /* Theme glide: the registered colors below interpolate, so every element reading them changes in step. */
   --theme-glide: 900ms cubic-bezier(.65, 0, .35, 1);
-  transition: --background var(--theme-glide), --ink var(--theme-glide), --ink-muted var(--theme-glide), --surface var(--theme-glide), --hero var(--theme-glide), --on-hero var(--theme-glide), --hero-muted var(--theme-glide), --frost var(--theme-glide), --series-a-dim var(--theme-glide), --series-b-dim var(--theme-glide), --bar-neutral var(--theme-glide), --grid var(--theme-glide), --line var(--theme-glide), --line-strong var(--theme-glide), --brand-primary var(--theme-glide), --brand-primary-hover var(--theme-glide), --on-brand var(--theme-glide), --brand-warm var(--theme-glide), --brand-warm-deep var(--theme-glide), --on-warm var(--theme-glide), --positive var(--theme-glide), --positive-soft var(--theme-glide), --positive-deep var(--theme-glide), --alert var(--theme-glide), --alert-soft var(--theme-glide), --alert-deep var(--theme-glide), --skeleton var(--theme-glide);
+  transition: --background var(--theme-glide), --ink var(--theme-glide), --ink-muted var(--theme-glide), --surface var(--theme-glide), --hero var(--theme-glide), --on-hero var(--theme-glide), --hero-muted var(--theme-glide), --frost var(--theme-glide), --series-a-dim var(--theme-glide), --series-b-dim var(--theme-glide), --bar-neutral var(--theme-glide), --grid var(--theme-glide), --line var(--theme-glide), --line-strong var(--theme-glide), --brand-primary var(--theme-glide), --brand-primary-hover var(--theme-glide), --on-brand var(--theme-glide), --brand-warm var(--theme-glide), --brand-warm-deep var(--theme-glide), --on-warm var(--theme-glide), --positive var(--theme-glide), --positive-soft var(--theme-glide), --positive-deep var(--theme-glide), --alert var(--theme-glide), --alert-soft var(--theme-glide), --alert-deep var(--theme-glide), --skeleton var(--theme-glide), --backdrop-glow-a var(--theme-glide), --backdrop-glow-b var(--theme-glide), --backdrop-ridge var(--theme-glide);
 }
 
 /* Dark "Fiorde" theme, switched by ThemeToggle through data-theme on <html>. */
@@ -108,6 +119,10 @@
   --alert-soft: #3A2321;
   --alert-deep: #F09A84;
   --skeleton: rgba(234, 241, 244, 0.07);
+  /* At night the sun's corner turns into aurora and the dusk into frost light over the fjord. */
+  --backdrop-glow-a: rgba(70, 56, 170, 0.35);
+  --backdrop-glow-b: rgba(20, 100, 120, 0.3);
+  --backdrop-ridge: rgba(234, 241, 244, 0.06);
   --focus-ring: 0 0 0 2px #152026, 0 0 0 4px #A4A2EE;
   --glow-aurora: 0 0 24px rgba(164, 162, 238, 0.35);
   --glow-frost: 0 0 24px rgba(168, 226, 250, 0.32);
@@ -259,6 +274,9 @@
 /* Wordmark */
 .fr-wordmark { display: inline-flex; align-items: center; gap: 0.35em; font-weight: 800; letter-spacing: 0.18em; line-height: 1; color: var(--ink); }
 .fr-wordmark svg { color: var(--brand-primary); }
+/* On the sign-in night panel: light name, and the light brand tint for the rune (brand-primary is only 2.7:1 there). */
+.on-text .fr-wordmark { color: var(--color-surface); }
+.on-text .fr-wordmark svg { color: var(--color-brand-primary-light); }
 
 /* CashFlowChart, dense (more than 8 periods) on narrow cards */
 @container (max-width: 560px) {

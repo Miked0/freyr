@@ -9,7 +9,7 @@ export interface ImportCardProps {
 
 export function ImportCard({ span, onComplete }: ImportCardProps) {
   return (
-    <BentoCard span={span} id="importar" title="Importar extrato">
+    <BentoCard span={span} id="importar" title="Novo extrato">
       <Dropzone onComplete={onComplete} />
     </BentoCard>
   );
